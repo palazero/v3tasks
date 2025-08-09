@@ -465,3 +465,58 @@ export type ID = string
  * 時間戳類型
  */
 export type Timestamp = Date
+
+// ============= 視圖配置 =============
+
+/**
+ * 篩選條件
+ */
+export interface FilterCondition {
+  field: string
+  operator: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'greater' | 'less' | 'between'
+  value: string | number | Date | Array<string | number>
+}
+
+/**
+ * 欄位配置
+ */
+export interface ColumnConfig {
+  key: string
+  label: string
+  description?: string
+  width?: number
+  visible: boolean
+  sortable?: boolean
+  resizable?: boolean
+}
+
+/**
+ * 視圖配置
+ */
+export interface ViewConfiguration {
+  viewType: ViewType | string
+  visibleColumns?: ColumnConfig[]
+  filters?: FilterCondition[]
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+  groupBy?: string
+  hideCompleted?: boolean
+  compactMode?: boolean
+  showSubtasks?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}
+
+/**
+ * 視圖預設配置
+ */
+export interface ViewPreset {
+  id: string
+  name: string
+  description?: string
+  configuration: ViewConfiguration
+  isSystem: boolean
+  createdBy?: string
+  createdAt: Date
+  updatedAt: Date
+}
