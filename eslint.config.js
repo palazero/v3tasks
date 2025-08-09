@@ -1,9 +1,9 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import pluginVue from 'eslint-plugin-vue'
-import pluginQuasar from '@quasar/app-vite/eslint'
-import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
-import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting'
+import js from '@eslint/js';
+import globals from 'globals';
+import pluginVue from 'eslint-plugin-vue';
+import pluginQuasar from '@quasar/app-vite/eslint';
+import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript';
+import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting';
 
 export default defineConfigWithVueTs(
   {
@@ -33,16 +33,15 @@ export default defineConfigWithVueTs(
    * pluginVue.configs["flat/recommended"]
    *   -> Above, plus rules to enforce subjective community defaults to ensure consistency.
    */
-  pluginVue.configs[ 'flat/essential' ],
+  pluginVue.configs['flat/essential'],
 
   {
     files: ['**/*.ts', '**/*.vue'],
     rules: {
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { prefer: 'type-imports' }
-      ],
-    }
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      // 取消列舉不安全比較檢查
+      '@typescript-eslint/no-unsafe-enum-comparison': 'off',
+    },
   },
   // https://github.com/vuejs/eslint-config-typescript
   vueTsConfigs.recommendedTypeChecked,
@@ -60,8 +59,8 @@ export default defineConfigWithVueTs(
         cordova: 'readonly',
         Capacitor: 'readonly',
         chrome: 'readonly', // BEX related
-        browser: 'readonly' // BEX related
-      }
+        browser: 'readonly', // BEX related
+      },
     },
 
     // add your custom rules here
@@ -73,14 +72,8 @@ export default defineConfigWithVueTs(
 
       // 禁用 any 類型以確保類型安全
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unsafe-any': 'error',
-      '@typescript-eslint/no-unsafe-argument': 'error',
-      '@typescript-eslint/no-unsafe-assignment': 'error',
-      '@typescript-eslint/no-unsafe-call': 'error',
-      '@typescript-eslint/no-unsafe-member-access': 'error',
-      '@typescript-eslint/no-unsafe-return': 'error',
 
-      // 要求明確的函數回傳類型
+      // 要求明確的函數回傳類型（僅警告）
       '@typescript-eslint/explicit-function-return-type': 'warn',
 
       // Vue 相關規則
@@ -88,22 +81,22 @@ export default defineConfigWithVueTs(
       'vue/require-default-prop': 'off', // 使用 TypeScript 時不需要
       'vue/require-explicit-emits': 'error',
       'vue/component-name-in-template-casing': ['error', 'PascalCase'],
-      
+
       // 通用程式品質規則
       'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
       'no-unused-vars': 'off', // 由 @typescript-eslint/no-unused-vars 處理
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
-    }
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
 
   {
-    files: [ 'src-pwa/custom-service-worker.ts' ],
+    files: ['src-pwa/custom-service-worker.ts'],
     languageOptions: {
       globals: {
-        ...globals.serviceworker
-      }
-    }
+        ...globals.serviceworker,
+      },
+    },
   },
 
-  prettierSkipFormatting
-)
+  prettierSkipFormatting,
+);

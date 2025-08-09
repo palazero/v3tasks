@@ -41,7 +41,7 @@ export const useUserStore = defineStore('user', () => {
 
       // 預設選擇第一個用戶（管理員）
       if (users.length > 0 && !currentUser.value) {
-        await switchUser(users[0].userId)
+        await switchUser(users[0]!.userId)
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '初始化用戶失敗'
@@ -98,75 +98,67 @@ export const useUserStore = defineStore('user', () => {
       return { allowed: true }
     }
 
-    // 根據不同的操作進行權限檢查
-    switch (action) {
-      case 'createProject':
-        return { allowed: true } // 所有用戶都可以建立專案
-
-      case 'editProject':
-      case 'deleteProject':
-      case 'manageMembers':
-        if (!resourceId) {
-          return { allowed: false, reason: '缺少資源 ID' }
-        }
-        const isOwner = await projectRepo.isOwner(resourceId, currentUserId.value)
-        return {
-          allowed: isOwner,
-          reason: isOwner ? undefined : '只有專案擁有者可以執行此操作'
-        }
-
-      case 'createTask':
-      case 'editTask':
-      case 'assignTask':
-        if (!resourceId) {
-          return { allowed: true } // 如果沒有指定專案，假設可以建立
-        }
-        const isMember = await projectRepo.isMember(resourceId, currentUserId.value)
-        return {
-          allowed: isMember,
-          reason: isMember ? undefined : '只有專案成員可以執行此操作'
-        }
-
-      case 'deleteTask':
-        if (!resourceId) {
-          return { allowed: false, reason: '缺少資源 ID' }
-        }
-        // 任務刪除需要是專案擁有者或任務建立者
-        // 這裡簡化為專案成員都可以刪除
-        const canDelete = await projectRepo.isMember(resourceId, currentUserId.value)
-        return {
-          allowed: canDelete,
-          reason: canDelete ? undefined : '沒有權限刪除此任務'
-        }
-
-      case 'createView':
-      case 'editView':
-      case 'deleteView':
-        // 視圖操作權限依據視圖類型和建立者
-        return { allowed: true } // 簡化處理
-
-      case 'createCustomField':
-      case 'editCustomField':
-      case 'deleteCustomField':
-        if (!resourceId) {
-          return { allowed: false, reason: '缺少資源 ID' }
-        }
-        const isFieldOwner = await projectRepo.isOwner(resourceId, currentUserId.value)
-        return {
-          allowed: isFieldOwner,
-          reason: isFieldOwner ? undefined : '只有專案擁有者可以管理自訂欄位'
-        }
-
-      case 'manageUsers':
-      case 'viewAllProjects':
-        return {
-          allowed: false,
-          reason: '需要管理員權限'
-        }
-
-      default:
-        return { allowed: false, reason: '未知的操作' }
+    // 根據不同的操作進行權限檢查 - 使用 if-else 提高可讀性
+    if (action === 'createProject') {
+      return { allowed: true } // 所有用戶都可以建立專案
     }
+
+    if (action === 'editProject' || action === 'deleteProject' || action === 'manageMembers') {
+      if (!resourceId) {
+        return { allowed: false, reason: '缺少資源 ID' }
+      }
+      const isOwner = await projectRepo.isOwner(resourceId, currentUserId.value)
+      return isOwner 
+        ? { allowed: true } 
+        : { allowed: false, reason: '只有專案擁有者可以執行此操作' }
+    }
+
+    if (action === 'createTask' || action === 'editTask' || action === 'assignTask') {
+      if (!resourceId) {
+        return { allowed: true } // 如果沒有指定專案，假設可以建立
+      }
+      const isMember = await projectRepo.isMember(resourceId, currentUserId.value)
+      return isMember 
+        ? { allowed: true } 
+        : { allowed: false, reason: '只有專案成員可以執行此操作' }
+    }
+
+    if (action === 'deleteTask') {
+      if (!resourceId) {
+        return { allowed: false, reason: '缺少資源 ID' }
+      }
+      // 任務刪除需要是專案擁有者或任務建立者
+      // 這裡簡化為專案成員都可以刪除
+      const canDelete = await projectRepo.isMember(resourceId, currentUserId.value)
+      return canDelete 
+        ? { allowed: true } 
+        : { allowed: false, reason: '沒有權限刪除此任務' }
+    }
+
+    if (action === 'createView' || action === 'editView' || action === 'deleteView') {
+      // 視圖操作權限依據視圖類型和建立者
+      return { allowed: true } // 簡化處理
+    }
+
+    if (action === 'createCustomField' || action === 'editCustomField' || action === 'deleteCustomField') {
+      if (!resourceId) {
+        return { allowed: false, reason: '缺少資源 ID' }
+      }
+      const isFieldOwner = await projectRepo.isOwner(resourceId, currentUserId.value)
+      return isFieldOwner 
+        ? { allowed: true } 
+        : { allowed: false, reason: '只有專案擁有者可以管理自訂欄位' }
+    }
+
+    if (action === 'manageUsers' || action === 'viewAllProjects') {
+      return {
+        allowed: false,
+        reason: '需要管理員權限'
+      }
+    }
+
+    // 預設情況
+    return { allowed: false, reason: '未知的操作' }
   }
 
   // 快速權限檢查（同步版本，用於 UI 顯示）

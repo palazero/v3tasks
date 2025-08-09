@@ -64,9 +64,27 @@ stores/
   - [x] 設定 ESLint 嚴格類型檢查
   - [x] 完成階段報告: `report_phase_0_foundation.md`
 
+- [x] **Phase 1: 核心功能** ✅ (2025-01-09)
+  - [x] 建立路由系統與基礎頁面 (AllTasks, ProjectView)
+  - [x] 實作任務 CRUD 基本功能 (TaskDialog, TaskItem 完整功能)
+  - [x] 建立視圖管理系統 (Tab 架構，列表視圖與儀表板視圖)
+  - [x] 完成任務分組與搜尋功能 (AllTasks 按專案分組)
+  - [x] 建立佔位符元件 (TableView, BoardView, GanttView)
+  - [x] 自訂日期時間選擇器 (Quasar v2 相容)
+  - [x] 完成階段報告: `report_phase_1_core.md`
+
+- [x] **Phase 2: 進階任務功能** ✅ (2025-01-09)
+  - [x] 實作巢狀任務結構 (NestedTaskItem.vue - 185 行遞迴組件)
+  - [x] 整合拖拉排序功能 (DraggableTaskList.vue - vue-draggable-plus)
+  - [x] 實作任務層級管理 (縮排/升級操作)
+  - [x] 建立任務依賴關係系統 (循環檢測、狀態管理)
+  - [x] 擴展 TaskStore 支援巢狀操作 (新增 9 個方法)
+  - [x] 建立 useNestedTasks 組合式函數 (343 行業務邏輯)
+  - [x] 建立 useTaskDependencies 組合式函數 (338 行依賴管理)
+  - [x] 更新 TaskListView 整合新功能
+  - [x] 完成階段報告: `report_phase_2_advanced_tasks.md`
+
 ### 準備開始
-- [ ] Phase 1: 核心功能（專案、任務、列表視圖）
-- [ ] Phase 2: 進階任務（巢狀、拖拉）
 - [ ] Phase 3: 多視圖系統
 - [ ] Phase 4: 自訂欄位
 - [ ] Phase 5: 甘特圖與儀表板
@@ -77,14 +95,32 @@ stores/
 - `/req.md` - 完整需求規格書
 - `/CLAUDE.md` - 本檔案，開發記憶
 - `/report_phase_0_foundation.md` - Phase 0 完成報告
+- `/report_phase_1_core.md` - Phase 1 完成報告
+- `/report_phase_2_advanced_tasks.md` - Phase 2 完成報告
 
 ### 核心元件
 - `/src/types/index.ts` - 完整類型定義 (376 行)
 - `/src/services/` - 資料存取層 (Dexie + Repository)
-- `/src/stores/user.ts` - 用戶狀態管理
+- `/src/stores/` - 狀態管理 (user.ts, task.ts, view.ts)
 - `/src/components/layout/UserSwitcher.vue` - 用戶切換元件
 - `/src/composables/` - 權限與用戶相關 composables
-- `/src/layouts/MainLayout.vue` - 主要佈局 (已更新)
+- `/src/layouts/MainLayout.vue` - 主要佈局
+
+### Phase 1 新增元件
+- `/src/pages/AllTasksView.vue` - 所有任務頁面 (403 行)
+- `/src/pages/ProjectView.vue` - 專案詳情頁面
+- `/src/components/task/TaskDialog.vue` - 任務建立/編輯對話框 (612 行)
+- `/src/components/task/TaskItem.vue` - 任務項目元件 (385 行)
+- `/src/components/views/TaskListView.vue` - 任務列表視圖
+- `/src/components/views/TaskDashboardView.vue` - 儀表板視圖 (463 行)
+- `/src/components/common/DateTimePicker.vue` - 日期時間選擇器 (193 行)
+
+### Phase 2 新增元件與功能
+- `/src/components/task/NestedTaskItem.vue` - 遞迴巢狀任務元件 (185 行)
+- `/src/components/task/DraggableTaskList.vue` - 拖拉排序列表 (162 行)
+- `/src/composables/useNestedTasks.ts` - 巢狀任務管理 (343 行)
+- `/src/composables/useTaskDependencies.ts` - 依賴關係管理 (338 行)
+- `/src/stores/task.ts` - 擴展支援巢狀操作 (+9 個新方法)
 
 ## 命令提醒
 
@@ -120,38 +156,88 @@ npm install dexie vue-draggable-plus @infectoone/vue-ganttastic nanoid
 3. 常數: UPPER_SNAKE_CASE
 4. 每個功能模組獨立資料夾
 
+### Switch 語句處理規範
+為避免 "Unexpected lexical declaration in case block" 錯誤：
+
+**1. 物件映射** (適合簡單值查找)
+```typescript
+const fieldGetters: Record<string, (task: Task) => any> = {
+  'title': (task) => task.title,
+  'status': (task) => task.statusId
+}
+return fieldGetters[fieldId]?.(task) || null
+```
+
+**2. if-else 鏈** (適合複雜邏輯)
+```typescript
+if (condition1) {
+  // 處理邏輯
+} else if (condition2) {
+  // 處理邏輯
+} else {
+  // 預設處理
+}
+```
+
+**3. Switch + 大括號** (保留 switch 需求時)
+```typescript
+switch (value) {
+  case 'a': {
+    const result = processA();
+    return result;
+  }
+}
+```
+
+**使用原則**: 物件映射 > if-else 鏈 > switch，選擇最直觀且不易出錯的寫法
+
 ## 下一步行動
 
-**Phase 0 已完成！準備開始 Phase 1:**
+**Phase 2 已完成！準備開始 Phase 3:**
 
-1. **建立專案管理頁面**
-   - ProjectView.vue - 專案詳情頁面
-   - ProjectSettings.vue - 專案設定（Owner 專用）
-   - MemberManagement - 成員管理介面
+Phase 3 將實作多視圖系統的完整功能：
 
-2. **實作基本任務系統**
-   - TaskCard.vue - 任務卡片元件  
-   - TaskDialog.vue - 任務建立/編輯對話框
-   - TaskList.vue - 基本任務列表
+1. **完善看板視圖 (BoardView)**
+   - 實作任務卡片在欄位間拖拉
+   - 支援巢狀任務在看板中的顯示
+   - 自訂欄位配置與篩選
 
-3. **建立路由系統**
-   - 設定 Vue Router
-   - All Tasks 頁面
-   - Project View 頁面
+2. **增強表格視圖 (TableView)**
+   - 行內編輯功能
+   - 可調整欄位寬度與排序
+   - 支援巢狀任務的樹狀表格顯示
+
+3. **實作甘特圖視圖 (GanttView)**
+   - 整合 @infectoone/vue-ganttastic
+   - 任務依賴關係視覺化
+   - 時間軸拖拉調整功能
+
+4. **完善視圖配置系統**
+   - 自訂欄位管理介面
+   - 篩選與排序配置持久化
+   - 視圖間資料同步機制
 
 ## 問題與解決
 
 ### 已知問題
-- 無
+- TypeScript 嚴格模式在部分既有程式碼中有相容性問題
+- 部分 exactOptionalPropertyTypes 設定需要調整
 
-### 待解決
-- 拖拉套件整合方式
+### Phase 2 已解決
+- ✅ 拖拉套件整合方式 - 已完成 vue-draggable-plus 整合
+- ✅ 巢狀任務結構設計 - 已實作扁平化儲存 + 樹狀顯示
+- ✅ 任務依賴關係循環檢測 - 已實作 DFS 算法
+
+### 待解決 (Phase 3+)
 - 甘特圖時區處理
-- 大量資料效能優化
+- 大量資料效能優化 (虛擬滾動)
+- 複雜篩選查詢效能優化
 
 ## 更新記錄
 - 2025-01-09: 專案初始化，完成需求分析與架構設計
 - 2025-01-09: **Phase 0 完成** - 基礎架構建立完成，包含類型系統、資料層、模擬用戶系統
+- 2025-01-09: **Phase 1 完成** - 核心功能開發完成，包含任務 CRUD、視圖系統、路由架構
+- 2025-01-09: **Phase 2 完成** - 進階任務功能實作完成，包含巢狀任務、拖拉排序、依賴關係管理
 
 ## TypeScript 開發注意事項
 - "type禁用any"

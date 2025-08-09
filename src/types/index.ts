@@ -118,6 +118,10 @@ export interface Task {
   level: number
   isExpanded?: boolean
   
+  // 任務依賴
+  dependencyIds?: string[] // 前置任務 IDs
+  blockedByIds?: string[]  // 被哪些任務阻擋
+  
   // 系統欄位
   creatorId: string
   createdAt: Date
