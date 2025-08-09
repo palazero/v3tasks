@@ -69,7 +69,30 @@ export default defineConfigWithVueTs(
       'prefer-promise-reject-errors': 'off',
 
       // allow debugger during development only
-      'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off'
+      'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
+
+      // 禁用 any 類型以確保類型安全
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unsafe-any': 'error',
+      '@typescript-eslint/no-unsafe-argument': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+
+      // 要求明確的函數回傳類型
+      '@typescript-eslint/explicit-function-return-type': 'warn',
+
+      // Vue 相關規則
+      'vue/no-unused-vars': 'error',
+      'vue/require-default-prop': 'off', // 使用 TypeScript 時不需要
+      'vue/require-explicit-emits': 'error',
+      'vue/component-name-in-template-casing': ['error', 'PascalCase'],
+      
+      // 通用程式品質規則
+      'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+      'no-unused-vars': 'off', // 由 @typescript-eslint/no-unused-vars 處理
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
     }
   },
 
