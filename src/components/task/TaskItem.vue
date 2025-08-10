@@ -1,7 +1,7 @@
 <template>
-  <div 
+  <div
     class="task-item q-pa-md cursor-pointer"
-    :class="{ 
+    :class="{
       'task-item--completed': task.statusId === 'done',
       'task-item--overdue': isOverdue
     }"
@@ -28,8 +28,8 @@
             </div>
 
             <!-- 任務描述預覽 -->
-            <div 
-              v-if="descriptionText" 
+            <div
+              v-if="descriptionText"
               class="task-description text-body2 text-grey-7 q-mt-xs"
             >
               {{ descriptionText }}
@@ -97,14 +97,14 @@
                 class="cursor-pointer"
                 @click.stop="showAssigneeMenu = true"
               >
-                <img 
-                  v-if="assigneeInfo.avatar" 
+                <img
+                  v-if="assigneeInfo.avatar"
                   :src="assigneeInfo.avatar"
                   :alt="assigneeInfo.name"
                 >
                 <q-icon v-else name="person" />
                 <q-tooltip>{{ assigneeInfo.name }}</q-tooltip>
-                
+
                 <!-- 指派對象快速選單 -->
                 <q-menu v-model="showAssigneeMenu">
                   <q-list dense style="min-width: 200px">
@@ -118,8 +118,8 @@
                     >
                       <q-item-section avatar>
                         <q-avatar size="24px">
-                          <img 
-                            v-if="user.avatar" 
+                          <img
+                            v-if="user.avatar"
                             :src="user.avatar"
                             :alt="user.name"
                           >
@@ -142,7 +142,7 @@
                   </q-list>
                 </q-menu>
               </q-avatar>
-              
+
               <!-- 未指派狀態 -->
               <q-btn
                 v-else
@@ -155,7 +155,7 @@
                 @click.stop="showAssigneeMenu = true"
               >
                 <q-tooltip>指派任務</q-tooltip>
-                
+
                 <!-- 指派選單 -->
                 <q-menu v-model="showAssigneeMenu">
                   <q-list dense style="min-width: 200px">
@@ -169,8 +169,8 @@
                     >
                       <q-item-section avatar>
                         <q-avatar size="24px">
-                          <img 
-                            v-if="user.avatar" 
+                          <img
+                            v-if="user.avatar"
                             :src="user.avatar"
                             :alt="user.name"
                           >
@@ -184,7 +184,7 @@
               </q-btn>
 
               <!-- 到期時間 -->
-              <div 
+              <div
                 v-if="task.endDateTime"
                 class="text-caption"
                 :class="isOverdue ? 'text-negative' : 'text-grey-6'"
@@ -208,7 +208,7 @@
         </div>
 
         <!-- 進度條（如果有設定進度） -->
-        <div 
+        <div
           v-if="task.progress !== undefined && task.progress > 0"
           class="q-mt-sm"
         >
@@ -264,7 +264,7 @@ const descriptionText = computed(() => {
   if (!props.task.description || typeof props.task.description !== 'object') {
     return ''
   }
-  
+
   // 從富文本提取純文字（簡化版）
   try {
     const content = props.task.description.content
@@ -281,10 +281,10 @@ const descriptionText = computed(() => {
       })
       return text.length > 100 ? text.substring(0, 100) + '...' : text
     }
-  } catch (_e) {
+  } catch {
     // 如果解析失敗，返回空字串
   }
-  
+
   return ''
 })
 
@@ -294,7 +294,7 @@ const priorityInfo = computed(() => {
 
 const assigneeInfo = computed(() => {
   if (!props.task.assigneeId) return null
-  
+
   return {
     name: getUserDisplayName(props.task.assigneeId),
     avatar: getUserAvatar(props.task.assigneeId)

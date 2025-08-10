@@ -6,15 +6,15 @@
     transition-show="slide-up"
     transition-hide="slide-down"
   >
-    <q-card 
+    <q-card
       :style="$q.screen.gt.sm ? 'width: 800px; max-width: 90vw' : ''"
       class="task-dialog"
     >
       <!-- 標題列 -->
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6">
-          <q-icon 
-            :name="mode === 'create' ? 'add_task' : 'edit'" 
+          <q-icon
+            :name="mode === 'create' ? 'add_task' : 'edit'"
             class="q-mr-sm"
           />
           {{ mode === 'create' ? '建立任務' : '編輯任務' }}
@@ -70,6 +70,30 @@
                   @filter="filterTags"
                   placeholder="輸入標籤並按 Enter"
                 />
+              </div>
+            </div>
+
+            <!-- 自訂欄位 -->
+            <div v-if="visibleCustomFields.length > 0" class="col-12 q-mb-md">
+              <div class="custom-fields-section">
+                <q-separator class="q-mb-md" />
+                <div class="text-subtitle1 q-mb-md">自訂欄位</div>
+
+                <div class="row q-gutter-md">
+                  <div
+                    v-for="field in visibleCustomFields"
+                    :key="field.fieldId"
+                    :class="field.type === 'text' && field.validation?.maxLength && field.validation.maxLength > 100 ? 'col-12' : 'col-12 col-sm-6'"
+                  >
+                    <CustomFieldRenderer
+                      :field="field"
+                      :value="getCustomFieldValue(field.fieldId)"
+                      :project-id="formData.projectId || ''"
+                      @update:value="updateCustomFieldValue(field.fieldId, $event)"
+                      @validation-error="onCustomFieldValidation(field.fieldId, $event)"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -144,8 +168,8 @@
                   <q-item v-bind="scope.itemProps">
                     <q-item-section avatar>
                       <q-avatar size="24px">
-                        <img 
-                          v-if="scope.opt.avatar" 
+                        <img
+                          v-if="scope.opt.avatar"
                           :src="scope.opt.avatar"
                           :alt="scope.opt.label"
                         >
@@ -242,19 +266,19 @@
 
         <!-- 操作按鈕 -->
         <q-card-actions align="right" class="q-pa-md">
-          <q-btn 
-            flat 
-            label="取消" 
-            v-close-popup 
+          <q-btn
+            flat
+            label="取消"
+            v-close-popup
             :disable="isSubmitting"
           />
-          <q-btn 
+          <q-btn
             type="submit"
-            color="primary" 
+            color="primary"
             :label="mode === 'create' ? '建立' : '更新'"
             :loading="isSubmitting"
           />
-          
+
           <!-- 刪除按鈕（編輯模式） -->
           <q-btn
             v-if="mode === 'edit' && task"
@@ -278,8 +302,10 @@ import type { Task, RichTextContent } from '@/types'
 import { DEFAULT_STATUSES, DEFAULT_PRIORITIES } from '@/types'
 import { useTaskStore } from '@/stores/task'
 import { useCurrentUser } from '@/composables/useCurrentUser'
+import { useCustomFields } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
 import DateTimePicker from '@/components/common/DateTimePicker.vue'
+import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
 
 // Props
 const props = defineProps<{
@@ -300,6 +326,11 @@ const emit = defineEmits<{
 const $q = useQuasar()
 const taskStore = useTaskStore()
 const { userId: currentUserId, availableUsers } = useCurrentUser()
+const {
+  visibleFields: visibleCustomFields,
+  initializeTaskCustomFields,
+  updateTaskCustomFieldValue
+} = useCustomFields(props.projectId || '')
 const projectRepo = getProjectRepository()
 
 // 狀態
@@ -308,7 +339,7 @@ const descriptionText = ref('')
 const tagOptions = ref<string[]>([])
 
 // 表單資料
-const formData = ref<Partial<Task> & { 
+const formData = ref<Partial<Task> & {
   title: string
   projectId?: string
 }>({
@@ -316,8 +347,12 @@ const formData = ref<Partial<Task> & {
   statusId: 'todo',
   priorityId: 'medium',
   progress: 0,
-  tags: []
+  tags: [],
+  customFields: []
 })
+
+// 自訂欄位狀態
+const customFieldValidations = ref<Record<string, string | null>>({})
 
 // 計算屬性
 const dialogModel = computed({
@@ -336,7 +371,7 @@ const endDateString = computed(() => {
 })
 
 // 選項資料
-const statusOptions = computed(() => 
+const statusOptions = computed(() =>
   DEFAULT_STATUSES.map(status => ({
     label: status.label,
     value: status.id
@@ -385,9 +420,10 @@ function initFormData(): void {
     // 編輯模式：載入現有任務資料
     formData.value = {
       ...props.task,
-      tags: props.task.tags || []
+      tags: props.task.tags || [],
+      customFields: props.task.customFields || []
     }
-    
+
     // 處理描述
     if (props.task.description && typeof props.task.description === 'object') {
       descriptionText.value = extractTextFromRichText(props.task.description)
@@ -400,7 +436,8 @@ function initFormData(): void {
       statusId: 'todo',
       priorityId: 'medium',
       progress: 0,
-      tags: []
+      tags: [],
+      customFields: initializeTaskCustomFields()
     }
     descriptionText.value = ''
   }
@@ -422,7 +459,7 @@ function extractTextFromRichText(richText: RichTextContent): string {
       })
     }
     return text
-  } catch (_e) {
+  } catch {
     return ''
   }
 }
@@ -430,7 +467,7 @@ function extractTextFromRichText(richText: RichTextContent): string {
 // 更新描述
 function updateDescription(text: string): void {
   descriptionText.value = text
-  
+
   // 轉換為簡單的富文本格式
   formData.value.description = {
     type: 'doc',
@@ -482,12 +519,44 @@ function filterTags(val: string, update: (fn: () => void) => void): void {
   })
 }
 
+// 自訂欄位相關函數
+function getCustomFieldValue(fieldId: string): unknown {
+  const field = formData.value.customFields?.find(f => f.fieldId === fieldId)
+  return field?.value || null
+}
+
+function updateCustomFieldValue(fieldId: string, value: unknown): void {
+  if (!formData.value.customFields) {
+    formData.value.customFields = []
+  }
+
+  formData.value.customFields = updateTaskCustomFieldValue(
+    formData.value.customFields,
+    fieldId,
+    value
+  )
+}
+
+function onCustomFieldValidation(fieldId: string, error: string | null): void {
+  customFieldValidations.value[fieldId] = error
+}
+
 // 處理表單提交
 async function handleSubmit(): Promise<void> {
   if (isSubmitting.value) return
-  
+
+  // 驗證自訂欄位
+  const customFieldErrors = Object.values(customFieldValidations.value).filter(Boolean)
+  if (customFieldErrors.length > 0) {
+    $q.notify({
+      type: 'negative',
+      message: '請修正自訂欄位錯誤'
+    })
+    return
+  }
+
   isSubmitting.value = true
-  
+
   try {
     if (props.mode === 'create') {
       // 建立新任務
@@ -495,7 +564,7 @@ async function handleSubmit(): Promise<void> {
         ...formData.value,
         projectId: formData.value.projectId || props.projectId || ''
       })
-      
+
       if (newTask) {
         emit('task-created', newTask)
         dialogModel.value = false
@@ -508,9 +577,9 @@ async function handleSubmit(): Promise<void> {
     } else {
       // 更新現有任務
       if (!props.task) return
-      
+
       const success = await taskStore.updateTask(props.task.taskId, formData.value)
-      
+
       if (success) {
         const updatedTask = { ...props.task, ...formData.value }
         emit('task-updated', updatedTask as Task)
@@ -538,21 +607,27 @@ async function handleSubmit(): Promise<void> {
 // 處理刪除
 async function handleDelete(): Promise<void> {
   if (!props.task) return
-  
-  const confirmed = await $q.dialog({
-    title: '刪除任務',
-    message: `確定要刪除任務「${props.task.title}」嗎？此操作無法復原。`,
-    cancel: true,
-    persistent: false
+
+  const taskTitle = props.task.title
+  const confirmed = await new Promise<boolean>((resolve) => {
+    $q.dialog({
+      title: '刪除任務',
+      message: `確定要刪除任務「${taskTitle}」嗎？此操作無法復原。`,
+      cancel: true,
+      persistent: false
+    })
+      .onOk(() => resolve(true))
+      .onCancel(() => resolve(false))
+      .onDismiss(() => resolve(false))
   })
-  
+
   if (!confirmed) return
-  
+
   isSubmitting.value = true
-  
+
   try {
     const success = await taskStore.deleteTask(props.task.taskId)
-    
+
     if (success) {
       emit('task-deleted', props.task.taskId)
       dialogModel.value = false
@@ -590,7 +665,7 @@ function formatDateTime(date: Date): string {
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
     initFormData()
-    loadProjectOptions()
+    void loadProjectOptions()
   }
 })
 
@@ -598,7 +673,7 @@ watch(() => props.modelValue, (isOpen) => {
 onMounted(() => {
   if (props.modelValue) {
     initFormData()
-    loadProjectOptions()
+    void loadProjectOptions()
   }
 })
 </script>

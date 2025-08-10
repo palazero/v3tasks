@@ -10,7 +10,7 @@
  */
 export enum UserRole {
   ADMIN = 'admin',
-  USER = 'user'
+  USER = 'user',
 }
 
 /**
@@ -21,7 +21,7 @@ export enum ViewType {
   TABLE = 'table',
   BOARD = 'board',
   GANTT = 'gantt',
-  DASHBOARD = 'dashboard'
+  DASHBOARD = 'dashboard',
 }
 
 /**
@@ -34,7 +34,7 @@ export enum FieldType {
   SELECT = 'select',
   MULTI_SELECT = 'multiSelect',
   USER = 'user',
-  CHECKBOX = 'checkbox'
+  CHECKBOX = 'checkbox',
 }
 
 /**
@@ -44,7 +44,7 @@ export enum TaskStatus {
   TODO = 'todo',
   IN_PROGRESS = 'inProgress',
   DONE = 'done',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
 }
 
 /**
@@ -54,7 +54,7 @@ export enum TaskPriority {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  URGENT = 'urgent'
+  URGENT = 'urgent',
 }
 
 // ============= 核心實體 =============
@@ -63,136 +63,136 @@ export enum TaskPriority {
  * 用戶
  */
 export interface User {
-  userId: string
-  name: string
-  email: string
-  role: UserRole
-  avatar?: string
-  createdAt: Date
-  updatedAt: Date
+  userId: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**
  * 專案設定
  */
 export interface ProjectSettings {
-  defaultViewId?: string
-  allowMemberInvite: boolean
-  taskNumberPrefix?: string
-  theme?: string
+  defaultViewId?: string;
+  allowMemberInvite: boolean;
+  taskNumberPrefix?: string;
+  theme?: string;
 }
 
 /**
  * 專案
  */
 export interface Project {
-  projectId: string
-  name: string
-  description: string
-  ownerId: string
-  memberIds: string[]
-  createdAt: Date
-  updatedAt: Date
-  settings?: ProjectSettings
-  isArchived: boolean
+  projectId: string;
+  name: string;
+  description: string;
+  ownerId: string;
+  memberIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  settings?: ProjectSettings;
+  isArchived: boolean;
 }
 
 /**
  * 任務
  */
 export interface Task {
-  taskId: string
-  projectId: string
-  title: string
-  description: RichTextContent
-  statusId: string
-  assigneeId?: string
-  priorityId: string
-  startDateTime?: Date | null
-  endDateTime?: Date | null
-  
+  taskId: string;
+  projectId: string;
+  title: string;
+  description: RichTextContent;
+  statusId: string;
+  assigneeId?: string;
+  priorityId: string;
+  startDateTime?: Date | null;
+  endDateTime?: Date | null;
+
   // 巢狀結構
-  parentTaskId?: string | null
-  children?: Task[]
-  order: number
-  level: number
-  isExpanded?: boolean
-  
+  parentTaskId?: string | null;
+  children?: Task[];
+  order: number;
+  level: number;
+  isExpanded?: boolean;
+
   // 任務依賴
-  dependencyIds?: string[] // 前置任務 IDs
-  blockedByIds?: string[]  // 被哪些任務阻擋
-  
+  dependencyIds?: string[]; // 前置任務 IDs
+  blockedByIds?: string[]; // 被哪些任務阻擋
+
   // 系統欄位
-  creatorId: string
-  createdAt: Date
-  updatedAt: Date
-  
+  creatorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+
   // 自訂欄位值
-  customFields: CustomFieldValue[]
-  
+  customFields: CustomFieldValue[];
+
   // 其他
-  tags?: string[]
-  attachments?: Attachment[]
-  progress?: number
+  tags?: string[];
+  attachments?: Attachment[];
+  progress?: number;
 }
 
 /**
  * 富文本內容
  */
 export interface RichTextContent {
-  type: 'doc'
-  content: RichTextNode[]
+  type: 'doc';
+  content: RichTextNode[];
 }
 
 /**
  * 富文本節點
  */
 export interface RichTextNode {
-  type: string
-  content?: RichTextNode[]
-  text?: string
-  marks?: RichTextMark[]
-  attrs?: Record<string, unknown>
+  type: string;
+  content?: RichTextNode[];
+  text?: string;
+  marks?: RichTextMark[];
+  attrs?: Record<string, unknown>;
 }
 
 /**
  * 富文本標記
  */
 export interface RichTextMark {
-  type: string
-  attrs?: Record<string, unknown>
+  type: string;
+  attrs?: Record<string, unknown>;
 }
 
 /**
  * 附件
  */
 export interface Attachment {
-  id: string
-  name: string
-  url: string
-  size: number
-  mimeType: string
-  uploadedAt: Date
-  uploadedBy: string
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  mimeType: string;
+  uploadedAt: Date;
+  uploadedBy: string;
 }
 
 /**
  * 自訂欄位值
  */
 export interface CustomFieldValue {
-  fieldId: string
-  value: string | number | boolean | Date | string[] | null
+  fieldId: string;
+  value: string | number | boolean | Date | string[] | null;
 }
 
 /**
  * 篩選配置
  */
 export interface FilterConfig {
-  id: string
-  fieldId: string
-  operator: FilterOperator
-  value: string | number | boolean | Date | string[] | null
-  logicalOperator?: 'AND' | 'OR'
+  id: string;
+  fieldId: string;
+  operator: FilterOperator;
+  value: string | number | boolean | Date | string[] | null;
+  logicalOperator?: 'AND' | 'OR';
 }
 
 /**
@@ -210,26 +210,26 @@ export enum FilterOperator {
   IS_EMPTY = 'isEmpty',
   IS_NOT_EMPTY = 'isNotEmpty',
   IN = 'in',
-  NOT_IN = 'notIn'
+  NOT_IN = 'notIn',
 }
 
 /**
  * 排序配置
  */
 export interface SortConfig {
-  fieldId: string
-  direction: 'asc' | 'desc'
+  fieldId: string;
+  direction: 'asc' | 'desc';
 }
 
 /**
  * 視圖配置
  */
 export interface ViewConfig {
-  filters: FilterConfig[]
-  sorts: SortConfig[]
-  groupBy?: string
-  visibleFields: string[]
-  viewSpecificSettings?: ViewSpecificSettings
+  filters: FilterConfig[];
+  sorts: SortConfig[];
+  groupBy?: string;
+  visibleFields: string[];
+  viewSpecificSettings?: ViewSpecificSettings;
 }
 
 /**
@@ -237,72 +237,72 @@ export interface ViewConfig {
  */
 export interface ViewSpecificSettings {
   // 看板視圖
-  boardColumns?: string[]
-  swimlanes?: string
-  
+  boardColumns?: string[];
+  swimlanes?: string;
+
   // 甘特圖
-  timeScale?: 'day' | 'week' | 'month'
-  showDependencies?: boolean
-  
+  timeScale?: 'day' | 'week' | 'month';
+  showDependencies?: boolean;
+
   // 表格視圖
-  columnWidths?: Record<string, number>
-  rowHeight?: number
-  
+  columnWidths?: Record<string, number>;
+  rowHeight?: number;
+
   // 儀表板
-  widgets?: DashboardWidget[]
+  widgets?: DashboardWidget[];
 }
 
 /**
  * 儀表板小工具
  */
 export interface DashboardWidget {
-  id: string
-  type: 'chart' | 'stat' | 'list' | 'calendar'
-  title: string
-  config: Record<string, unknown>
-  position: { x: number; y: number }
-  size: { width: number; height: number }
+  id: string;
+  type: 'chart' | 'stat' | 'list' | 'calendar';
+  title: string;
+  config: Record<string, unknown>;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
 }
 
 /**
  * 視圖
  */
 export interface View {
-  viewId: string
-  projectId: string
-  name: string
-  type: ViewType
-  isDeletable: boolean
-  isPersonal: boolean
-  creatorId: string
-  config: ViewConfig
-  createdAt: Date
-  updatedAt: Date
+  viewId: string;
+  projectId: string;
+  name: string;
+  type: ViewType;
+  isDeletable: boolean;
+  isPersonal: boolean;
+  creatorId: string;
+  config: ViewConfig;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**
  * 自訂欄位定義
  */
 export interface CustomFieldDefinition {
-  fieldId: string
-  projectId: string
-  name: string
-  type: FieldType
-  options?: FieldOption[]
-  defaultValue?: string | number | boolean | Date | string[] | null
-  isRequired: boolean
-  order: number
-  createdAt: Date
-  updatedAt: Date
+  fieldId: string;
+  projectId: string;
+  name: string;
+  type: FieldType;
+  options?: FieldOption[];
+  defaultValue?: string | number | boolean | Date | string[] | null;
+  isRequired: boolean;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**
  * 欄位選項
  */
 export interface FieldOption {
-  value: string
-  label: string
-  color?: string
+  value: string;
+  label: string;
+  color?: string;
 }
 
 // ============= 輔助類型 =============
@@ -316,88 +316,88 @@ export enum PermissionAction {
   EDIT_PROJECT = 'editProject',
   DELETE_PROJECT = 'deleteProject',
   MANAGE_MEMBERS = 'manageMembers',
-  
+
   // 任務
   CREATE_TASK = 'createTask',
   EDIT_TASK = 'editTask',
   DELETE_TASK = 'deleteTask',
   ASSIGN_TASK = 'assignTask',
-  
+
   // 視圖
   CREATE_VIEW = 'createView',
   EDIT_VIEW = 'editView',
   DELETE_VIEW = 'deleteView',
-  
+
   // 自訂欄位
   CREATE_CUSTOM_FIELD = 'createCustomField',
   EDIT_CUSTOM_FIELD = 'editCustomField',
   DELETE_CUSTOM_FIELD = 'deleteCustomField',
-  
+
   // 系統
   MANAGE_USERS = 'manageUsers',
-  VIEW_ALL_PROJECTS = 'viewAllProjects'
+  VIEW_ALL_PROJECTS = 'viewAllProjects',
 }
 
 /**
  * 權限檢查結果
  */
 export interface PermissionCheck {
-  allowed: boolean
-  reason?: string
+  allowed: boolean;
+  reason?: string;
 }
 
 /**
  * 分頁參數
  */
 export interface PaginationParams {
-  page: number
-  pageSize: number
-  total?: number
+  page: number;
+  pageSize: number;
+  total?: number;
 }
 
 /**
  * 分頁結果
  */
 export interface PaginatedResult<T> {
-  items: T[]
+  items: T[];
   pagination: {
-    page: number
-    pageSize: number
-    total: number
-    totalPages: number
-  }
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 /**
  * API 回應
  */
 export interface ApiResponse<T> {
-  success: boolean
-  data?: T
+  success: boolean;
+  data?: T;
   error?: {
-    code: string
-    message: string
-    details?: Record<string, unknown>
-  }
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
 }
 
 /**
  * 載入狀態
  */
 export interface LoadingState {
-  isLoading: boolean
-  message?: string
-  progress?: number
+  isLoading: boolean;
+  message?: string;
+  progress?: number;
 }
 
 /**
  * 錯誤狀態
  */
 export interface ErrorState {
-  hasError: boolean
-  message?: string
-  code?: string
-  details?: Record<string, unknown>
+  hasError: boolean;
+  message?: string;
+  code?: string;
+  details?: Record<string, unknown>;
 }
 
 // ============= 系統狀態 =============
@@ -409,18 +409,19 @@ export const DEFAULT_STATUSES: Array<{ id: string; label: string; color: string 
   { id: 'todo', label: '待處理', color: 'grey' },
   { id: 'inProgress', label: '進行中', color: 'blue' },
   { id: 'done', label: '已完成', color: 'green' },
-  { id: 'cancelled', label: '已取消', color: 'red' }
-]
+  { id: 'cancelled', label: '已取消', color: 'red' },
+];
 
 /**
  * 預設優先級列表
  */
-export const DEFAULT_PRIORITIES: Array<{ id: string; label: string; color: string; icon: string }> = [
-  { id: 'low', label: '低', color: 'grey', icon: 'arrow_downward' },
-  { id: 'medium', label: '中', color: 'blue', icon: 'remove' },
-  { id: 'high', label: '高', color: 'orange', icon: 'arrow_upward' },
-  { id: 'urgent', label: '緊急', color: 'red', icon: 'priority_high' }
-]
+export const DEFAULT_PRIORITIES: Array<{ id: string; label: string; color: string; icon: string }> =
+  [
+    { id: 'low', label: '低', color: 'grey', icon: 'arrow_downward' },
+    { id: 'medium', label: '中', color: 'blue', icon: 'remove' },
+    { id: 'high', label: '高', color: 'orange', icon: 'arrow_upward' },
+    { id: 'urgent', label: '緊急', color: 'red', icon: 'priority_high' },
+  ];
 
 /**
  * 系統欄位定義
@@ -434,8 +435,8 @@ export const SYSTEM_FIELDS = {
   END_DATE: { id: 'endDateTime', label: '結束時間', type: FieldType.DATE },
   CREATOR: { id: 'creator', label: '建立者', type: FieldType.USER },
   CREATED_AT: { id: 'createdAt', label: '建立時間', type: FieldType.DATE },
-  UPDATED_AT: { id: 'updatedAt', label: '更新時間', type: FieldType.DATE }
-}
+  UPDATED_AT: { id: 'updatedAt', label: '更新時間', type: FieldType.DATE },
+};
 
 // ============= 工具類型 =============
 
@@ -443,28 +444,28 @@ export const SYSTEM_FIELDS = {
  * 深度部分類型
  */
 export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
-}
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
 
 /**
  * 可為空類型
  */
-export type Nullable<T> = T | null
+export type Nullable<T> = T | null;
 
 /**
  * 可選類型
  */
-export type Optional<T> = T | undefined
+export type Optional<T> = T | undefined;
 
 /**
  * ID 類型
  */
-export type ID = string
+export type ID = string;
 
 /**
  * 時間戳類型
  */
-export type Timestamp = Date
+export type Timestamp = Date;
 
 // ============= 視圖配置 =============
 
@@ -472,51 +473,125 @@ export type Timestamp = Date
  * 篩選條件
  */
 export interface FilterCondition {
-  field: string
-  operator: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'greater' | 'less' | 'between'
-  value: string | number | Date | Array<string | number>
+  field: string;
+  operator: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'greater' | 'less' | 'between';
+  value: string | number | Date | Array<string | number>;
 }
 
 /**
  * 欄位配置
  */
 export interface ColumnConfig {
-  key: string
-  label: string
-  description?: string
-  width?: number
-  visible: boolean
-  sortable?: boolean
-  resizable?: boolean
+  key: string;
+  label: string;
+  description?: string;
+  width?: number;
+  visible: boolean;
+  sortable?: boolean;
+  resizable?: boolean;
 }
 
 /**
  * 視圖配置
  */
 export interface ViewConfiguration {
-  viewType: ViewType | string
-  visibleColumns?: ColumnConfig[]
-  filters?: FilterCondition[]
-  sortBy?: string
-  sortOrder?: 'asc' | 'desc'
-  groupBy?: string
-  hideCompleted?: boolean
-  compactMode?: boolean
-  showSubtasks?: boolean
-  autoRefresh?: boolean
-  refreshInterval?: number
+  viewType: ViewType | string;
+  visibleColumns?: ColumnConfig[];
+  filters?: FilterCondition[];
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  groupBy?: string;
+  hideCompleted?: boolean;
+  compactMode?: boolean;
+  showSubtasks?: boolean;
+  autoRefresh?: boolean;
+  refreshInterval?: number;
 }
 
 /**
  * 視圖預設配置
  */
 export interface ViewPreset {
-  id: string
-  name: string
-  description?: string
-  configuration: ViewConfiguration
-  isSystem: boolean
-  createdBy?: string
-  createdAt: Date
-  updatedAt: Date
+  id: string;
+  name: string;
+  description?: string;
+  configuration: ViewConfiguration;
+  isSystem: boolean;
+  createdBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============= 自訂欄位 =============
+
+/**
+ * 自訂欄位定義
+ */
+export interface CustomField {
+  fieldId: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  type: FieldType;
+  isRequired: boolean;
+  isSystem: boolean;
+  options?: FieldOption[];
+  defaultValue?: string | number | boolean | Date | string[] | null;
+  validation?: FieldValidation;
+  displayOrder: number;
+  isVisible: boolean;
+  groupId?: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 自訂欄位群組
+ */
+export interface CustomFieldGroup {
+  groupId: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  displayOrder: number;
+  isCollapsible: boolean;
+  isCollapsed: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 欄位驗證規則
+ */
+export interface FieldValidation {
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  pattern?: string;
+  customValidator?: string;
+  errorMessage?: string;
+}
+
+/**
+ * 自訂欄位值
+ */
+export interface CustomFieldValue {
+  fieldId: string;
+  value: string | number | boolean | Date | string[] | null;
+  displayValue?: string;
+}
+
+/**
+ * 欄位設定
+ */
+export interface FieldSettings {
+  width?: number;
+  placeholder?: string;
+  helpText?: string;
+  displayFormat?: string;
+  allowMultiple?: boolean;
+  maxItems?: number;
 }

@@ -1,0 +1,535 @@
+/**
+ * 自訂欄位服務
+ * 處理自訂欄位的 CRUD 操作和驗證
+ */
+
+import { databaseService } from './databaseService';
+import type {
+  CustomField,
+  CustomFieldGroup,
+  FieldType,
+  FieldOption,
+  FieldValidation,
+  CustomFieldValue,
+} from '@/types';
+import { nanoid } from 'nanoid';
+
+export class CustomFieldService {
+  private readonly fieldsTableName = 'customFields';
+  private readonly groupsTableName = 'customFieldGroups';
+
+  constructor() {
+    this.initializeTables();
+  }
+
+  /**
+   * 初始化資料表
+   */
+  private async initializeTables(): Promise<void> {
+    const db = databaseService.getDatabase();
+
+    // 確保自訂欄位表存在
+    if (!db.customFields) {
+      await databaseService.addTable(
+        'customFields',
+        '++id, fieldId, projectId, name, type, isRequired, isSystem, displayOrder, isVisible, groupId, createdBy, createdAt, updatedAt',
+      );
+    }
+
+    // 確保自訂欄位群組表存在
+    if (!db.customFieldGroups) {
+      await databaseService.addTable(
+        'customFieldGroups',
+        '++id, groupId, projectId, name, displayOrder, isCollapsible, isCollapsed, createdBy, createdAt, updatedAt',
+      );
+    }
+  }
+
+  // ============= 自訂欄位 CRUD =============
+
+  /**
+   * 建立自訂欄位
+   */
+  async createCustomField(
+    field: Omit<CustomField, 'fieldId' | 'createdAt' | 'updatedAt'>,
+  ): Promise<string> {
+    const db = databaseService.getDatabase();
+
+    const newField: CustomField = {
+      ...field,
+      fieldId: nanoid(12),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await db.customFields.add(newField);
+    return newField.fieldId;
+  }
+
+  /**
+   * 取得專案的所有自訂欄位
+   */
+  async getProjectCustomFields(projectId: string): Promise<CustomField[]> {
+    const db = databaseService.getDatabase();
+
+    return await db.customFields
+      .where('projectId')
+      .equals(projectId)
+      .orderBy('displayOrder')
+      .toArray();
+  }
+
+  /**
+   * 取得特定自訂欄位
+   */
+  async getCustomField(fieldId: string): Promise<CustomField | null> {
+    const db = databaseService.getDatabase();
+
+    const field = await db.customFields.where('fieldId').equals(fieldId).first();
+
+    return field || null;
+  }
+
+  /**
+   * 更新自訂欄位
+   */
+  async updateCustomField(fieldId: string, updates: Partial<CustomField>): Promise<void> {
+    const db = databaseService.getDatabase();
+
+    await db.customFields
+      .where('fieldId')
+      .equals(fieldId)
+      .modify({
+        ...updates,
+        updatedAt: new Date(),
+      });
+  }
+
+  /**
+   * 刪除自訂欄位
+   */
+  async deleteCustomField(fieldId: string): Promise<void> {
+    const db = databaseService.getDatabase();
+
+    await db.customFields.where('fieldId').equals(fieldId).delete();
+
+    // 同時清除相關的任務欄位值
+    // TODO: 實作清理任務中的自訂欄位值
+  }
+
+  /**
+   * 複製自訂欄位
+   */
+  async duplicateCustomField(fieldId: string, newName: string): Promise<string> {
+    const originalField = await this.getCustomField(fieldId);
+    if (!originalField) {
+      throw new Error('找不到要複製的欄位');
+    }
+
+    const duplicatedField = {
+      ...originalField,
+      name: newName,
+      displayOrder: originalField.displayOrder + 1,
+    };
+
+    return await this.createCustomField(duplicatedField);
+  }
+
+  // ============= 自訂欄位群組 CRUD =============
+
+  /**
+   * 建立自訂欄位群組
+   */
+  async createCustomFieldGroup(
+    group: Omit<CustomFieldGroup, 'groupId' | 'createdAt' | 'updatedAt'>,
+  ): Promise<string> {
+    const db = databaseService.getDatabase();
+
+    const newGroup: CustomFieldGroup = {
+      ...group,
+      groupId: nanoid(12),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await db.customFieldGroups.add(newGroup);
+    return newGroup.groupId;
+  }
+
+  /**
+   * 取得專案的所有自訂欄位群組
+   */
+  async getProjectCustomFieldGroups(projectId: string): Promise<CustomFieldGroup[]> {
+    const db = databaseService.getDatabase();
+
+    return await db.customFieldGroups
+      .where('projectId')
+      .equals(projectId)
+      .orderBy('displayOrder')
+      .toArray();
+  }
+
+  /**
+   * 更新自訂欄位群組
+   */
+  async updateCustomFieldGroup(groupId: string, updates: Partial<CustomFieldGroup>): Promise<void> {
+    const db = databaseService.getDatabase();
+
+    await db.customFieldGroups
+      .where('groupId')
+      .equals(groupId)
+      .modify({
+        ...updates,
+        updatedAt: new Date(),
+      });
+  }
+
+  /**
+   * 刪除自訂欄位群組
+   */
+  async deleteCustomFieldGroup(groupId: string): Promise<void> {
+    const db = databaseService.getDatabase();
+
+    // 將群組內的欄位移至預設群組
+    await db.customFields.where('groupId').equals(groupId).modify({ groupId: undefined });
+
+    await db.customFieldGroups.where('groupId').equals(groupId).delete();
+  }
+
+  // ============= 欄位驗證 =============
+
+  /**
+   * 驗證欄位值
+   */
+  validateFieldValue(field: CustomField, value: unknown): { isValid: boolean; error?: string } {
+    // 必填欄位檢查
+    if (field.isRequired && (value === null || value === undefined || value === '')) {
+      return { isValid: false, error: `${field.name} 為必填欄位` };
+    }
+
+    // 如果沒有值且非必填，跳過驗證
+    if (!field.isRequired && (value === null || value === undefined || value === '')) {
+      return { isValid: true };
+    }
+
+    return this.validateByType(field, value);
+  }
+
+  /**
+   * 根據欄位類型驗證
+   */
+  private validateByType(field: CustomField, value: unknown): { isValid: boolean; error?: string } {
+    const validation = field.validation;
+
+    if (field.type === 'text') {
+      if (typeof value !== 'string') {
+        return { isValid: false, error: '必須為文字類型' };
+      }
+
+      if (validation?.minLength && value.length < validation.minLength) {
+        return { isValid: false, error: `最少需要 ${validation.minLength} 個字元` };
+      }
+
+      if (validation?.maxLength && value.length > validation.maxLength) {
+        return { isValid: false, error: `最多允許 ${validation.maxLength} 個字元` };
+      }
+
+      if (validation?.pattern) {
+        const regex = new RegExp(validation.pattern);
+        if (!regex.test(value)) {
+          return { isValid: false, error: validation.errorMessage || '格式不正確' };
+        }
+      }
+    } else if (field.type === 'number') {
+      const numValue = Number(value);
+      if (isNaN(numValue)) {
+        return { isValid: false, error: '必須為數字類型' };
+      }
+
+      if (validation?.min !== undefined && numValue < validation.min) {
+        return { isValid: false, error: `數值不能小於 ${validation.min}` };
+      }
+
+      if (validation?.max !== undefined && numValue > validation.max) {
+        return { isValid: false, error: `數值不能大於 ${validation.max}` };
+      }
+    } else if (field.type === 'date') {
+      if (!(value instanceof Date) && typeof value !== 'string') {
+        return { isValid: false, error: '必須為日期類型' };
+      }
+
+      const dateValue = value instanceof Date ? value : new Date(value);
+      if (isNaN(dateValue.getTime())) {
+        return { isValid: false, error: '日期格式不正確' };
+      }
+    } else if (field.type === 'select') {
+      if (!field.options?.some((option) => option.value === value)) {
+        return { isValid: false, error: '選擇的值無效' };
+      }
+    } else if (field.type === 'multiSelect') {
+      if (!Array.isArray(value)) {
+        return { isValid: false, error: '必須為陣列類型' };
+      }
+
+      const validOptions = field.options?.map((option) => option.value) || [];
+      const invalidValues = (value as unknown[]).filter((v) => !validOptions.includes(v));
+
+      if (invalidValues.length > 0) {
+        return { isValid: false, error: '包含無效的選項' };
+      }
+    }
+
+    return { isValid: true };
+  }
+
+  // ============= 欄位值操作 =============
+
+  /**
+   * 格式化顯示值
+   */
+  formatDisplayValue(field: CustomField, value: unknown): string {
+    if (value === null || value === undefined) {
+      return '-';
+    }
+
+    if (field.type === 'select') {
+      const option = field.options?.find((opt) => opt.value === value);
+      return option?.label || String(value);
+    } else if (field.type === 'multiSelect') {
+      if (!Array.isArray(value)) return '-';
+
+      const labels = (value as unknown[])
+        .map((v) => field.options?.find((opt) => opt.value === v)?.label || String(v))
+        .filter(Boolean);
+
+      return labels.join(', ') || '-';
+    } else if (field.type === 'date') {
+      const dateValue = value instanceof Date ? value : new Date(value as string);
+      if (isNaN(dateValue.getTime())) return '-';
+
+      return dateValue.toLocaleDateString('zh-TW');
+    } else if (field.type === 'checkbox') {
+      return value ? '是' : '否';
+    } else {
+      return String(value);
+    }
+  }
+
+  /**
+   * 取得欄位預設值
+   */
+  getFieldDefaultValue(field: CustomField): unknown {
+    if (field.defaultValue !== undefined) {
+      return field.defaultValue;
+    }
+
+    if (field.type === 'text') return '';
+    if (field.type === 'number') return 0;
+    if (field.type === 'date') return null;
+    if (field.type === 'select') return null;
+    if (field.type === 'multiSelect') return [];
+    if (field.type === 'checkbox') return false;
+    if (field.type === 'user') return null;
+
+    return null;
+  }
+
+  // ============= 批次操作 =============
+
+  /**
+   * 重新排序自訂欄位
+   */
+  async reorderCustomFields(projectId: string, fieldIds: string[]): Promise<void> {
+    const db = databaseService.getDatabase();
+
+    for (let i = 0; i < fieldIds.length; i++) {
+      await db.customFields
+        .where('fieldId')
+        .equals(fieldIds[i])
+        .modify({
+          displayOrder: (i + 1) * 1000,
+          updatedAt: new Date(),
+        });
+    }
+  }
+
+  /**
+   * 批次更新欄位可見性
+   */
+  async updateFieldsVisibility(fieldIds: string[], isVisible: boolean): Promise<void> {
+    const db = databaseService.getDatabase();
+
+    for (const fieldId of fieldIds) {
+      await this.updateCustomField(fieldId, { isVisible });
+    }
+  }
+
+  // ============= 匯入匯出 =============
+
+  /**
+   * 匯出專案自訂欄位
+   */
+  async exportProjectCustomFields(projectId: string): Promise<string> {
+    const fields = await this.getProjectCustomFields(projectId);
+    const groups = await this.getProjectCustomFieldGroups(projectId);
+
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      projectId,
+      fields,
+      groups,
+    };
+
+    return JSON.stringify(exportData, null, 2);
+  }
+
+  /**
+   * 匯入專案自訂欄位
+   */
+  async importProjectCustomFields(
+    projectId: string,
+    data: string,
+  ): Promise<{ fieldsCount: number; groupsCount: number }> {
+    try {
+      const importData = JSON.parse(data);
+
+      if (!importData.fields || !Array.isArray(importData.fields)) {
+        throw new Error('匯入資料格式錯誤');
+      }
+
+      let fieldsCount = 0;
+      let groupsCount = 0;
+
+      // 匯入群組
+      if (importData.groups && Array.isArray(importData.groups)) {
+        for (const group of importData.groups) {
+          await this.createCustomFieldGroup({
+            ...group,
+            projectId,
+          });
+          groupsCount++;
+        }
+      }
+
+      // 匯入欄位
+      for (const field of importData.fields) {
+        await this.createCustomField({
+          ...field,
+          projectId,
+        });
+        fieldsCount++;
+      }
+
+      return { fieldsCount, groupsCount };
+    } catch (error) {
+      throw new Error('匯入自訂欄位失敗：' + (error as Error).message);
+    }
+  }
+
+  // ============= 系統預設欄位 =============
+
+  /**
+   * 初始化專案預設自訂欄位
+   */
+  async initializeDefaultFields(projectId: string, createdBy: string): Promise<void> {
+    // 建立預設群組
+    const basicGroupId = await this.createCustomFieldGroup({
+      projectId,
+      name: '基本資訊',
+      description: '任務的基本擴充資訊',
+      displayOrder: 1000,
+      isCollapsible: false,
+      isCollapsed: false,
+      createdBy,
+    });
+
+    const trackingGroupId = await this.createCustomFieldGroup({
+      projectId,
+      name: '追蹤資訊',
+      description: '任務追蹤與統計資訊',
+      displayOrder: 2000,
+      isCollapsible: true,
+      isCollapsed: false,
+      createdBy,
+    });
+
+    // 建立預設欄位
+    const defaultFields = [
+      {
+        name: '客戶',
+        description: '負責的客戶或部門',
+        type: 'text' as FieldType,
+        isRequired: false,
+        isSystem: true,
+        displayOrder: 1000,
+        isVisible: true,
+        groupId: basicGroupId,
+      },
+      {
+        name: '專案版本',
+        description: '關聯的專案版本',
+        type: 'select' as FieldType,
+        isRequired: false,
+        isSystem: true,
+        options: [
+          { value: 'v1.0', label: 'V1.0' },
+          { value: 'v1.1', label: 'V1.1' },
+          { value: 'v2.0', label: 'V2.0' },
+        ],
+        displayOrder: 2000,
+        isVisible: true,
+        groupId: basicGroupId,
+      },
+      {
+        name: '預估時數',
+        description: '完成任務的預估工作時數',
+        type: 'number' as FieldType,
+        isRequired: false,
+        isSystem: true,
+        validation: { min: 0, max: 999 },
+        displayOrder: 3000,
+        isVisible: true,
+        groupId: trackingGroupId,
+      },
+      {
+        name: '實際時數',
+        description: '實際花費的工作時數',
+        type: 'number' as FieldType,
+        isRequired: false,
+        isSystem: true,
+        validation: { min: 0, max: 999 },
+        displayOrder: 4000,
+        isVisible: true,
+        groupId: trackingGroupId,
+      },
+      {
+        name: '緊急程度',
+        description: '任務的緊急程度',
+        type: 'select' as FieldType,
+        isRequired: false,
+        isSystem: true,
+        options: [
+          { value: 'low', label: '低', color: 'green' },
+          { value: 'medium', label: '中', color: 'orange' },
+          { value: 'high', label: '高', color: 'red' },
+          { value: 'critical', label: '緊急', color: 'purple' },
+        ],
+        displayOrder: 5000,
+        isVisible: false,
+        groupId: basicGroupId,
+      },
+    ];
+
+    for (const field of defaultFields) {
+      await this.createCustomField({
+        ...field,
+        projectId,
+        createdBy,
+      });
+    }
+  }
+}
+
+// 單例實例
+export const customFieldService = new CustomFieldService();

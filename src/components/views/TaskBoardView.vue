@@ -48,6 +48,7 @@
           <template #item="{ element: task }">
             <TaskCard
               :task="task"
+              :project-id="projectId !== 'all' ? projectId : task.projectId"
               :show-project="projectId === 'all'"
               @click="$emit('task-click', task)"
               @update="$emit('task-update', task.taskId, $event)"

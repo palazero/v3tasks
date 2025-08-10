@@ -104,6 +104,15 @@
               <!-- 任務標題 -->
               <span class="task-title">{{ label }}</span>
               
+              <!-- 重要自訂欄位 -->
+              <span 
+                v-if="getTaskCustomFieldSummary(task)" 
+                class="custom-field-summary text-caption text-grey-6 q-ml-sm"
+              >
+                {{ getTaskCustomFieldSummary(task)!.field.name }}: 
+                <strong>{{ getTaskCustomFieldSummary(task)!.value }}</strong>
+              </span>
+              
               <!-- 指派人員 -->
               <q-avatar
                 v-if="task.assigneeId"
@@ -186,6 +195,7 @@ import { computed, ref, onMounted } from 'vue'
 import type { Task, View } from '@/types'
 import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useTaskDependencies } from '@/composables/useTaskDependencies'
+import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
 
 // Props
 const props = defineProps<{
@@ -202,6 +212,8 @@ const emit = defineEmits<{
 
 const { buildTaskTree } = useNestedTasks()
 const { getProjectDependencyGraph } = useTaskDependencies()
+const { visibleFields: visibleCustomFields } = useCustomFields(props.projectId)
+const { getCustomFieldDisplayValue, getCustomFieldValue } = useCustomFieldUtils()
 
 // 甘特圖容器引用
 const ganttContainer = ref<HTMLElement>()
@@ -393,6 +405,26 @@ function getUserInitials(userId: string): string {
   return userId.substring(0, 2).toUpperCase()
 }
 
+// 取得任務的重要自訂欄位（最多顯示1個）
+function getTaskCustomFieldSummary(task: Task): { field: any; value: unknown } | null {
+  if (!visibleCustomFields.value || !task.customFields) return null
+  
+  // 找到第一個有值的必填欄位或重要欄位
+  const importantField = visibleCustomFields.value.find(field => {
+    const value = getCustomFieldValue(task.customFields, field.fieldId)
+    return field.isRequired && value !== null && value !== undefined && value !== ''
+  })
+  
+  if (importantField) {
+    return {
+      field: importantField,
+      value: getCustomFieldDisplayValue(task.customFields, importantField.fieldId)
+    }
+  }
+  
+  return null
+}
+
 // 取得依賴關係路徑（SVG路徑）
 function getDependencyPath(dependency: { from: string; to: string }): string {
   // 簡化實作：直線連接
@@ -472,6 +504,16 @@ onMounted(() => {
       
       .task-title {
         font-weight: 500;
+      }
+      
+      .custom-field-summary {
+        font-size: 11px;
+        opacity: 0.8;
+        
+        strong {
+          font-weight: 600;
+          color: $grey-8;
+        }
       }
     }
     

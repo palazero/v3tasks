@@ -229,6 +229,24 @@
           </q-td>
         </template>
 
+        <!-- 自訂欄位欄 -->
+        <template 
+          v-for="field in visibleCustomFields" 
+          :key="`custom_${field.fieldId}`"
+          #[`body-cell-custom_${field.fieldId}`]="props"
+        >
+          <q-td :props="props">
+            <CustomFieldRenderer
+              :field="field"
+              :value="getCustomFieldValue(props.row.customFields, field.fieldId)"
+              :readonly="true"
+              :show-label="false"
+              :show-help="false"
+              dense
+            />
+          </q-td>
+        </template>
+
         <!-- 操作欄 -->
         <template v-slot:body-cell-actions="props">
           <q-td :props="props">
@@ -276,6 +294,8 @@ import { computed, ref } from 'vue'
 import type { Task, View, ViewConfiguration, FilterCondition } from '@/types'
 import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useCurrentUser } from '@/composables/useCurrentUser'
+import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
+import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
 
 // Props
 const props = defineProps<{
@@ -297,6 +317,8 @@ const emit = defineEmits<{
 
 const { buildTaskTree } = useNestedTasks()
 const { availableUsers } = useCurrentUser()
+const { visibleFields: visibleCustomFields } = useCustomFields(props.projectId)
+const { getCustomFieldDisplayValue, getCustomFieldValue } = useCustomFieldUtils()
 
 // 搜尋查詢
 const searchQuery = ref('')
@@ -390,30 +412,57 @@ const availableColumns = [
 
 // 表格欄位定義（根據配置篩選）
 const tableColumns = computed(() => {
+  let systemColumns = availableColumns
+  
   if (!props.configuration?.visibleColumns) {
     // 預設顯示的欄位
-    return availableColumns.filter(col => 
+    systemColumns = availableColumns.filter(col => 
       ['title', 'status', 'assignee', 'priority', 'deadline', 'progress', 'actions'].includes(col.name)
     )
+  } else {
+    // 根據配置顯示欄位
+    const visibleColumnKeys = props.configuration.visibleColumns
+      .filter(col => col.visible)
+      .map(col => col.key)
+    
+    systemColumns = availableColumns.filter(col => 
+      visibleColumnKeys.includes(col.name) || col.name === 'actions'
+    )
+    
+    // 套用自訂寬度
+    systemColumns = systemColumns.map(col => {
+      const configCol = props.configuration?.visibleColumns?.find(c => c.key === col.name)
+      return {
+        ...col,
+        style: configCol?.width ? `width: ${configCol.width}px` : col.style
+      }
+    })
   }
+
+  // 添加自訂欄位欄
+  const customFieldColumns = visibleCustomFields.value.map(field => ({
+    name: `custom_${field.fieldId}`,
+    label: field.name,
+    align: 'left' as const,
+    field: (row: Task) => getCustomFieldDisplayValue(row.customFields, field.fieldId),
+    sortable: true,
+    style: `width: ${field.type === 'text' ? '200' : '150'}px`
+  }))
+
+  // 找到 actions 欄位的索引
+  const actionsIndex = systemColumns.findIndex(col => col.name === 'actions')
   
-  // 根據配置顯示欄位
-  const visibleColumnKeys = props.configuration.visibleColumns
-    .filter(col => col.visible)
-    .map(col => col.key)
-  
-  const configuredColumns = availableColumns.filter(col => 
-    visibleColumnKeys.includes(col.name) || col.name === 'actions'
-  )
-  
-  // 套用自訂寬度
-  return configuredColumns.map(col => {
-    const configCol = props.configuration?.visibleColumns?.find(c => c.key === col.name)
-    return {
-      ...col,
-      style: configCol?.width ? `width: ${configCol.width}px` : col.style
-    }
-  })
+  if (actionsIndex >= 0) {
+    // 在 actions 欄位前插入自訂欄位
+    return [
+      ...systemColumns.slice(0, actionsIndex),
+      ...customFieldColumns,
+      ...systemColumns.slice(actionsIndex)
+    ]
+  } else {
+    // 如果沒有 actions 欄位，直接添加到最後
+    return [...systemColumns, ...customFieldColumns]
+  }
 })
 
 // 狀態選項

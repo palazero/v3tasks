@@ -110,6 +110,32 @@
           +{{ task.tags.length - 3 }} 更多
         </span>
       </div>
+
+      <!-- 自訂欄位 -->
+      <div v-if="displayCustomFields.length > 0" class="task-custom-fields q-mt-sm">
+        <div 
+          v-for="field in displayCustomFields" 
+          :key="field.fieldId"
+          class="custom-field-item q-mb-xs"
+        >
+          <div class="custom-field-compact">
+            <span class="field-label text-caption text-grey-6">
+              {{ field.name }}:
+            </span>
+            <span class="field-value text-caption q-ml-xs">
+              <CustomFieldRenderer
+                :field="field"
+                :value="getCustomFieldValue(task.customFields, field.fieldId)"
+                :readonly="true"
+                :show-label="false"
+                :show-help="false"
+                dense
+                class="inline-field"
+              />
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -117,11 +143,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Task } from '@/types'
+import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
+import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
 
 // Props
 const props = defineProps<{
   task: Task
   showProject?: boolean
+  projectId?: string
 }>()
 
 // Emits
@@ -129,6 +158,30 @@ defineEmits<{
   'click': []
   'update': [updates: Partial<Task>]
 }>()
+
+// Custom fields
+const { visibleFields: visibleCustomFields } = useCustomFields(props.projectId || props.task.projectId)
+const { getCustomFieldValue } = useCustomFieldUtils()
+
+// 顯示在卡片上的自訂欄位（最多顯示2個重要欄位）
+const displayCustomFields = computed(() => {
+  if (!visibleCustomFields.value) return []
+  
+  // 優先顯示必填欄位和有值的欄位
+  return visibleCustomFields.value
+    .filter(field => {
+      const value = getCustomFieldValue(props.task.customFields, field.fieldId)
+      return field.isRequired || (value !== null && value !== undefined && value !== '')
+    })
+    .sort((a, b) => {
+      // 必填欄位優先
+      if (a.isRequired && !b.isRequired) return -1
+      if (!a.isRequired && b.isRequired) return 1
+      // 按照顯示順序
+      return a.displayOrder - b.displayOrder
+    })
+    .slice(0, 2) // 最多顯示2個
+})
 
 // 任務描述預覽
 const taskDescription = computed(() => {
@@ -299,6 +352,46 @@ function getUserInitials(userId: string): string {
     .q-chip {
       font-size: 10px;
       height: 20px;
+    }
+  }
+
+  .task-custom-fields {
+    .custom-field-compact {
+      display: flex;
+      align-items: center;
+      
+      .field-label {
+        font-weight: 500;
+        min-width: 60px;
+        flex-shrink: 0;
+      }
+      
+      .field-value {
+        flex: 1;
+        
+        .inline-field {
+          :deep(.q-field__control) {
+            min-height: auto;
+            padding: 0;
+          }
+          
+          :deep(.q-field__native) {
+            padding: 0;
+            font-size: 11px;
+            line-height: 1.2;
+          }
+          
+          :deep(.q-chip) {
+            font-size: 10px;
+            height: 16px;
+            margin: 0 2px 0 0;
+          }
+          
+          :deep(.q-select__dropdown-icon) {
+            display: none;
+          }
+        }
+      }
     }
   }
 }
