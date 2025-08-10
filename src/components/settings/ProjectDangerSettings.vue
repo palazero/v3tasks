@@ -30,7 +30,7 @@
               <q-icon name="storage" class="q-mr-sm" />
               資料管理
             </div>
-            
+
             <div class="danger-actions">
               <!-- 清除所有任務 -->
               <div class="danger-action-item">
@@ -82,7 +82,7 @@
               <q-icon name="archive" class="q-mr-sm" />
               專案歸檔
             </div>
-            
+
             <div class="danger-actions">
               <!-- 歸檔專案 -->
               <div class="danger-action-item">
@@ -128,8 +128,8 @@
               <q-icon name="delete_forever" class="q-mr-sm" />
               刪除專案
             </div>
-            
-            <div class="delete-warning bg-negative text-white q-pa-md rounded-borders q-mb-md">
+
+            <div class="delete-warning bg-negative text-white q-pa-xs rounded-borders q-mb-md">
               <div class="row items-center q-gutter-sm">
                 <q-icon name="error" size="md" />
                 <div>
@@ -141,7 +141,7 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="danger-actions">
               <div class="danger-action-item">
                 <div class="action-info">
@@ -222,7 +222,7 @@ async function clearAllTasks(): Promise<void> {
     '此操作將刪除所有任務資料，但保留專案設定、成員和視圖。',
     '清除任務'
   )
-  
+
   if (!confirmed) return
 
   isClearing.value = true
@@ -230,7 +230,7 @@ async function clearAllTasks(): Promise<void> {
     // 獲取專案所有任務並刪除
     const tasks = await taskRepo.findByProject(props.project.projectId)
     await Promise.all(tasks.map(task => taskRepo.delete(task.taskId)))
-    
+
     $q.notify({
       type: 'positive',
       message: '所有任務已清除',
@@ -256,7 +256,7 @@ async function resetProject(): Promise<void> {
     '此操作將清除所有任務、視圖和自訂欄位，但保留專案基本資訊和成員。',
     '重置專案'
   )
-  
+
   if (!confirmed) return
 
   isResetting.value = true
@@ -265,7 +265,7 @@ async function resetProject(): Promise<void> {
     // 1. 清除所有任務
     // 2. 清除所有自訂視圖
     // 3. 清除所有自訂欄位
-    
+
     $q.notify({
       type: 'positive',
       message: '專案已重置',
@@ -294,7 +294,7 @@ async function archiveProject(): Promise<void> {
       persistent: false
     }).onOk(() => resolve(true)).onCancel(() => resolve(false))
   })
-  
+
   if (!confirmed) return
 
   isArchiving.value = true
@@ -304,9 +304,9 @@ async function archiveProject(): Promise<void> {
       isArchived: true,
       updatedAt: new Date()
     }
-    
+
     await projectRepo.update(updatedProject)
-    
+
     $q.notify({
       type: 'positive',
       message: '專案已歸檔',
@@ -334,7 +334,7 @@ async function unarchiveProject(): Promise<void> {
       persistent: false
     }).onOk(() => resolve(true)).onCancel(() => resolve(false))
   })
-  
+
   if (!confirmed) return
 
   isArchiving.value = true
@@ -344,9 +344,9 @@ async function unarchiveProject(): Promise<void> {
       isArchived: false,
       updatedAt: new Date()
     }
-    
+
     await projectRepo.update(updatedProject)
-    
+
     $q.notify({
       type: 'positive',
       message: '專案已恢復正常狀態',
@@ -373,7 +373,7 @@ async function deleteProject(): Promise<void> {
     '此操作將永久刪除專案及其所有相關資料，無法恢復。',
     '刪除專案'
   )
-  
+
   if (!firstConfirm) return
 
   // 第二次確認（輸入專案名稱）
@@ -396,7 +396,7 @@ async function deleteProject(): Promise<void> {
   isDeleting.value = true
   try {
     await projectRepo.delete(props.project.projectId)
-    
+
     $q.notify({
       type: 'positive',
       message: '專案已刪除',
@@ -425,7 +425,7 @@ function exportProject(): void {
     // 1. 收集專案資料
     // 2. 轉換為適當格式（JSON、CSV等）
     // 3. 下載檔案
-    
+
     $q.notify({
       type: 'positive',
       message: '專案資料匯出完成',
@@ -477,7 +477,7 @@ async function confirmDangerousAction(
 
   .danger-card {
     border: 2px solid #ffebee;
-    
+
     &.delete-card {
       border-color: #ffcdd2;
     }
@@ -489,7 +489,7 @@ async function confirmDangerousAction(
       justify-content: space-between;
       align-items: center;
       padding: 16px 0;
-      
+
       .action-info {
         flex: 1;
         margin-right: 24px;
@@ -510,7 +510,7 @@ async function confirmDangerousAction(
         flex-direction: column;
         align-items: flex-start;
         gap: 16px;
-        
+
         .action-info {
           margin-right: 0;
         }

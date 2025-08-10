@@ -80,7 +80,7 @@
           </q-item-label>
 
           <!-- 專案載入中 -->
-          <div v-if="isProjectsLoading" class="q-pa-md text-center">
+          <div v-if="isProjectsLoading" class="q-pa-xs text-center">
             <q-spinner color="primary" size="2em" />
             <div class="text-caption q-mt-sm">載入專案中...</div>
           </div>
@@ -126,8 +126,8 @@
             </q-item>
 
             <!-- 無專案提示 -->
-            <div v-if="userProjects.length === 0" class="q-pa-md text-center text-grey-6">
-              <q-icon name="folder_off" size="2em" class="q-mb-sm" />
+            <div v-if="userProjects.length === 0" class="q-pa-xs text-center text-grey-6">
+              <q-icon name="folder_off" size="2em" class="q-mb-xs" />
               <div>尚無專案</div>
               <div class="text-caption">點擊上方 + 建立第一個專案</div>
             </div>

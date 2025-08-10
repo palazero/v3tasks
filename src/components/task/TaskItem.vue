@@ -1,6 +1,6 @@
 <template>
   <div
-    class="task-item q-pa-md cursor-pointer"
+    class="task-item q-pa-xs cursor-pointer"
     :class="{
       'task-item--completed': task.statusId === 'done',
       'task-item--overdue': isOverdue
@@ -261,9 +261,9 @@ const priorityInfo = computed(() => {
 const statusInfo = computed(() => {
   const status = DEFAULT_STATUSES.find(s => s.id === props.task.statusId)
   if (!status) {
-    return { 
-      id: 'todo', 
-      label: '待處理', 
+    return {
+      id: 'todo',
+      label: '待處理',
       color: 'grey',
       icon: 'radio_button_unchecked'
     }
@@ -309,7 +309,7 @@ function cycleStatus(): void {
   const currentIndex = statusCycle.indexOf(props.task.statusId || 'todo')
   const nextIndex = (currentIndex + 1) % statusCycle.length
   const newStatus = statusCycle[nextIndex]
-  
+
   emit('update', { statusId: newStatus })
 }
 
@@ -353,8 +353,8 @@ function formatDate(date: Date | string): string {
 .task-item {
   border-bottom: 1px solid #e0e0e0;
   transition: background-color 0.2s ease;
-  min-height: 48px;
-  
+  min-height: 32px;
+
   &:hover {
     background-color: #f5f5f5;
   }
@@ -374,7 +374,7 @@ function formatDate(date: Date | string): string {
 
   .task-title-section {
     min-width: 0; // 允許 flex 收縮
-    
+
     .task-title {
       line-height: 1.4;
       white-space: nowrap;
@@ -385,7 +385,7 @@ function formatDate(date: Date | string): string {
 
   .chip-compact {
     max-width: 120px;
-    
+
     .q-chip__content {
       white-space: nowrap;
       overflow: hidden;

@@ -7,8 +7,13 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
+        redirect: '/projects/all'
+      },
+      {
+        path: 'projects/all',
         name: 'AllTasks',
-        component: () => import('pages/AllTasksView.vue'),
+        component: () => import('pages/ProjectView.vue'),
+        props: { projectId: 'all' },
         meta: {
           title: '所有任務',
           requiresAuth: true

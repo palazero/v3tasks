@@ -285,6 +285,7 @@ export interface View {
   isPersonal: boolean;
   creatorId: string;
   config: ViewConfig;
+  order: number; // 視圖排序順序
   createdAt: Date;
   updatedAt: Date;
 }

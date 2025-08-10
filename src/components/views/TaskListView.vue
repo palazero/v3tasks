@@ -2,13 +2,13 @@
   <div class="task-list-view">
     <!-- AllTasks 專案分組顯示 -->
     <template v-if="projectId === 'all' && view.config.groupBy === 'projectId'">
-      <div 
+      <div
         v-for="[projectId, projectTasks] in groupedTasks"
         :key="projectId"
         class="project-group q-mb-lg"
       >
         <!-- 專案分組標題 -->
-        <div class="project-group-header q-pa-md bg-grey-2 rounded-borders-top">
+        <div class="project-group-header q-pa-xs bg-grey-2 rounded-borders-top">
           <div class="row items-center justify-between">
             <div class="row items-center q-gutter-sm">
               <q-avatar size="24px" color="primary" text-color="white">
@@ -19,7 +19,7 @@
               </span>
               <q-badge color="grey" :label="projectTasks.length" />
             </div>
-            
+
             <q-btn
               flat
               dense
@@ -160,7 +160,7 @@ const groupedTasks = computed(() => {
   }
 
   const grouped = new Map<string, Task[]>()
-  
+
   props.tasks.forEach(task => {
     const projectId = task.projectId
     if (!grouped.has(projectId)) {

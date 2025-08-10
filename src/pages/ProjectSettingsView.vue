@@ -1,7 +1,7 @@
 <template>
   <q-page class="project-settings-page">
     <!-- 標題列 -->
-    <div class="settings-header q-pa-md bg-white">
+    <div class="settings-header q-pa-xs bg-white">
       <div class="row items-center justify-between">
         <div class="row items-center q-gutter-md">
           <q-btn
@@ -18,7 +18,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 儲存按鈕 -->
         <q-btn
           v-if="hasUnsavedChanges"
@@ -176,7 +176,7 @@ const settingSections = computed(() => {
     },
     {
       key: 'members',
-      title: '成員管理', 
+      title: '成員管理',
       description: '管理專案成員和權限',
       icon: 'people'
     },
@@ -253,7 +253,7 @@ async function saveAllChanges(): Promise<void> {
   try {
     await projectRepo.update(project.value)
     hasUnsavedChanges.value = false
-    
+
     $q.notify({
       type: 'positive',
       message: '專案設定已儲存',
@@ -262,7 +262,7 @@ async function saveAllChanges(): Promise<void> {
   } catch (error) {
     console.error('Failed to save project settings:', error)
     $q.notify({
-      type: 'negative', 
+      type: 'negative',
       message: '儲存設定失敗',
       position: 'top'
     })
@@ -312,19 +312,19 @@ onMounted(() => {
     .settings-sidebar {
       width: 280px;
       border-right: 1px solid #e0e0e0;
-      
+
       .settings-nav {
         padding: 16px 0;
-        
+
         .nav-item {
           margin: 0 8px 4px;
           border-radius: 8px;
-          
+
           &.q-item--active {
             background-color: rgba(25, 118, 210, 0.1);
             color: #1976d2;
           }
-          
+
           &:hover:not(.q-item--active) {
             background-color: rgba(0, 0, 0, 0.04);
           }
@@ -335,7 +335,7 @@ onMounted(() => {
     .settings-main {
       flex: 1;
       background-color: white;
-      
+
       .settings-section {
         padding: 24px;
         max-width: 800px;
@@ -350,24 +350,24 @@ onMounted(() => {
   .project-settings-page {
     .settings-content {
       flex-direction: column;
-      
+
       .settings-sidebar {
         width: 100%;
         border-right: none;
         border-bottom: 1px solid #e0e0e0;
-        
+
         .settings-nav {
           display: flex;
           overflow-x: auto;
           padding: 8px 16px;
-          
+
           .nav-item {
             min-width: 120px;
             margin: 0 4px;
           }
         }
       }
-      
+
       .settings-main {
         .settings-section {
           padding: 16px;

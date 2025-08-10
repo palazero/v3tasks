@@ -146,7 +146,7 @@ function toggleExpanded(): void {
   .task-row {
     display: flex;
     align-items: center;
-    min-height: 48px;
+    min-height: 32px;
     border-bottom: 1px solid $grey-4;
     transition: background-color 0.2s ease;
     

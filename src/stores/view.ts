@@ -27,6 +27,11 @@ export const useViewStore = defineStore('view', () => {
     return views.value.find(v => v.viewId === currentViewId.value) || null
   })
 
+  // 排序後的視圖
+  const sortedViews = computed(() => {
+    return [...views.value].sort((a, b) => (a.order || 0) - (b.order || 0))
+  })
+
   // 取得 AllTasks 的視圖
   async function loadAllTasksViews(): Promise<void> {
     isLoading.value = true
@@ -41,9 +46,9 @@ export const useViewStore = defineStore('view', () => {
         await createDefaultAllTasksView()
       }
       
-      // 設定預設當前視圖
+      // 恢復上次選中的視圖或設定預設視圖
       if (allTasksViews.length > 0 && !currentViewId.value) {
-        currentViewId.value = allTasksViews[0]!.viewId
+        restoreLastView('all')
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '載入視圖失敗'
@@ -67,10 +72,9 @@ export const useViewStore = defineStore('view', () => {
         await createDefaultProjectViews(projectId)
       }
       
-      // 設定預設當前視圖（優先選擇 Dashboard）
+      // 恢復上次選中的視圖或設定預設視圖
       if (projectViews.length > 0 && !currentViewId.value) {
-        const dashboardView = projectViews.find(v => v.type === VT.DASHBOARD)
-        currentViewId.value = dashboardView?.viewId || projectViews[0]!.viewId
+        restoreLastView(projectId)
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '載入專案視圖失敗'
@@ -107,6 +111,7 @@ export const useViewStore = defineStore('view', () => {
           'endDateTime'
         ]
       },
+      order: 0,
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -136,6 +141,7 @@ export const useViewStore = defineStore('view', () => {
         isPersonal: false,
         creatorId: userStore.currentUserId,
         config: viewRepo.getDefaultConfig(VT.DASHBOARD),
+        order: 0,
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -155,6 +161,7 @@ export const useViewStore = defineStore('view', () => {
             { fieldId: 'createdAt', direction: 'desc' }
           ]
         },
+        order: 1,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -176,6 +183,8 @@ export const useViewStore = defineStore('view', () => {
     const view = views.value.find(v => v.viewId === viewId)
     if (view) {
       currentViewId.value = viewId
+      // 記住當前選中的視圖
+      setLastViewId(view.projectId, viewId)
     }
   }
 
@@ -193,6 +202,9 @@ export const useViewStore = defineStore('view', () => {
     error.value = null
 
     try {
+      // 計算新視圖的 order（最大 order + 1）
+      const maxOrder = views.value.reduce((max, view) => Math.max(max, view.order || 0), 0)
+
       const newView: View = {
         viewId: nanoid(),
         projectId,
@@ -205,6 +217,7 @@ export const useViewStore = defineStore('view', () => {
           ...viewRepo.getDefaultConfig(type),
           ...config
         },
+        order: maxOrder + 1,
         createdAt: new Date(),
         updatedAt: new Date()
       }
@@ -245,6 +258,36 @@ export const useViewStore = defineStore('view', () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  // 更新視圖
+  async function updateView(viewId: string, updates: Partial<View>): Promise<boolean> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      await viewRepo.update(viewId, updates)
+      
+      // 更新本地狀態
+      const view = views.value.find(v => v.viewId === viewId)
+      if (view) {
+        Object.assign(view, updates)
+        view.updatedAt = new Date()
+      }
+      
+      return true
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '更新視圖失敗'
+      console.error('Failed to update view:', err)
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // 根據 ID 取得視圖
+  function getViewById(viewId: string): View | null {
+    return views.value.find(v => v.viewId === viewId) || null
   }
 
   // 刪除視圖
@@ -326,6 +369,62 @@ export const useViewStore = defineStore('view', () => {
     return views.value.filter(v => v.isDeletable)
   })
 
+  // 視圖記憶功能
+  const VIEW_MEMORY_KEY = 'viewMemory'
+
+  function setLastViewId(projectId: string, viewId: string): void {
+    const memory = JSON.parse(localStorage.getItem(VIEW_MEMORY_KEY) || '{}')
+    memory[projectId] = viewId
+    localStorage.setItem(VIEW_MEMORY_KEY, JSON.stringify(memory))
+  }
+
+  function getLastViewId(projectId: string): string | null {
+    const memory = JSON.parse(localStorage.getItem(VIEW_MEMORY_KEY) || '{}')
+    return memory[projectId] || null
+  }
+
+  function restoreLastView(projectId: string): void {
+    const lastViewId = getLastViewId(projectId)
+    if (lastViewId && views.value.find(v => v.viewId === lastViewId)) {
+      currentViewId.value = lastViewId
+    } else if (views.value.length > 0) {
+      // 使用預設邏輯：Dashboard 優先，否則第一個
+      const dashboardView = views.value.find(v => v.type === VT.DASHBOARD)
+      currentViewId.value = dashboardView?.viewId || views.value[0]?.viewId || null
+    }
+  }
+
+  // 視圖排序功能
+  async function reorderViews(reorderData: Array<{ viewId: string; order: number }>): Promise<boolean> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // 批量更新視圖順序
+      for (const { viewId, order } of reorderData) {
+        await viewRepo.update(viewId, { order, updatedAt: new Date() })
+        
+        // 更新本地狀態
+        const view = views.value.find(v => v.viewId === viewId)
+        if (view) {
+          view.order = order
+          view.updatedAt = new Date()
+        }
+      }
+
+      // 重新排序本地視圖
+      views.value.sort((a, b) => (a.order || 0) - (b.order || 0))
+      
+      return true
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '重新排序視圖失敗'
+      console.error('Failed to reorder views:', err)
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // 重置狀態
   function reset(): void {
     views.value = []
@@ -342,6 +441,7 @@ export const useViewStore = defineStore('view', () => {
     
     // 計算屬性
     currentView,
+    sortedViews,
     viewsByType,
     deletableViews,
     
@@ -350,9 +450,15 @@ export const useViewStore = defineStore('view', () => {
     loadProjectViews,
     switchView,
     createView,
+    updateView,
     updateViewConfig,
     deleteView,
     duplicateView,
+    getViewById,
+    reorderViews,
+    setLastViewId,
+    getLastViewId,
+    restoreLastView,
     reset
   }
 })

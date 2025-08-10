@@ -214,7 +214,7 @@ export class ViewRepository extends BaseRepository<View> {
           ...baseConfig,
           viewSpecificSettings: {
             columnWidths: {},
-            rowHeight: 40,
+            rowHeight: 32,
           },
         };
 

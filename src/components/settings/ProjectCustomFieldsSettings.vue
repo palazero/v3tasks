@@ -25,7 +25,7 @@
           </div>
 
           <!-- 欄位列表 -->
-          <div v-if="fields.length > 0" class="fields-list">
+          <div v-if="fields && fields.length > 0" class="fields-list">
             <q-expansion-item
               v-for="field in fields"
               :key="field.fieldId"
@@ -40,7 +40,7 @@
                     <!-- 基本設定 -->
                     <div class="col-12 col-md-6">
                       <div class="text-subtitle2 q-mb-sm">基本設定</div>
-                      
+
                       <q-input
                         v-model="field.name"
                         label="欄位名稱"
@@ -49,7 +49,7 @@
                         @update:model-value="updateField(field)"
                         class="q-mb-sm"
                       />
-                      
+
                       <q-input
                         v-model="field.description"
                         label="欄位描述"
@@ -67,7 +67,7 @@
                           label="必填欄位"
                           @update:model-value="updateField(field)"
                         />
-                        
+
                         <q-checkbox
                           v-model="field.showInTable"
                           label="在表格中顯示"
@@ -79,7 +79,7 @@
                     <!-- 欄位選項 -->
                     <div class="col-12 col-md-6" v-if="hasOptions(field.type)">
                       <div class="text-subtitle2 q-mb-sm">選項設定</div>
-                      
+
                       <div v-if="field.options" class="options-list">
                         <div
                           v-for="(option, index) in field.options"
@@ -94,7 +94,7 @@
                             @update:model-value="updateField(field)"
                             class="col"
                           />
-                          
+
                           <q-input
                             v-model="option.value"
                             outlined
@@ -103,7 +103,7 @@
                             @update:model-value="updateField(field)"
                             class="col"
                           />
-                          
+
                           <q-btn
                             flat
                             dense
@@ -114,7 +114,7 @@
                             @click="removeOption(field, index)"
                           />
                         </div>
-                        
+
                         <q-btn
                           flat
                           dense
@@ -131,7 +131,7 @@
                     <div class="col-12">
                       <q-separator class="q-my-md" />
                       <div class="text-subtitle2 q-mb-sm">欄位預覽</div>
-                      <div class="field-preview bg-grey-1 q-pa-md rounded-borders">
+                      <div class="field-preview bg-grey-1 q-pa-xs rounded-borders">
                         <CustomFieldRenderer
                           :field="field"
                           :value="getPreviewValue(field)"
@@ -153,7 +153,7 @@
                       size="sm"
                       @click="deleteField(field)"
                     />
-                    
+
                     <q-btn
                       label="儲存變更"
                       color="primary"
@@ -178,33 +178,33 @@
     </div>
 
     <!-- 欄位統計 -->
-    <div class="row q-col-gutter-md q-mt-md" v-if="fields.length > 0">
+    <div class="row q-col-gutter-md q-mt-md" v-if="fields && fields.length > 0">
       <div class="col-12">
         <q-card flat bordered class="q-pa-md">
           <div class="text-subtitle1 text-weight-medium q-mb-md">欄位統計</div>
-          
+
           <div class="row q-col-gutter-md">
             <div class="col-6 col-sm-3">
               <div class="stat-item text-center">
-                <div class="text-h4 text-primary">{{ fields.length }}</div>
+                <div class="text-h4 text-primary">{{ fields?.length || 0 }}</div>
                 <div class="text-caption">總欄位數</div>
               </div>
             </div>
-            
+
             <div class="col-6 col-sm-3">
               <div class="stat-item text-center">
                 <div class="text-h4 text-orange">{{ requiredFieldsCount }}</div>
                 <div class="text-caption">必填欄位</div>
               </div>
             </div>
-            
+
             <div class="col-6 col-sm-3">
               <div class="stat-item text-center">
                 <div class="text-h4 text-green">{{ visibleFieldsCount }}</div>
                 <div class="text-caption">表格顯示</div>
               </div>
             </div>
-            
+
             <div class="col-6 col-sm-3">
               <div class="stat-item text-center">
                 <div class="text-h4 text-purple">{{ fieldTypesCount }}</div>
@@ -236,7 +236,7 @@ const emit = defineEmits<{
 }>()
 
 const $q = useQuasar()
-const { fields, updateField: updateFieldService, deleteField: deleteFieldService } = useCustomFields(props.projectId)
+const { customFields: fields, updateField: updateFieldService, deleteField: deleteFieldService } = useCustomFields(props.projectId)
 
 // 欄位類型對應
 const fieldTypeLabels: Record<string, string> = {
@@ -270,15 +270,16 @@ const fieldTypeIcons: Record<string, string> = {
 }
 
 // 計算屬性
-const requiredFieldsCount = computed(() => 
-  fields.value.filter(field => field.isRequired).length
+const requiredFieldsCount = computed(() =>
+  fields.value?.filter(field => field.isRequired).length || 0
 )
 
-const visibleFieldsCount = computed(() => 
-  fields.value.filter(field => field.showInTable).length
+const visibleFieldsCount = computed(() =>
+  fields.value?.filter(field => field.showInTable).length || 0
 )
 
 const fieldTypesCount = computed(() => {
+  if (!fields.value) return 0
   const types = new Set(fields.value.map(field => field.type))
   return types.size
 })
@@ -349,7 +350,7 @@ async function saveField(field: CustomField): Promise<void> {
   try {
     await updateFieldService(field.fieldId, field)
     emit('change')
-    
+
     $q.notify({
       type: 'positive',
       message: '欄位已儲存',
@@ -375,13 +376,13 @@ async function deleteField(field: CustomField): Promise<void> {
       persistent: false
     }).onOk(() => resolve(true)).onCancel(() => resolve(false))
   })
-  
+
   if (!confirmed) return
 
   try {
     await deleteFieldService(field.fieldId)
     emit('change')
-    
+
     $q.notify({
       type: 'positive',
       message: `已刪除欄位「${field.name}」`,
@@ -424,7 +425,7 @@ onMounted(() => {
       margin-bottom: 8px;
       border: 1px solid #e0e0e0;
       border-radius: 8px;
-      
+
       &:hover {
         background-color: #fafafa;
       }

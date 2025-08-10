@@ -16,7 +16,7 @@
 
       <q-separator />
 
-      <q-card-section class="q-pa-md scroll" style="max-height: 70vh;">
+      <q-card-section class="q-pa-xs scroll" style="max-height: 70vh;">
         <q-form @submit="onSubmit" class="q-gutter-md">
           <!-- 基本資訊 -->
           <div class="section-title">基本資訊</div>

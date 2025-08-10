@@ -1,7 +1,7 @@
 <template>
   <div class="custom-field-manager">
     <!-- 標題列 -->
-    <div class="manager-header q-pa-md bg-white border-bottom">
+    <div class="manager-header q-pa-xs bg-white border-bottom">
       <div class="row items-center justify-between">
         <div class="text-h6">自訂欄位管理</div>
         <div class="row q-gutter-sm">
@@ -37,7 +37,7 @@
     </div>
 
     <!-- 載入狀態 -->
-    <div v-if="isLoading" class="q-pa-md text-center">
+    <div v-if="isLoading" class="q-pa-xs text-center">
       <q-spinner size="2em" />
       <div class="text-body2 q-mt-sm">載入中...</div>
     </div>
@@ -54,7 +54,7 @@
         <template #item="{ element: group }">
           <div class="field-group q-ma-md" :key="group.groupId">
             <!-- 群組標題 -->
-            <div class="group-header q-pa-md bg-grey-1 rounded-borders-top">
+            <div class="group-header q-pa-xs bg-grey-1 rounded-borders-top">
               <div class="row items-center justify-between">
                 <div class="row items-center q-gutter-sm">
                   <q-icon
@@ -122,7 +122,7 @@
                 class="fields-list"
               >
                 <template #item="{ element: field }">
-                  <div class="field-item q-pa-md border-bottom" :key="field.fieldId">
+                  <div class="field-item q-pa-xs border-bottom" :key="field.fieldId">
                     <div class="row items-center justify-between">
                       <div class="row items-center q-gutter-md flex-1">
                         <q-icon
@@ -243,7 +243,7 @@
 
       <!-- 未分組欄位 -->
       <div v-if="groupedFields.ungrouped && groupedFields.ungrouped.length > 0" class="field-group q-ma-md">
-        <div class="group-header q-pa-md bg-grey-1 rounded-borders-top">
+        <div class="group-header q-pa-xs bg-grey-1 rounded-borders-top">
           <div class="text-subtitle1 text-weight-medium">未分組欄位</div>
         </div>
         <div class="group-fields bg-white rounded-borders-bottom">
@@ -257,7 +257,7 @@
             class="fields-list"
           >
             <template #item="{ element: field }">
-              <div class="field-item q-pa-md border-bottom" :key="field.fieldId">
+              <div class="field-item q-pa-xs border-bottom" :key="field.fieldId">
                 <!-- 同上面的欄位項目模板 -->
                 <div class="row items-center justify-between">
                   <div class="row items-center q-gutter-md flex-1">

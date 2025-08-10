@@ -272,7 +272,7 @@ async function loadMembers(): Promise<void> {
 }
 
 // 取得成員角色名稱
-function getMemberRoleName(_userId: string): string {
+function getMemberRoleName(userId: string): string {
   if (!props.project) return '成員'
   return userId === props.project.ownerId ? '擁有者' : '成員'
 }

@@ -1,7 +1,7 @@
 <template>
   <div class="task-gantt-view">
     <!-- 甘特圖工具欄 -->
-    <div class="gantt-toolbar q-pa-md bg-white border-bottom">
+    <div class="gantt-toolbar q-pa-xs bg-white border-bottom">
       <div class="row items-center justify-between">
         <div class="row items-center q-gutter-sm">
           <q-btn
@@ -84,7 +84,7 @@
         <div class="gantt-timeline-header">
           <div class="task-labels-header">任務</div>
           <div class="timeline-grid">
-            <div 
+            <div
               v-for="(label, index) in timelineLabels"
               :key="index"
               class="timeline-label"
@@ -109,7 +109,7 @@
           >
             <!-- 任務標籤 -->
             <div class="task-label">
-              <div 
+              <div
                 class="task-info"
                 :style="{ paddingLeft: `${(task.level || 0) * 20}px` }"
                 @click="handleTaskClick(task)"
@@ -124,7 +124,7 @@
                   @click.stop="toggleTaskExpanded(task)"
                   class="expand-btn q-mr-xs"
                 />
-                
+
                 <!-- 任務圖標 -->
                 <q-icon
                   :name="getTaskIcon(task)"
@@ -132,10 +132,10 @@
                   size="sm"
                   class="q-mr-xs"
                 />
-                
+
                 <!-- 任務標題 -->
                 <span class="task-title">{{ task.title }}</span>
-                
+
                 <!-- 指派人員 -->
                 <q-avatar
                   v-if="task.assigneeId"
@@ -147,7 +147,7 @@
                   {{ getUserInitials(task.assigneeId) }}
                 </q-avatar>
               </div>
-              
+
               <!-- 任務詳細信息 -->
               <div class="task-details text-caption text-grey-6">
                 {{ formatTaskDuration(task) }}
@@ -167,7 +167,7 @@
                   :class="{ 'weekend': isWeekend(dayIndex) && ganttSettings.showWeekends }"
                 />
               </div>
-              
+
               <!-- 任務條 -->
               <div
                 class="gantt-bar"
@@ -181,12 +181,12 @@
                 @click="handleTaskClick(task)"
               >
                 <!-- 進度條 -->
-                <div 
+                <div
                   v-if="ganttSettings.showProgress && task.ganttProgress > 0"
                   class="progress-bar"
                   :style="{ width: `${task.ganttProgress}%` }"
                 />
-                
+
                 <!-- 任務標題 -->
                 <span class="bar-text">{{ task.title }}</span>
               </div>
@@ -338,7 +338,7 @@ function initializeGanttData(): void {
   try {
     ganttTasks.value = convertToGanttTasks(props.tasks)
     timelineRange.value = getTimelineRange(ganttTasks.value)
-    
+
     if (ganttSettings.value.showCriticalPath) {
       updateCriticalPath()
     }
@@ -349,7 +349,7 @@ function initializeGanttData(): void {
 
 function updateCriticalPath(): void {
   if (ganttTasks.value.length === 0) return
-  
+
   criticalPath.value = calculateCriticalPath(ganttTasks.value)
 }
 
@@ -360,7 +360,7 @@ function autoSchedule(): void {
   try {
     ganttTasks.value = autoScheduleTasks(ganttTasks.value)
     timelineRange.value = getTimelineRange(ganttTasks.value)
-    
+
     if (ganttSettings.value.showCriticalPath) {
       updateCriticalPath()
     }
@@ -498,7 +498,7 @@ onMounted(() => {
 .task-gantt-view {
   .gantt-toolbar {
     border-bottom: 1px solid #e0e0e0;
-    
+
     .q-toggle {
       font-size: 0.875rem;
     }

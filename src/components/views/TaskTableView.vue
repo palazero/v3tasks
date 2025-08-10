@@ -1,7 +1,7 @@
 <template>
   <div class="task-table-view">
     <!-- 表格工具欄 -->
-    <div class="table-toolbar q-pa-md bg-white border-bottom">
+    <div class="table-toolbar q-pa-xs bg-white border-bottom">
       <div class="row items-center justify-between">
         <div class="row items-center q-gutter-sm">
           <q-btn
@@ -60,7 +60,7 @@
         <!-- 任務標題欄（支援樹狀結構） -->
         <template v-slot:body-cell-title="props">
           <q-td :props="props" class="task-title-cell">
-            <div 
+            <div
               class="task-title-wrapper"
               :style="{ paddingLeft: `${(props.row.level || 0) * 24}px` }"
             >
@@ -77,7 +77,7 @@
               <div v-else class="expand-btn-spacer" />
 
               <!-- 任務標題（行內編輯） -->
-              <div 
+              <div
                 v-if="!isEditing(props.row.taskId, 'title')"
                 class="task-title-display cursor-pointer"
                 @click="startEdit(props.row.taskId, 'title', props.row.title)"
@@ -115,7 +115,7 @@
               >
                 <q-tooltip>{{ getStatusLabel(props.row.statusId) }} (點擊切換)</q-tooltip>
               </q-btn>
-              
+
               <!-- 下拉選單（備選） -->
               <q-select
                 :model-value="props.row.statusId"
@@ -252,8 +252,8 @@
         </template>
 
         <!-- 自訂欄位欄 -->
-        <template 
-          v-for="field in visibleCustomFields" 
+        <template
+          v-for="field in visibleCustomFields"
           :key="`custom_${field.fieldId}`"
           #[`body-cell-custom_${field.fieldId}`]="props"
         >
@@ -436,10 +436,10 @@ const availableColumns = [
 // 表格欄位定義（根據配置篩選）
 const tableColumns = computed(() => {
   let systemColumns = availableColumns
-  
+
   if (!props.configuration?.visibleColumns) {
     // 預設顯示的欄位
-    systemColumns = availableColumns.filter(col => 
+    systemColumns = availableColumns.filter(col =>
       ['title', 'status', 'assignee', 'priority', 'deadline', 'progress', 'actions'].includes(col.name)
     )
   } else {
@@ -447,11 +447,11 @@ const tableColumns = computed(() => {
     const visibleColumnKeys = props.configuration.visibleColumns
       .filter(col => col.visible)
       .map(col => col.key)
-    
-    systemColumns = availableColumns.filter(col => 
+
+    systemColumns = availableColumns.filter(col =>
       visibleColumnKeys.includes(col.name) || col.name === 'actions'
     )
-    
+
     // 套用自訂寬度
     systemColumns = systemColumns.map(col => {
       const configCol = props.configuration?.visibleColumns?.find(c => c.key === col.name)
@@ -474,7 +474,7 @@ const tableColumns = computed(() => {
 
   // 找到 actions 欄位的索引
   const actionsIndex = systemColumns.findIndex(col => col.name === 'actions')
-  
+
   if (actionsIndex >= 0) {
     // 在 actions 欄位前插入自訂欄位
     return [
@@ -496,7 +496,7 @@ const statusOptions = [
 ]
 
 // 指派人員選項
-const assigneeOptions = computed(() => 
+const assigneeOptions = computed(() =>
   availableUsers.value.map(user => ({
     label: user.name,
     value: user.userId
@@ -518,16 +518,16 @@ const nestedTasks = computed(() => buildTaskTree(props.tasks))
 const filteredTasks = computed(() => {
   const flattenWithLevel = (tasks: Task[], level = 0): Task[] => {
     const result: Task[] = []
-    
+
     tasks.forEach(task => {
       const taskWithLevel = { ...task, level }
-      
+
       // 基本搜尋篩選
       let passesSearch = true
       if (searchQuery.value) {
         passesSearch = task.title.toLowerCase().includes(searchQuery.value.toLowerCase())
       }
-      
+
       // 配置篩選
       let passesConfigFilters = true
       if (props.configuration?.filters && props.configuration.filters.length > 0) {
@@ -535,33 +535,33 @@ const filteredTasks = computed(() => {
           return applyFilter(task, filter)
         })
       }
-      
+
       // 隱藏已完成任務篩選
       let passesCompletedFilter = true
       if (props.configuration?.hideCompleted && task.statusId === 'done') {
         passesCompletedFilter = false
       }
-      
+
       if (passesSearch && passesConfigFilters && passesCompletedFilter) {
         result.push(taskWithLevel)
       }
-      
+
       // 如果有子任務且展開
       if (task.children && task.children.length > 0 && task.isExpanded) {
         result.push(...flattenWithLevel(task.children, level + 1))
       }
     })
-    
+
     return result
   }
-  
+
   let result = flattenWithLevel(nestedTasks.value)
-  
+
   // 排序
   if (props.configuration?.sortBy) {
     result = applySorting(result, props.configuration.sortBy, props.configuration.sortOrder || 'asc')
   }
-  
+
   return result
 })
 
@@ -656,7 +656,7 @@ function cycleStatus(task: Task): void {
   const currentIndex = statusCycle.indexOf(task.statusId || 'todo')
   const nextIndex = (currentIndex + 1) % statusCycle.length
   const newStatus = statusCycle[nextIndex]
-  
+
   updateTask(task.taskId, { statusId: newStatus })
 }
 
@@ -688,7 +688,7 @@ function getPriorityIcon(priority: string): string {
 function getPriorityColor(priority: string): string {
   const colors = {
     'urgent': 'red',
-    'high': 'orange', 
+    'high': 'orange',
     'medium': 'grey',
     'low': 'blue'
   }
@@ -700,18 +700,18 @@ function getUserInitials(userId: string | undefined | null): string {
   if (!userId || typeof userId !== 'string') {
     return '??'
   }
-  
+
   const user = availableUsers.value.find(u => u.userId === userId)
-  
+
   if (user && user.name && user.name.length > 0) {
     return user.name.substring(0, 2).toUpperCase()
   }
-  
+
   // 如果沒有找到用戶或用戶名為空，使用 userId 的前兩個字符
   if (userId.length > 0) {
     return userId.substring(0, 2).toUpperCase()
   }
-  
+
   return '??'
 }
 
@@ -720,7 +720,7 @@ function getUserName(userId: string | undefined | null): string {
   if (!userId || typeof userId !== 'string') {
     return '未指派'
   }
-  
+
   const user = availableUsers.value.find(u => u.userId === userId)
   return user && user.name ? user.name : userId
 }
@@ -728,10 +728,10 @@ function getUserName(userId: string | undefined | null): string {
 // 格式化日期時間
 function formatDateTime(date: Date | string | null | undefined): string {
   if (!date) return '-'
-  
+
   const d = typeof date === 'string' ? new Date(date) : date
   if (isNaN(d.getTime())) return '-'
-  
+
   return d.toLocaleString('zh-TW', {
     year: 'numeric',
     month: '2-digit',
@@ -744,7 +744,7 @@ function formatDateTime(date: Date | string | null | undefined): string {
 // 套用篩選條件
 function applyFilter(task: Task, filter: FilterCondition): boolean {
   const fieldValue = getTaskFieldValue(task, filter.field)
-  
+
   if (filter.operator === 'equals') {
     return fieldValue === filter.value
   } else if (filter.operator === 'notEquals') {
@@ -760,7 +760,7 @@ function applyFilter(task: Task, filter: FilterCondition): boolean {
     }
     return true
   }
-  
+
   return true
 }
 
@@ -778,7 +778,7 @@ function getTaskFieldValue(task: Task, field: string): string | number | Date | 
     'startDateTime': task.startDateTime || null,
     'progress': task.progress || 0
   }
-  
+
   return fieldMap[field] || null
 }
 
@@ -787,19 +787,19 @@ function applySorting(tasks: Task[], sortBy: string, sortOrder: 'asc' | 'desc'):
   return [...tasks].sort((a, b) => {
     const aValue = getTaskFieldValue(a, sortBy)
     const bValue = getTaskFieldValue(b, sortBy)
-    
+
     // 處理 null/undefined 值
     if (aValue === null && bValue === null) return 0
     if (aValue === null) return sortOrder === 'asc' ? 1 : -1
     if (bValue === null) return sortOrder === 'asc' ? -1 : 1
-    
+
     let comparison = 0
     if (aValue < bValue) {
       comparison = -1
     } else if (aValue > bValue) {
       comparison = 1
     }
-    
+
     return sortOrder === 'asc' ? comparison : -comparison
   })
 }
@@ -829,7 +829,7 @@ function deleteTask(task: Task): void {
   .table-container {
     .task-table {
       background-color: white;
-      
+
       :deep(.q-table__top) {
         padding: 0;
       }
@@ -861,25 +861,25 @@ function deleteTask(task: Task): void {
         .task-title-wrapper {
           display: flex;
           align-items: center;
-          
+
           .expand-btn {
             min-width: 24px;
           }
-          
+
           .expand-btn-spacer {
             width: 24px;
           }
-          
+
           .task-title-display {
             flex: 1;
             padding: 4px 8px;
             border-radius: 4px;
-            
+
             &:hover {
               background-color: $grey-2;
             }
           }
-          
+
           .task-title-input {
             flex: 1;
           }
@@ -890,7 +890,7 @@ function deleteTask(task: Task): void {
       .assignee-select,
       .priority-select {
         min-width: 100px;
-        
+
         :deep(.q-field__control) {
           min-height: 32px;
         }
@@ -898,7 +898,7 @@ function deleteTask(task: Task): void {
 
       .deadline-input {
         min-width: 160px;
-        
+
         :deep(.q-field__control) {
           min-height: 32px;
         }
@@ -906,7 +906,7 @@ function deleteTask(task: Task): void {
 
       .progress-cell {
         padding: 8px 16px;
-        
+
         .progress-slider {
           width: 120px;
         }

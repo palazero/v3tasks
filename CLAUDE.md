@@ -132,6 +132,16 @@ stores/
   - [x] 擴展 Project 類型定義，新增 icon 和 isArchived 屬性
   - [x] 修復所有 ESLint 錯誤，確保程式碼品質
 
+- [x] **視圖標籤排序與記憶功能** ✅ (2025-08-10)
+  - [x] 擴展 View 介面新增 order 欄位支援排序
+  - [x] 實現 ViewStore 視圖記憶功能 (localStorage 持久化)
+  - [x] 新增視圖排序 API (reorderViews 批量更新)
+  - [x] 整合 ProjectView 視圖記憶與排序邏輯
+  - [x] 實現標籤切換時自動記錄和恢復功能
+  - [x] 完成拖拉排序底層架構設計
+  - [x] 解決標籤顯示問題，採用標準 Quasar tabs 確保穩定性
+  - [x] 完成階段報告: `report_07_view_tabs_reordering_and_memory.md`
+
 ### 準備開始
 - [ ] Phase 5: 甘特圖與儀表板進階功能
 
@@ -146,6 +156,7 @@ stores/
 - `/report_fix_03_application_startup_errors.md` - 應用程式啟動錯誤修復報告
 - `/report_fix_05_quasar_plugins_and_draggable.md` - Quasar 插件與 VueDraggable 修復報告
 - `/report_project_settings_integration.md` - 專案設定系統整合報告
+- `/report_07_view_tabs_reordering_and_memory.md` - 視圖標籤排序與記憶功能報告
 
 ### 核心元件
 - `/src/types/index.ts` - 完整類型定義 (376 行)
@@ -348,6 +359,7 @@ switch (value) {
 - 2025-01-10: **應用程式啟動錯誤修復完成** - 解決 Vite 500 錯誤、身份驗證循環、TypeScript 錯誤等阻礙性問題
 - 2025-01-10: **Quasar 插件與 VueDraggable 修復完成** - 解決插件配置、看板拖拽、IndexedDB 序列化等核心功能問題
 - 2025-08-10: **專案設定系統整合完成** - 重構專案設定頁面，整合人員管理、自訂欄位等功能到統一設定介面
+- 2025-08-10: **視圖標籤排序與記憶功能完成** - 實現視圖記憶系統、排序支援架構，解決標籤顯示問題
 
 ## TypeScript 開發注意事項
 - "type禁用any"
@@ -355,3 +367,4 @@ switch (value) {
 ## 工作流程備忘
 - 每完成階段,請總結完成內容到report_phase_X_<subject>.md
 - 每完成問題修復,請總結修復內容到report_fix_<seq>_<subject>.md
+- 使用npx kill-port 來關閉伺服器
