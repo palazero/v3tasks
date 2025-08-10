@@ -3,11 +3,11 @@
  * 提供統一的權限驗證邏輯
  */
 
-import { computed } from 'vue'
+import { computed, type ComputedRef } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { PermissionAction, PermissionCheck } from '@/types'
 
-export function usePermission() {
+export function usePermission(): any {
   const userStore = useUserStore()
 
   // 是否為管理員

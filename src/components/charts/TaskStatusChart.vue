@@ -76,7 +76,7 @@ const chartOptions = computed(() => ({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: { parsed: number; label: string }): string => {
           const total = props.statistics.total
           const value = context.parsed
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'

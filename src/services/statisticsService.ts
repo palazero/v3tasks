@@ -3,7 +3,7 @@
  */
 
 import { getTaskRepository, getProjectRepository, getUserRepository } from './repositories'
-import type { Task, Project, TaskStatus, TaskPriority } from '@/types'
+import type { Task, TaskStatus, TaskPriority } from '@/types'
 
 export interface TaskStatistics {
   total: number
@@ -194,15 +194,15 @@ export class StatisticsService {
     const workload: { date: string; taskCount: number }[] = []
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000)
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = date.toISOString().split('T')[0]!
       
       const tasksOnDate = userTasks.filter(task => {
-        const createdDate = new Date(task.createdAt).toISOString().split('T')[0]
+        const createdDate = new Date(task.createdAt).toISOString().split('T')[0]!
         return createdDate === dateStr
       }).length
 
       workload.push({
-        date: dateStr,
+        date: dateStr!,
         taskCount: tasksOnDate
       })
     }
@@ -234,36 +234,36 @@ export class StatisticsService {
 
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000)
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = date.toISOString().split('T')[0]!
 
       // 當天創建的任務
       const created = tasks.filter(task => {
-        const createdDate = new Date(task.createdAt).toISOString().split('T')[0]
+        const createdDate = new Date(task.createdAt).toISOString().split('T')[0]!
         return createdDate === dateStr
       }).length
 
       // 當天完成的任務
       const completed = tasks.filter(task => {
         if (task.statusId !== 'done') return false
-        const completedDate = new Date(task.updatedAt).toISOString().split('T')[0]
+        const completedDate = new Date(task.updatedAt).toISOString().split('T')[0]!
         return completedDate === dateStr
       }).length
 
       // 當天活躍的任務 (創建但未完成)
       const active = tasks.filter(task => {
-        const createdDate = new Date(task.createdAt).toISOString().split('T')[0]
+        const createdDate = new Date(task.createdAt).toISOString().split('T')[0]!
         const isCreatedByDate = createdDate <= dateStr
         
         if (!isCreatedByDate) return false
         if (task.statusId === 'done') {
-          const completedDate = new Date(task.updatedAt).toISOString().split('T')[0]
+          const completedDate = new Date(task.updatedAt).toISOString().split('T')[0]!
           return completedDate > dateStr
         }
         return task.statusId !== 'done'
       }).length
 
       timeline.push({
-        date: dateStr,
+        date: dateStr!,
         created,
         completed,
         active
@@ -276,7 +276,7 @@ export class StatisticsService {
   /**
    * 獲取專案進度報告
    */
-  async getProjectProgressReport(projectId: string) {
+  async getProjectProgressReport(projectId: string): Promise<unknown> {
     const project = await this.projectRepo.findById(projectId)
     if (!project) return null
 
@@ -334,7 +334,7 @@ export class StatisticsService {
     const estimatedDays = Math.ceil(incompleteTasks.length / completionRate)
     const estimatedDate = new Date(now.getTime() + estimatedDays * 24 * 60 * 60 * 1000)
     
-    return estimatedDate.toISOString().split('T')[0]
+    return estimatedDate.toISOString().split('T')[0]!
   }
 }
 

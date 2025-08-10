@@ -3,7 +3,7 @@
  * 提供甘特圖的進階操作和計算功能
  */
 
-import { ref, computed } from 'vue'
+import { ref, type Ref } from 'vue'
 import type { Task } from '@/types'
 
 export interface GanttTask extends Task {
@@ -29,7 +29,7 @@ export interface GanttSettings {
   autoSchedule: boolean
 }
 
-export function useGanttEnhancements() {
+export function useGanttEnhancements(): any {
   // 甘特圖設定
   const settings = ref<GanttSettings>({
     timelineScale: 'day',
@@ -41,7 +41,7 @@ export function useGanttEnhancements() {
   })
 
   // 時間軸縮放選項
-  const timelineScaleOptions = [
+  const timelineScaleOptions: Array<{ label: string; value: 'day' | 'week' | 'month' }> = [
     { label: '日', value: 'day' },
     { label: '週', value: 'week' },
     { label: '月', value: 'month' }

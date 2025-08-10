@@ -79,7 +79,7 @@ const chartOptions = computed(() => ({
       mode: 'index' as const,
       intersect: false,
       callbacks: {
-        title: (context: any) => {
+        title: (context: Array<{ dataIndex: number }>): string => {
           const index = context[0].dataIndex
           const date = new Date(props.timeline[index].date)
           return date.toLocaleDateString('zh-TW', { 

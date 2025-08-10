@@ -3,12 +3,12 @@
  * 處理自訂欄位的狀態管理和操作
  */
 
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, type Ref, type ComputedRef } from 'vue';
 import type { CustomField, CustomFieldGroup, CustomFieldValue, FieldType } from '@/types';
 import { customFieldService } from '@/services/customFieldService';
 import { useCurrentUser } from './useCurrentUser';
 
-export function useCustomFields(projectId: string) {
+export function useCustomFields(projectId: string): any {
   const { currentUser } = useCurrentUser();
 
   // 狀態
@@ -464,7 +464,7 @@ export function useCustomFields(projectId: string) {
 /**
  * 全域自訂欄位工具函數
  */
-export function useCustomFieldUtils() {
+export function useCustomFieldUtils(): any {
   /**
    * 從任務自訂欄位中取得特定欄位值
    */

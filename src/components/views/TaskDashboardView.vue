@@ -214,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import TaskStatusChart from '@/components/charts/TaskStatusChart.vue'
 import TaskPriorityChart from '@/components/charts/TaskPriorityChart.vue'

@@ -1,7 +1,7 @@
 import { defineBoot } from '#q-app/wrappers';
 import { useUserStore } from '@/stores/user';
 
-export default defineBoot(async ({ router }) => {
+export default defineBoot(async ({ router: _router }) => {
   const userStore = useUserStore();
   
   // Initialize the mock user system before router starts

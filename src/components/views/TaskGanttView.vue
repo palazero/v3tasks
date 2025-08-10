@@ -98,7 +98,7 @@
         <!-- 任務行 -->
         <div class="gantt-rows">
           <div
-            v-for="(task, index) in visibleGanttTasks"
+            v-for="task in visibleGanttTasks"
             :key="task.taskId"
             class="gantt-row"
             :class="{
@@ -367,7 +367,6 @@ function autoSchedule(): void {
 
 function scrollToToday(): void {
   // 簡化實作：滾動到當前日期
-  const today = new Date()
   if (ganttContainer.value) {
     ganttContainer.value.scrollLeft = 200 // 估算位置
   }
@@ -377,7 +376,7 @@ function zoomIn(): void {
   const scales = ['month', 'week', 'day']
   const currentIndex = scales.indexOf(ganttSettings.value.timelineScale)
   if (currentIndex < scales.length - 1) {
-    ganttSettings.value.timelineScale = scales[currentIndex + 1] as any
+    ganttSettings.value.timelineScale = scales[currentIndex + 1] as 'month' | 'week' | 'day'
     updateTimeline()
   }
 }
@@ -386,7 +385,7 @@ function zoomOut(): void {
   const scales = ['month', 'week', 'day']
   const currentIndex = scales.indexOf(ganttSettings.value.timelineScale)
   if (currentIndex > 0) {
-    ganttSettings.value.timelineScale = scales[currentIndex - 1] as any
+    ganttSettings.value.timelineScale = scales[currentIndex - 1] as 'month' | 'week' | 'day'
     updateTimeline()
   }
 }

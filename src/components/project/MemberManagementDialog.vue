@@ -143,7 +143,7 @@ defineEmits([
   ...useDialogPluginComponent.emits
 ])
 
-const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } = useDialogPluginComponent()
+const { dialogRef, onDialogHide, onDialogCancel } = useDialogPluginComponent()
 const $q = useQuasar()
 
 const userStore = useUserStore()
@@ -173,7 +173,7 @@ function getUserAvatar(userId: string): string {
   return userStore.getUserAvatar(userId)
 }
 
-async function loadMembers(): Promise<void> {
+function loadMembers(): void {
   if (!props.project) return
 
   try {
@@ -204,7 +204,7 @@ async function addMember(): Promise<void> {
       position: 'top'
     })
     selectedNewMember.value = null
-    await loadMembers()
+    loadMembers()
   } catch (error) {
     console.error('Failed to add member:', error)
     $q.notify({
@@ -225,7 +225,7 @@ async function removeMember(userId: string): Promise<void> {
       message: '成員移除成功',
       position: 'top'
     })
-    await loadMembers()
+    loadMembers()
   } catch (error) {
     console.error('Failed to remove member:', error)
     $q.notify({
@@ -237,7 +237,7 @@ async function removeMember(userId: string): Promise<void> {
 }
 
 onMounted(() => {
-  loadMembers()
+  void loadMembers()
 })
 </script>
 

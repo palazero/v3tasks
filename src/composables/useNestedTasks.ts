@@ -7,7 +7,7 @@
 import type { Task } from '@/types';
 import { nanoid } from 'nanoid';
 
-export function useNestedTasks() {
+export function useNestedTasks(): any {
   // 最大巢狀層級
   const MAX_LEVEL = 3;
 

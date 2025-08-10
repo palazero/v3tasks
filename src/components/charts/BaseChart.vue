@@ -19,7 +19,7 @@ import {
   ArcElement,
   Filler
 } from 'chart.js'
-import type { ChartConfiguration, ChartType } from 'chart.js'
+import type { ChartConfiguration, ChartType, ChartData, ChartOptions } from 'chart.js'
 import { nanoid } from 'nanoid'
 
 // 註冊 Chart.js 組件
@@ -68,7 +68,7 @@ const defaultOptions: ChartConfiguration['options'] = {
   }
 }
 
-function createChart() {
+function createChart(): void {
   if (!canvasRef.value) return
 
   const config: ChartConfiguration = {
@@ -83,7 +83,7 @@ function createChart() {
   chartInstance = new Chart(canvasRef.value, config)
 }
 
-function updateChart() {
+function updateChart(): void {
   if (!chartInstance) return
 
   chartInstance.data = props.data
@@ -96,7 +96,7 @@ function updateChart() {
   chartInstance.update()
 }
 
-function destroyChart() {
+function destroyChart(): void {
   if (chartInstance) {
     chartInstance.destroy()
     chartInstance = null
@@ -105,8 +105,8 @@ function destroyChart() {
 
 // 監聽資料變化
 watch(
-  [() => props.data, () => props.options],
-  () => {
+  [(): ChartData => props.data, (): ChartOptions => props.options],
+  (): void => {
     if (chartInstance) {
       updateChart()
     }
@@ -116,17 +116,17 @@ watch(
 
 // 監聽圖表類型變化
 watch(
-  () => props.type,
-  () => {
+  (): ChartType => props.type,
+  (): void => {
     destroyChart()
-    nextTick(() => {
+    void nextTick(() => {
       createChart()
     })
   }
 )
 
 onMounted(() => {
-  nextTick(() => {
+  void nextTick(() => {
     createChart()
   })
 })

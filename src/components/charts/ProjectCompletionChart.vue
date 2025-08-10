@@ -73,11 +73,11 @@ const chartOptions = computed(() => ({
     },
     tooltip: {
       callbacks: {
-        title: (context: any) => {
+        title: (context: Array<{ dataIndex: number }>): string => {
           const index = context[0].dataIndex
           return props.statistics.completionRates[index]?.projectName || 'Unknown'
         },
-        label: (context: any) => {
+        label: (context: { parsed: { x: number } }): string => {
           const value = context.parsed.x
           return `完成率: ${value.toFixed(1)}%`
         }
@@ -89,7 +89,7 @@ const chartOptions = computed(() => ({
       beginAtZero: true,
       max: 100,
       ticks: {
-        callback: (value: any) => `${value}%`
+        callback: (value: number | string): string => `${value}%`
       },
       title: {
         display: true,

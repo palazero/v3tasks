@@ -3,7 +3,7 @@
  * 用於處理大量資料的高效渲染
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, type Ref, type ComputedRef } from 'vue'
 
 export interface VirtualScrollOptions {
   itemHeight: number
@@ -11,7 +11,7 @@ export interface VirtualScrollOptions {
   buffer?: number // 緩衝區項目數量
 }
 
-export interface VirtualScrollItem<T = any> {
+export interface VirtualScrollItem<T = unknown> {
   index: number
   data: T
   top: number
@@ -21,7 +21,18 @@ export interface VirtualScrollItem<T = any> {
 export function useVirtualScroll<T>(
   items: () => T[],
   options: VirtualScrollOptions
-) {
+): {
+  containerRef: Ref<HTMLElement | undefined>
+  scrollTop: Ref<number>
+  totalHeight: ComputedRef<number>
+  visibleItems: ComputedRef<VirtualScrollItem<T>[]>
+  offsetTop: ComputedRef<number>
+  startIndex: ComputedRef<number>
+  endIndex: ComputedRef<number>
+  scrollToIndex: (index: number) => void
+  scrollToTop: () => void
+  scrollToBottom: () => void
+} {
   const { itemHeight, containerHeight, buffer = 5 } = options
 
   // 狀態
@@ -126,7 +137,7 @@ export function useTableVirtualScroll<T>(
   rows: () => T[],
   rowHeight: number = 50,
   containerHeight: number = 400
-) {
+): ReturnType<typeof useVirtualScroll<T>> {
   return useVirtualScroll(rows, {
     itemHeight: rowHeight,
     containerHeight,
@@ -142,7 +153,7 @@ export function useListVirtualScroll<T>(
   items: () => T[],
   itemHeight: number = 60,
   containerHeight: number = 400
-) {
+): ReturnType<typeof useVirtualScroll<T>> {
   return useVirtualScroll(items, {
     itemHeight,
     containerHeight,
