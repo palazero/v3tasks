@@ -202,7 +202,7 @@ export class StatisticsService {
       }).length
 
       workload.push({
-        date: dateStr!,
+        date: dateStr,
         taskCount: tasksOnDate
       })
     }
@@ -263,7 +263,7 @@ export class StatisticsService {
       }).length
 
       timeline.push({
-        date: dateStr!,
+        date: dateStr,
         created,
         completed,
         active

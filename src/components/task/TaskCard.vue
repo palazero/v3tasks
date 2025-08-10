@@ -306,12 +306,12 @@ function getUserInitials(userId: string): string {
 <style scoped lang="scss">
 .task-card {
   background-color: white;
-  border-radius: $border-radius;
-  border: 1px solid $grey-4;
+  border-radius: 4px;
+  border: 1px solid #bdbdbd;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: $primary;
+    border-color: #1976d2;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
   }
@@ -321,12 +321,12 @@ function getUserInitials(userId: string): string {
     
     .task-title {
       text-decoration: line-through;
-      color: $grey-6;
+      color: #757575;
     }
   }
 
   &--overdue {
-    border-left: 4px solid $negative;
+    border-left: 4px solid #c10015;
   }
 
   .task-title {

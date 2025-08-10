@@ -1,7 +1,7 @@
 <template>
   <div class="draggable-task-list">
     <VueDraggable
-      v-model="taskList"
+      v-model="localTaskList"
       group="tasks"
       :animation="200"
       ghost-class="task-ghost"
@@ -13,7 +13,7 @@
       @change="onTaskChange"
     >
       <NestedTaskItem
-        v-for="task in taskList"
+        v-for="task in localTaskList"
         :key="task.taskId"
         :task="task"
         :show-project="showProject || false"
@@ -29,7 +29,7 @@
     </VueDraggable>
 
     <!-- 空狀態 -->
-    <div v-if="taskList.length === 0" class="empty-state q-pa-xl text-center">
+    <div v-if="localTaskList.length === 0" class="empty-state q-pa-xl text-center">
       <q-icon name="task_alt" size="4em" color="grey-5" />
       <div class="text-h6 q-mt-md text-grey-6">暫無任務</div>
       <div class="text-body2 text-grey-6 q-mt-sm">
@@ -65,27 +65,33 @@ const emit = defineEmits<{
   'toggle-expanded': [task: Task]
 }>()
 
-const { buildTaskTree, flattenTaskTree, indentTask, outdentTask, toggleTaskExpanded } = useNestedTasks()
+const { buildTaskTree, flattenTaskTree, indentTask, outdentTask } = useNestedTasks()
 
-// 本地任務列表
-const taskList = ref<Task[]>([])
+// 計算屬性 - 直接從 props.tasks 建立樹狀結構
+const taskList = computed(() => {
+  if (!props.tasks || props.tasks.length === 0) {
+    return []
+  }
+  return buildTaskTree(props.tasks)
+})
+
+// 本地響應式副本用於拖拽操作
+const localTaskList = ref<Task[]>([])
+
+// 監聽計算屬性變化並更新本地副本
+watch(taskList, (newTasks) => {
+  localTaskList.value = [...newTasks]
+}, { immediate: true, deep: true })
 
 // 計算屬性
 const maxLevel = computed(() => props.maxLevel || 3)
-
-// 監聽 props.tasks 變化
-watch(() => props.tasks, (newTasks) => {
-  if (newTasks) {
-    taskList.value = buildTaskTree(newTasks)
-  }
-}, { immediate: true })
 
 // 拖拉事件處理
 let draggedTask: Task | null = null
 
 function onDragStart(evt: SortableEvent): void {
   const oldIndex = typeof evt.oldIndex === 'number' ? evt.oldIndex : -1
-  draggedTask = oldIndex >= 0 ? (taskList.value[oldIndex] ?? null) : null
+  draggedTask = oldIndex >= 0 ? (localTaskList.value[oldIndex] ?? null) : null
   console.log('Drag start:', draggedTask?.title)
 }
 
@@ -102,7 +108,7 @@ function onTaskChange(evt: SortableEvent): void {
   console.log('Task order changed:', evt)
 
   // 將樹狀結構轉回扁平化並發送更新
-  const flattened = flattenTaskTree(taskList.value)
+  const flattened = flattenTaskTree(localTaskList.value)
   const updates = flattened.map((task, index) => ({
     taskId: task.taskId,
     updates: { order: (index + 1) * 1000 }
@@ -124,7 +130,7 @@ function handleAddSubtask(parentTask: Task): void {
 }
 
 function handleIndentTask(task: Task): void {
-  const flatTasks = flattenTaskTree(taskList.value)
+  const flatTasks = flattenTaskTree(localTaskList.value)
   const result = indentTask(task, flatTasks)
 
   if (result) {
@@ -133,7 +139,7 @@ function handleIndentTask(task: Task): void {
 }
 
 function handleOutdentTask(task: Task): void {
-  const flatTasks = flattenTaskTree(taskList.value)
+  const flatTasks = flattenTaskTree(localTaskList.value)
   const result = outdentTask(task, flatTasks)
 
   if (result) {
@@ -142,8 +148,7 @@ function handleOutdentTask(task: Task): void {
 }
 
 function handleToggleExpanded(task: Task): void {
-  const result = toggleTaskExpanded(task)
-  emit('task-update', result.taskId, result.updates)
+  emit('toggle-expanded', task)
 }
 </script>
 

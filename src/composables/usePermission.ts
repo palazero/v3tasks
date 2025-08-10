@@ -7,7 +7,24 @@ import { computed, type ComputedRef } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { PermissionAction, PermissionCheck } from '@/types'
 
-export function usePermission(): any {
+export interface PermissionUtils {
+  isAdmin: ComputedRef<boolean>;
+  isLoggedIn: ComputedRef<boolean>;
+  currentUserId: ComputedRef<string | null>;
+  checkPermission: (action: PermissionAction, resourceId?: string, resourceType?: string) => Promise<PermissionCheck>;
+  hasPermission: (action: PermissionAction) => boolean;
+  canEdit: (ownerId: string) => boolean;
+  canDelete: (ownerId: string) => boolean;
+  canView: (ownerId: string, memberIds?: string[]) => boolean;
+  isProjectOwner: (ownerId: string) => boolean;
+  isProjectMember: (ownerId: string, memberIds?: string[]) => boolean;
+  isCreator: (creatorId: string) => boolean;
+  getPermissionLevel: (ownerId: string, memberIds?: string[]) => number;
+  requirePermission: (action: PermissionAction, resourceId?: string, errorMessage?: string) => Promise<void>;
+  checkMultiplePermissions: (checks: Array<{ action: PermissionAction; resourceId?: string }>) => Promise<Map<string, PermissionCheck>>;
+}
+
+export function usePermission(): PermissionUtils {
   const userStore = useUserStore()
 
   // 是否為管理員

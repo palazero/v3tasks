@@ -43,7 +43,7 @@
 
               <!-- 任務描述 -->
               <div class="q-mb-md">
-                <q-label class="q-mb-sm">任務描述</q-label>
+                <div class="q-mb-sm text-body2 text-grey-8">任務描述</div>
                 <q-input
                   v-model="descriptionText"
                   type="textarea"
@@ -56,7 +56,7 @@
 
               <!-- 標籤 -->
               <div class="q-mb-md">
-                <q-label class="q-mb-sm">標籤</q-label>
+                <div class="q-mb-sm text-body2 text-grey-8">標籤</div>
                 <q-select
                   v-model="formData.tags"
                   filled
@@ -250,7 +250,7 @@
 
               <!-- 進度 -->
               <div class="q-mb-md">
-                <q-label class="q-mb-sm">進度: {{ formData.progress || 0 }}%</q-label>
+                <div class="q-mb-sm text-body2 text-grey-8">進度: {{ formData.progress || 0 }}%</div>
                 <q-slider
                   v-model="formData.progress"
                   :min="0"

@@ -8,7 +8,7 @@
 
     <template v-else>
       <!-- 統計卡片列 -->
-      <div class="row q-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-md q-mb-xl">
         <div class="col-12 col-sm-6 col-md-3">
           <q-card class="stat-card">
             <q-card-section class="text-center">
@@ -51,7 +51,7 @@
       </div>
 
       <!-- 完成率進度條 -->
-      <div class="row q-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-md q-mb-xl">
         <div class="col-12">
           <q-card class="completion-card">
             <q-card-section>
@@ -83,7 +83,7 @@
       </div>
 
       <!-- 圖表區域 -->
-      <div class="row q-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-md q-mb-xl">
         <!-- 任務狀態分佈 -->
         <div class="col-12 col-md-6">
           <q-card class="chart-card">
@@ -104,7 +104,7 @@
       </div>
 
       <!-- 任務趨勢圖 -->
-      <div class="row q-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-md q-mb-xl">
         <div class="col-12">
           <q-card class="chart-card">
             <q-card-section>
@@ -115,7 +115,7 @@
       </div>
 
       <!-- 專案完成率 (如果有多個專案) -->
-      <div v-if="projectStats.total > 1" class="row q-gutter-md q-mb-xl">
+      <div v-if="projectStats.total > 1" class="row q-col-gutter-md q-mb-xl">
         <div class="col-12">
           <q-card class="chart-card">
             <q-card-section>
@@ -126,7 +126,7 @@
       </div>
 
       <!-- 詳細信息卡片 -->
-      <div class="row q-gutter-md">
+      <div class="row q-col-gutter-md">
         <!-- 截止日期提醒 -->
         <div class="col-12 col-md-6">
           <q-card class="info-card">

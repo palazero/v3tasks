@@ -359,12 +359,36 @@ function handleTaskUpdated(task: Task): void {
 }
 
 // 處理視圖建立
-function handleViewCreated(view: View): void {
-  $q.notify({
-    type: 'positive',
-    message: `視圖「${view.name}」建立成功`,
-    position: 'top'
-  })
+async function handleViewCreated(view: View): Promise<void> {
+  try {
+    // 使用 ViewStore 的 createView 方法來正確保存視圖
+    const createdView = await viewStore.createView(
+      view.projectId,
+      view.name,
+      view.type,
+      view.config
+    )
+    
+    if (createdView) {
+      // 切換到新建立的視圖
+      viewStore.switchView(createdView.viewId)
+      
+      $q.notify({
+        type: 'positive',
+        message: `視圖「${view.name}」建立成功`,
+        position: 'top'
+      })
+    } else {
+      throw new Error('Failed to create view')
+    }
+  } catch (error) {
+    console.error('Failed to create view:', error)
+    $q.notify({
+      type: 'negative',
+      message: '建立視圖失敗',
+      position: 'top'
+    })
+  }
 }
 
 // 處理篩選更新

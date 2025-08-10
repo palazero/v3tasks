@@ -356,7 +356,7 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null;
 
     try {
-      const subtaskData = (createSubtask as any)(parentTask, title);
+      const subtaskData = createSubtask(parentTask, title);
       const newSubtaskId = await taskRepo.create(subtaskData as Task);
       const created = await taskRepo.findById(String(newSubtaskId));
       const newSubtask: Task = created ?? (subtaskData as Task);
@@ -378,7 +378,7 @@ export const useTaskStore = defineStore('task', () => {
 
   // 任務縮排
   async function indentTaskAction(task: Task): Promise<boolean> {
-    const result = (indentTask as any)(task, tasks.value);
+    const result = indentTask(task, tasks.value);
     if (result) {
       return await updateTask(result.taskId, result.updates);
     }
@@ -387,7 +387,7 @@ export const useTaskStore = defineStore('task', () => {
 
   // 任務取消縮排
   async function outdentTaskAction(task: Task): Promise<boolean> {
-    const result = (outdentTask as any)(task, tasks.value);
+    const result = outdentTask(task, tasks.value);
     if (result) {
       return await updateTask(result.taskId, result.updates);
     }
@@ -396,11 +396,8 @@ export const useTaskStore = defineStore('task', () => {
 
   // 切換任務展開狀態
   async function toggleTaskExpandedState(task: Task): Promise<boolean> {
-    const result = toggleExpanded(task.taskId, tasks.value);
-    await Promise.all(result.map((updatedTask: any) => 
-      updateTask(updatedTask.taskId, updatedTask)
-    ));
-    return true;
+    const result = toggleExpanded(task);
+    return await updateTask(result.taskId, result.updates);
   }
 
   // 批量更新任務（用於拖拉排序）

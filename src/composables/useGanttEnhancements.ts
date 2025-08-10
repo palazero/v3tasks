@@ -29,7 +29,18 @@ export interface GanttSettings {
   autoSchedule: boolean
 }
 
-export function useGanttEnhancements(): any {
+export interface GanttEnhancementsUtils {
+  settings: Ref<GanttSettings>;
+  timelineScaleOptions: Array<{ label: string; value: 'day' | 'week' | 'month' }>;
+  convertToGanttTasks: (tasks: Task[]) => GanttTask[];
+  calculateCriticalPath: (ganttTasks: GanttTask[]) => CriticalPath;
+  autoScheduleTasks: (ganttTasks: GanttTask[]) => GanttTask[];
+  calculateSlack: (ganttTasks: GanttTask[]) => Map<string, number>;
+  getTimelineRange: (ganttTasks: GanttTask[]) => { start: Date; end: Date };
+  generateTimelineLabels: (start: Date, end: Date, scale: 'day' | 'week' | 'month') => string[];
+}
+
+export function useGanttEnhancements(): GanttEnhancementsUtils {
   // 甘特圖設定
   const settings = ref<GanttSettings>({
     timelineScale: 'day',

@@ -52,15 +52,14 @@
             </q-avatar>
 
             <q-btn
-              v-if="isProjectOwner"
               flat
               dense
               round
-              icon="add"
+              icon="settings"
               size="sm"
-              @click="showMemberDialog = true"
+              @click="goToSettings"
             >
-              <q-tooltip>管理成員</q-tooltip>
+              <q-tooltip>專案設定</q-tooltip>
             </q-btn>
           </div>
         </div>
@@ -318,12 +317,6 @@
       @sorts-updated="handleSortsUpdated"
     />
 
-    <MemberManagementDialog
-      v-model="showMemberDialog"
-      :project="project!"
-      @ok="showMemberDialog = false"
-      @hide="showMemberDialog = false"
-    />
   </q-page>
 </template>
 
@@ -349,7 +342,6 @@ const TaskDialog = defineAsyncComponent(() => import('@/components/task/TaskDial
 const CreateViewDialog = defineAsyncComponent(() => import('@/components/view/CreateViewDialog.vue'))
 const FilterDialog = defineAsyncComponent(() => import('@/components/common/FilterDialog.vue'))
 const SortDialog = defineAsyncComponent(() => import('@/components/common/SortDialog.vue'))
-const MemberManagementDialog = defineAsyncComponent(() => import('@/components/project/MemberManagementDialog.vue'))
 
 // Props
 const props = defineProps<{
@@ -380,7 +372,6 @@ const showEditTaskDialog = ref(false)
 const showCreateViewDialog = ref(false)
 const showFilterDialog = ref(false)
 const showSortDialog = ref(false)
-const showMemberDialog = ref(false)
 const selectedTask = ref<Task | undefined>(undefined)
 
 // 計算屬性
@@ -578,12 +569,36 @@ function handleTaskUpdated(task: Task): void {
 }
 
 // 處理視圖建立
-function handleViewCreated(view: View): void {
-  $q.notify({
-    type: 'positive',
-    message: `視圖「${view.name}」建立成功`,
-    position: 'top'
-  })
+async function handleViewCreated(view: View): Promise<void> {
+  try {
+    // 使用 ViewStore 的 createView 方法來正確保存視圖
+    const createdView = await viewStore.createView(
+      view.projectId,
+      view.name,
+      view.type,
+      view.config
+    )
+    
+    if (createdView) {
+      // 切換到新建立的視圖
+      viewStore.switchView(createdView.viewId)
+      
+      $q.notify({
+        type: 'positive',
+        message: `視圖「${view.name}」建立成功`,
+        position: 'top'
+      })
+    } else {
+      throw new Error('Failed to create view')
+    }
+  } catch (error) {
+    console.error('Failed to create view:', error)
+    $q.notify({
+      type: 'negative',
+      message: '建立視圖失敗',
+      position: 'top'
+    })
+  }
 }
 
 // 處理篩選更新

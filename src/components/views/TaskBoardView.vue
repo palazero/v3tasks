@@ -34,28 +34,25 @@
         class="board-column"
         :style="{ width: `${100 / boardColumns.length}%` }"
       >
-        <VueDraggable
-          :model-value="getColumnTasks(column.id)"
-          @update:model-value="(tasks: Task[]) => setColumnTasks(column.id, tasks)"
-          :group="{ name: 'board-tasks', pull: true, put: true }"
-          :animation="200"
-          ghost-class="task-ghost"
-          chosen-class="task-chosen"
-          drag-class="task-drag"
-          item-key="taskId"
-          @end="onTaskMoveEnd"
-          class="board-column-content"
-          :data-column-id="column.id"
-        >
-          <template #item="{ element: task }">
-            <TaskCard
-              :task="task"
-              :project-id="projectId !== 'all' ? projectId : task.projectId"
-              :show-project="projectId === 'all'"
-              @click="$emit('task-click', task)"
-              @update="$emit('task-update', task.taskId, $event)"
-            />
-          </template>
+        <div class="board-column-content">
+          <VueDraggable
+            v-model="columnTasks[column.id as ColumnId]"
+            group="board-tasks"
+            :animation="200"
+            @end="onDragEnd"
+            class="draggable-container"
+            :data-column-id="column.id"
+          >
+            <div v-for="task in columnTasks[column.id as ColumnId]" :key="task.taskId" class="task-wrapper">
+              <TaskCard
+                :task="task"
+                :project-id="projectId !== 'all' ? projectId : task.projectId"
+                :show-project="projectId === 'all'"
+                @click="$emit('task-click', task)"
+                @update="$emit('task-update', task.taskId, $event)"
+              />
+            </div>
+          </VueDraggable>
 
           <!-- 空狀態 -->
           <div
@@ -72,7 +69,7 @@
               暫無{{ column.title }}任務
             </div>
           </div>
-        </VueDraggable>
+        </div>
 
         <!-- 新增任務按鈕 -->
         <div class="q-pa-sm">
@@ -151,13 +148,6 @@ function getColumnTasks(columnId: string): Task[] {
   return isValidColumnId(columnId) ? columnTasks[columnId] : []
 }
 
-// 設置特定欄位的任務列表
-function setColumnTasks(columnId: string, tasks: Task[]): void {
-  if (isValidColumnId(columnId)) {
-    columnTasks[columnId] = tasks
-  }
-}
-
 // 按狀態分組任務 - 使用 reactive 並強制類型
 const columnTasks = reactive({
   todo: [] as Task[],
@@ -214,62 +204,65 @@ function getTaskCount(columnId: string): number {
   return isValidColumnId(columnId) ? columnTasks[columnId].length : 0
 }
 
-// 任務拖拉結束事件處理
-function onTaskMoveEnd(event: SortableEvent): void {
+// 任務拖拽結束事件處理
+function onDragEnd(event: SortableEvent): void {
   // 檢查是否真的移動了
   if (event.oldIndex === event.newIndex && event.from === event.to) {
     return // 沒有移動
   }
 
-  // 從目標元素獲取 column ID
+  // 從目標容器獲取 column ID
   const targetColumnId = event.to.getAttribute('data-column-id')
-  if (!targetColumnId || !isValidColumnId(targetColumnId)) {
-    console.warn('Invalid target column ID:', targetColumnId)
+  const sourceColumnId = event.from.getAttribute('data-column-id')
+  
+  if (!targetColumnId || !sourceColumnId || !isValidColumnId(targetColumnId) || !isValidColumnId(sourceColumnId)) {
+    console.warn('Invalid column IDs:', { targetColumnId, sourceColumnId })
     return
   }
 
-  // 從拖拉的元素獲取任務資訊
-  const taskId = event.item.getAttribute('data-task-id')
-  if (!taskId) {
-    console.warn('Cannot find task ID from dragged element')
-    return
+  // 如果移動到不同的列，需要更新任務狀態
+  if (targetColumnId !== sourceColumnId) {
+    const targetColumn = columnTasks[targetColumnId]
+    const movedTask = targetColumn[event.newIndex!]
+    
+    if (!movedTask) {
+      console.warn('Cannot find moved task at index:', event.newIndex)
+      return
+    }
+
+    // 計算新的順序值
+    const newIndex = event.newIndex ?? 0
+    const tasksInColumn = columnTasks[targetColumnId]
+    let newOrder = 1000
+
+    if (newIndex > 0 && newIndex < tasksInColumn.length - 1) {
+      // 插入到中間位置
+      const prevOrder = tasksInColumn[newIndex - 1]?.order || 0
+      const nextOrder = tasksInColumn[newIndex + 1]?.order || 2000
+      newOrder = Math.floor((prevOrder + nextOrder) / 2)
+    } else if (newIndex === 0) {
+      // 插入到開頭
+      const firstOrder = tasksInColumn[1]?.order || 2000
+      newOrder = Math.max(firstOrder - 1000, 100)
+    } else {
+      // 插入到末尾
+      const lastOrder = tasksInColumn[tasksInColumn.length - 2]?.order || 0
+      newOrder = lastOrder + 1000
+    }
+
+    // 發出任務更新事件
+    emit('task-update', movedTask.taskId, {
+      statusId: targetColumnId,
+      order: newOrder
+    })
+
+    // 顯示通知
+    $q.notify({
+      type: 'positive',
+      message: `任務已移至${boardColumns.value.find(col => col.id === targetColumnId)?.title}`,
+      position: 'top'
+    })
   }
-
-  // 找到對應的任務
-  const movedTask = props.tasks.find(task => task.taskId === taskId)
-  if (!movedTask) {
-    console.warn('Cannot find task with ID:', taskId)
-    return
-  }
-
-  const newIndex = event.newIndex ?? 0
-  const tasksInColumn = columnTasks[targetColumnId]
-  let newOrder = 1000
-
-  if (newIndex === 0) {
-    // 移到最前面
-    newOrder = tasksInColumn.length > 1 ? (tasksInColumn[1]?.order || 1000) - 1000 : 1000
-  } else if (newIndex >= tasksInColumn.length - 1) {
-    // 移到最後面
-    newOrder = (tasksInColumn[tasksInColumn.length - 2]?.order || 1000) + 1000
-  } else {
-    // 插入中間
-    const prevOrder = tasksInColumn[newIndex - 1]?.order || 0
-    const nextOrder = tasksInColumn[newIndex + 1]?.order || 2000
-    newOrder = (prevOrder + nextOrder) / 2
-  }
-
-  // 發送更新事件
-  emit('task-update', movedTask.taskId, {
-    statusId: targetColumnId,
-    order: newOrder
-  })
-
-  $q.notify({
-    type: 'positive',
-    message: `任務已移至${boardColumns.value.find(col => col.id === targetColumnId)?.title}`,
-    position: 'top'
-  })
 }
 
 // 新增任務
@@ -281,43 +274,61 @@ function onAddTask(statusId: string): void {
 <style scoped lang="scss">
 .task-board-view {
   min-height: 500px;
-  background-color: $grey-1;
+  background-color: #f5f5f5;
 
   .board-header {
     background-color: white;
-    border-bottom: 1px solid $grey-4;
+    border-bottom: 1px solid #bdbdbd;
+    display: flex;
 
     .board-column-header {
+      flex: 1;
+      
       .column-title {
         padding: 8px 12px;
-        border-radius: $border-radius;
-        background-color: $grey-1;
+        border-radius: 4px;
+        background-color: #f5f5f5;
       }
     }
   }
 
   .board-body {
     min-height: 400px;
+    display: flex;
+    align-items: stretch;
 
     .board-column {
-      background-color: $grey-2;
-      border-radius: $border-radius;
+      background-color: #eeeeee;
+      border-radius: 4px;
       min-height: 400px;
       position: relative;
+      flex: 1;
 
       .board-column-content {
         min-height: 320px;
         padding: 8px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        
+        .draggable-container {
+          min-height: 200px;
+          flex: 1;
+        }
+        
+        .task-wrapper {
+          margin-bottom: 8px;
+        }
 
         .task-ghost {
           opacity: 0.5;
-          background-color: $primary;
+          background-color: #1976d2;
           color: white;
-          border-radius: $border-radius;
+          border-radius: 4px;
         }
 
         .task-chosen {
-          background-color: $grey-3;
+          background-color: #e0e0e0;
           transform: scale(1.02);
         }
 

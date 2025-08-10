@@ -15,6 +15,39 @@ export class CustomFieldService {
   private readonly fieldsTableName = 'customFields';
   private readonly groupsTableName = 'customFieldGroups';
 
+  /**
+   * 清理資料，移除不可序列化的屬性
+   */
+  private sanitizeData<T>(data: T): T {
+    if (!data || typeof data !== 'object') return data;
+    
+    const sanitized = { ...data };
+    
+    // 移除函數、Symbol、undefined 和循環引用
+    const cleanObject = (obj: unknown): unknown => {
+      if (obj === null || obj === undefined) return obj;
+      if (obj instanceof Date) return obj;
+      if (Array.isArray(obj)) return obj.map(item => cleanObject(item));
+      
+      if (typeof obj === 'object') {
+        const cleaned: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === 'function') continue;
+          if (typeof value === 'symbol') continue;
+          if (value === undefined) continue;
+          if (key === 'children') continue;
+          
+          cleaned[key] = cleanObject(value);
+        }
+        return cleaned;
+      }
+      
+      return obj;
+    };
+    
+    return cleanObject(sanitized);
+  }
+
   // ============= 自訂欄位 CRUD =============
 
   /**
@@ -32,7 +65,7 @@ export class CustomFieldService {
       updatedAt: new Date(),
     };
 
-    await db.customFields.add(newField);
+    await db.customFields.add(this.sanitizeData(newField));
     return newField.fieldId;
   }
 
@@ -121,7 +154,7 @@ export class CustomFieldService {
       updatedAt: new Date(),
     };
 
-    await db.customFieldGroups.add(newGroup);
+    await db.customFieldGroups.add(this.sanitizeData(newGroup));
     return newGroup.groupId;
   }
 

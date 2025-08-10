@@ -173,14 +173,21 @@ function getUserAvatar(userId: string): string {
   return userStore.getUserAvatar(userId)
 }
 
-function loadMembers(): void {
+async function loadMembers(): Promise<void> {
   if (!props.project) return
 
   try {
+    // 重新從資料庫載入專案資料以取得最新的成員列表
+    const updatedProject = await projectRepo.findById(props.project.projectId)
+    
+    if (!updatedProject) {
+      throw new Error('Project not found')
+    }
+
     // 構建成員列表：擁有者 + 一般成員
     const members: ProjectMember[] = [
-      { userId: props.project.ownerId, role: 'owner' },
-      ...props.project.memberIds.map(userId => ({ userId, role: 'member' as const }))
+      { userId: updatedProject.ownerId, role: 'owner' },
+      ...updatedProject.memberIds.map(userId => ({ userId, role: 'member' as const }))
     ]
     currentMembers.value = members
   } catch (error) {
@@ -204,7 +211,7 @@ async function addMember(): Promise<void> {
       position: 'top'
     })
     selectedNewMember.value = null
-    loadMembers()
+    await loadMembers()
   } catch (error) {
     console.error('Failed to add member:', error)
     $q.notify({
@@ -218,14 +225,32 @@ async function addMember(): Promise<void> {
 async function removeMember(userId: string): Promise<void> {
   if (!props.project) return
 
+  const userName = getUserDisplayName(userId)
+  
+  // 顯示確認對話框
+  const confirmed = await new Promise<boolean>((resolve) => {
+    $q.dialog({
+      title: '移除成員',
+      message: `確定要將「${userName}」從專案中移除嗎？`,
+      cancel: true,
+      persistent: false
+    })
+      .onOk(() => resolve(true))
+      .onCancel(() => resolve(false))
+      .onDismiss(() => resolve(false))
+  })
+
+  if (!confirmed) return
+
   try {
     await projectRepo.removeMember(props.project.projectId, userId)
     $q.notify({
       type: 'positive',
-      message: '成員移除成功',
+      message: `成員「${userName}」已移除`,
       position: 'top'
     })
-    loadMembers()
+    // 重新載入成員列表以更新介面
+    await loadMembers()
   } catch (error) {
     console.error('Failed to remove member:', error)
     $q.notify({

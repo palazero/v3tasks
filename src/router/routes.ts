@@ -35,6 +35,21 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true,
           requiresProjectOwner: true
         }
+      },
+      // 重定向舊的 URL 格式
+      {
+        path: 'project/:projectId',
+        redirect: to => ({
+          name: 'ProjectView',
+          params: { projectId: to.params.projectId }
+        })
+      },
+      {
+        path: 'project/:projectId/settings',
+        redirect: to => ({
+          name: 'ProjectSettings',
+          params: { projectId: to.params.projectId }
+        })
       }
     ]
   },

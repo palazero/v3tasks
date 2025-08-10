@@ -101,16 +101,38 @@
         <!-- 狀態欄 -->
         <template v-slot:body-cell-status="props">
           <q-td :props="props">
-            <q-select
-              :model-value="props.row.statusId"
-              :options="statusOptions"
-              emit-value
-              map-options
-              dense
-              outlined
-              @update:model-value="updateTask(props.row.taskId, { statusId: $event })"
-              class="status-select"
-            />
+            <div class="row items-center q-gutter-xs no-wrap">
+              <!-- 快速切換按鈕 -->
+              <q-btn
+                flat
+                dense
+                round
+                size="sm"
+                :icon="getStatusIcon(props.row.statusId)"
+                :color="getStatusColor(props.row.statusId)"
+                @click="cycleStatus(props.row)"
+                class="status-btn"
+              >
+                <q-tooltip>{{ getStatusLabel(props.row.statusId) }} (點擊切換)</q-tooltip>
+              </q-btn>
+              
+              <!-- 下拉選單（備選） -->
+              <q-select
+                :model-value="props.row.statusId"
+                :options="statusOptions"
+                emit-value
+                map-options
+                dense
+                borderless
+                @update:model-value="updateTask(props.row.taskId, { statusId: $event })"
+                class="status-select"
+                style="min-width: 80px;"
+              >
+                <template v-slot:selected>
+                  <span class="text-caption">{{ getStatusLabel(props.row.statusId) }}</span>
+                </template>
+              </q-select>
+            </div>
           </q-td>
         </template>
 
@@ -598,6 +620,46 @@ function updateTask(taskId: string, updates: Partial<Task>): void {
   emit('task-update', taskId, updates)
 }
 
+// 狀態相關函數
+function getStatusIcon(statusId: string): string {
+  const iconMap: Record<string, string> = {
+    todo: 'radio_button_unchecked',
+    inProgress: 'play_circle',
+    done: 'check_circle',
+    cancelled: 'cancel'
+  }
+  return iconMap[statusId] || 'radio_button_unchecked'
+}
+
+function getStatusColor(statusId: string): string {
+  const colorMap: Record<string, string> = {
+    todo: 'grey',
+    inProgress: 'blue',
+    done: 'green',
+    cancelled: 'red'
+  }
+  return colorMap[statusId] || 'grey'
+}
+
+function getStatusLabel(statusId: string): string {
+  const labelMap: Record<string, string> = {
+    todo: '待辦',
+    inProgress: '進行中',
+    done: '已完成',
+    cancelled: '已取消'
+  }
+  return labelMap[statusId] || '待辦'
+}
+
+function cycleStatus(task: Task): void {
+  const statusCycle = ['todo', 'inProgress', 'done']
+  const currentIndex = statusCycle.indexOf(task.statusId || 'todo')
+  const nextIndex = (currentIndex + 1) % statusCycle.length
+  const newStatus = statusCycle[nextIndex]
+  
+  updateTask(task.taskId, { statusId: newStatus })
+}
+
 // 更新日期
 function updateTaskDate(taskId: string, dateString: string | number | null): void {
   const date = dateString ? new Date(dateString) : null
@@ -634,15 +696,33 @@ function getPriorityColor(priority: string): string {
 }
 
 // 取得用戶姓名縮寫
-function getUserInitials(userId: string): string {
+function getUserInitials(userId: string | undefined | null): string {
+  if (!userId || typeof userId !== 'string') {
+    return '??'
+  }
+  
   const user = availableUsers.value.find(u => u.userId === userId)
-  return user ? user.name.substring(0, 2).toUpperCase() : userId.substring(0, 2).toUpperCase()
+  
+  if (user && user.name && user.name.length > 0) {
+    return user.name.substring(0, 2).toUpperCase()
+  }
+  
+  // 如果沒有找到用戶或用戶名為空，使用 userId 的前兩個字符
+  if (userId.length > 0) {
+    return userId.substring(0, 2).toUpperCase()
+  }
+  
+  return '??'
 }
 
 // 取得用戶姓名
-function getUserName(userId: string): string {
+function getUserName(userId: string | undefined | null): string {
+  if (!userId || typeof userId !== 'string') {
+    return '未指派'
+  }
+  
   const user = availableUsers.value.find(u => u.userId === userId)
-  return user ? user.name : userId
+  return user && user.name ? user.name : userId
 }
 
 // 格式化日期時間

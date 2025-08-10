@@ -17,7 +17,11 @@ import {
   LineElement,
   PointElement,
   ArcElement,
-  Filler
+  Filler,
+  DoughnutController,
+  PieController,
+  BarController,
+  LineController
 } from 'chart.js'
 import type { ChartConfiguration, ChartType, ChartData, ChartOptions } from 'chart.js'
 import { nanoid } from 'nanoid'
@@ -33,7 +37,11 @@ Chart.register(
   LineElement,
   PointElement,
   ArcElement,
-  Filler
+  Filler,
+  DoughnutController,
+  PieController,
+  BarController,
+  LineController
 )
 
 interface Props {

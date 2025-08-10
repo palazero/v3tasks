@@ -89,12 +89,13 @@ export interface Project {
   projectId: string;
   name: string;
   description: string;
+  icon?: string;
   ownerId: string;
   memberIds: string[];
   createdAt: Date;
   updatedAt: Date;
   settings?: ProjectSettings;
-  isArchived: boolean;
+  isArchived?: boolean;
 }
 
 /**

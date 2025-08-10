@@ -8,7 +8,12 @@ import type { CustomField, CustomFieldGroup, CustomFieldValue, FieldType } from 
 import { customFieldService } from '@/services/customFieldService';
 import { useCurrentUser } from './useCurrentUser';
 
-export function useCustomFields(projectId: string): any {
+export function useCustomFields(projectId: string): {
+  fields: Ref<CustomField[]>
+  visibleFields: ComputedRef<CustomField[]>
+  updateField: (fieldId: string, updates: Partial<CustomField>) => Promise<void>
+  deleteField: (fieldId: string) => Promise<void>
+} {
   const { currentUser } = useCurrentUser();
 
   // 狀態
@@ -464,7 +469,14 @@ export function useCustomFields(projectId: string): any {
 /**
  * 全域自訂欄位工具函數
  */
-export function useCustomFieldUtils(): any {
+export interface CustomFieldUtilsInterface {
+  getCustomFieldValue: (customFields: CustomFieldValue[], fieldId: string) => unknown;
+  getCustomFieldDisplayValue: (customFields: CustomFieldValue[], fieldId: string) => string;
+  hasCustomField: (customFields: CustomFieldValue[], fieldId: string) => boolean;
+  filterEmptyCustomFields: (customFields: CustomFieldValue[]) => CustomFieldValue[];
+}
+
+export function useCustomFieldUtils(): CustomFieldUtilsInterface {
   /**
    * 從任務自訂欄位中取得特定欄位值
    */

@@ -45,7 +45,8 @@ export abstract class BaseRepository<T> {
    * 新增資料
    */
   async create(data: T): Promise<string | number> {
-    return await this.table.add(data);
+    const sanitizedData = this.sanitizeData(data);
+    return await this.table.add(sanitizedData as T);
   }
 
   /**
@@ -56,17 +57,66 @@ export abstract class BaseRepository<T> {
   }
 
   /**
+   * 清理資料，移除不應該持久化的屬性
+   */
+  protected sanitizeData(data: Partial<T>): Partial<T> {
+    const sanitized = { ...data };
+    
+    // 移除 children 屬性（用於 UI 樹狀結構，不應持久化）
+    if ('children' in sanitized) {
+      delete (sanitized as Record<string, unknown>).children;
+    }
+    
+    // 遞迴清理物件，移除不可序列化的內容
+    const cleanObject = (obj: unknown): unknown => {
+      if (obj === null || obj === undefined) return obj;
+      
+      if (obj instanceof Date) return obj; // Date 物件可以序列化
+      
+      if (Array.isArray(obj)) {
+        return obj.map(item => cleanObject(item));
+      }
+      
+      if (typeof obj === 'object') {
+        const cleaned: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(obj)) {
+          // 跳過函數屬性
+          if (typeof value === 'function') continue;
+          // 跳過 Symbol 屬性
+          if (typeof value === 'symbol') continue;
+          // 跳過 undefined 值
+          if (value === undefined) continue;
+          // 跳過循環引用的 children
+          if (key === 'children') continue;
+          
+          cleaned[key] = cleanObject(value);
+        }
+        return cleaned;
+      }
+      
+      return obj;
+    };
+    
+    return cleanObject(sanitized);
+  }
+
+  /**
    * 更新資料
    */
   async update(id: string | number, data: Partial<T>): Promise<number> {
-    return await this.table.update(id, data as UpdateSpec<T>);
+    const sanitizedData = this.sanitizeData(data);
+    return await this.table.update(id, sanitizedData as UpdateSpec<T>);
   }
 
   /**
    * 批次更新資料
    */
   async updateMany(updates: Array<{ id: string | number; data: UpdateSpec<T> }>): Promise<void> {
-    await this.table.bulkUpdate(updates.map(({ id, data }) => ({ key: id, changes: data })));
+    const sanitizedUpdates = updates.map(({ id, data }) => ({
+      key: id,
+      changes: this.sanitizeData(data as Partial<T>) as UpdateSpec<T>
+    }));
+    await this.table.bulkUpdate(sanitizedUpdates);
   }
 
   /**

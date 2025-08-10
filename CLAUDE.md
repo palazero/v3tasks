@@ -110,6 +110,28 @@ stores/
   - [x] 修正所有 TypeScript 類型錯誤
   - [x] 完成修復報告: `report_fix_03_application_startup_errors.md`
 
+- [x] **Quasar 插件與 VueDraggable 修復** ✅ (2025-01-10)
+  - [x] 修復 Quasar 插件配置 (Notify、Dialog、Screen 未載入)
+  - [x] 解決 VueDraggable 看板任務卡片顯示問題
+  - [x] 修正拖拽語法錯誤 (移除 item-key 和 template slot)
+  - [x] 實作正確的 Component 模式語法
+  - [x] 實作跨列拖拽事件處理和狀態更新
+  - [x] 修復 IndexedDB DataCloneError 序列化問題
+  - [x] 修正 SCSS 變數錯誤和 UI 組件問題
+  - [x] 完成修復報告: `report_fix_05_quasar_plugins_and_draggable.md`
+
+- [x] **專案設定系統整合** ✅ (2025-08-10)
+  - [x] 重構專案設定頁面 (ProjectSettingsView.vue) - 模組化側邊導航設計
+  - [x] 將人員管理功能從專案檢視移至專案設定 (ProjectMembersSettings.vue)
+  - [x] 整合自訂欄位管理功能 (ProjectCustomFieldsSettings.vue)
+  - [x] 新增基本資訊設定 (ProjectGeneralSettings.vue) - 專案名稱、描述、圖示
+  - [x] 新增視圖配置管理 (ProjectViewsSettings.vue) - 預設視圖、自動儲存等設定
+  - [x] 新增權限控制設定 (ProjectPermissionsSettings.vue) - 專案可見性、成員權限
+  - [x] 新增危險操作管理 (ProjectDangerSettings.vue) - 資料清理、專案刪除等
+  - [x] 更新 ProjectView.vue 移除原有人員管理對話框，整合設定入口
+  - [x] 擴展 Project 類型定義，新增 icon 和 isArchived 屬性
+  - [x] 修復所有 ESLint 錯誤，確保程式碼品質
+
 ### 準備開始
 - [ ] Phase 5: 甘特圖與儀表板進階功能
 
@@ -122,6 +144,8 @@ stores/
 - `/report_phase_1_core.md` - Phase 1 完成報告
 - `/report_phase_2_advanced_tasks.md` - Phase 2 完成報告
 - `/report_fix_03_application_startup_errors.md` - 應用程式啟動錯誤修復報告
+- `/report_fix_05_quasar_plugins_and_draggable.md` - Quasar 插件與 VueDraggable 修復報告
+- `/report_project_settings_integration.md` - 專案設定系統整合報告
 
 ### 核心元件
 - `/src/types/index.ts` - 完整類型定義 (376 行)
@@ -167,6 +191,23 @@ stores/
 - `/src/boot/auth.ts` - 身份驗證啟動檔案 (解決無限重定向)
 - `/src/components/project/MemberManagementDialog.vue` - 專案成員管理元件
 - `/quasar.config.ts` - 修復 Vite 別名配置
+
+### Quasar 插件與 VueDraggable 修復
+- `/quasar.config.ts` - 啟用 Notify、Dialog、Screen 插件
+- `/src/services/repositories/base.repository.ts` - 新增 sanitizeData 方法
+- `/src/components/views/TaskBoardView.vue` - 修正 VueDraggable 語法
+- `/src/components/charts/BaseChart.vue` - 註冊 Chart.js 控制器
+- `/src/router/routes.ts` - 新增路由重定向規則
+
+### 專案設定系統整合
+- `/src/pages/ProjectSettingsView.vue` - 重構專案設定頁面 (模組化側邊導航設計)
+- `/src/components/settings/ProjectGeneralSettings.vue` - 基本資訊設定 (專案名稱、描述、圖示)
+- `/src/components/settings/ProjectMembersSettings.vue` - 人員管理設定 (成員新增、移除、角色管理)
+- `/src/components/settings/ProjectCustomFieldsSettings.vue` - 自訂欄位管理 (欄位配置、預覽、統計)
+- `/src/components/settings/ProjectViewsSettings.vue` - 視圖配置管理 (預設視圖、自動儲存設定)
+- `/src/components/settings/ProjectPermissionsSettings.vue` - 權限控制設定 (可見性、成員權限矩陣)
+- `/src/components/settings/ProjectDangerSettings.vue` - 危險操作管理 (清理、歸檔、刪除專案)
+- `/src/types/index.ts` - 擴展 Project 介面 (新增 icon、isArchived 屬性)
 
 ## 命令提醒
 
@@ -246,6 +287,9 @@ switch (value) {
 - ✅ 所有 TypeScript 錯誤已修復
 - ✅ 身份驗證系統正常運作 (自動登入模擬用戶)
 - ✅ 所有核心功能完整可用
+- ✅ Quasar 插件功能完全正常 ($q.notify, $q.dialog)
+- ✅ 看板拖拽功能完整可用 (跨列拖拽 + 狀態更新)
+- ✅ IndexedDB 資料持久化穩定運作
 
 **可選的下一階段 - Phase 5: 甘特圖與儀表板進階功能**:
 
@@ -302,6 +346,8 @@ switch (value) {
 - 2025-01-09: **Phase 3 完成** - 多視圖系統實作完成，包含看板、表格、甘特圖視圖及完整配置系統
 - 2025-01-09: **Phase 4 完成** - 自訂欄位系統實作完成，支援多種欄位類型與動態渲染
 - 2025-01-10: **應用程式啟動錯誤修復完成** - 解決 Vite 500 錯誤、身份驗證循環、TypeScript 錯誤等阻礙性問題
+- 2025-01-10: **Quasar 插件與 VueDraggable 修復完成** - 解決插件配置、看板拖拽、IndexedDB 序列化等核心功能問題
+- 2025-08-10: **專案設定系統整合完成** - 重構專案設定頁面，整合人員管理、自訂欄位等功能到統一設定介面
 
 ## TypeScript 開發注意事項
 - "type禁用any"

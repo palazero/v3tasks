@@ -117,7 +117,7 @@
                 <!-- 展開/收合按鈕 -->
                 <q-btn
                   v-if="hasChildren(task)"
-                  :icon="task.isExpanded ? 'expand_more' : 'chevron_right'"
+                  :icon="isExpanded(task.taskId) ? 'expand_more' : 'chevron_right'"
                   flat
                   dense
                   size="xs"
@@ -277,7 +277,17 @@ const $q = useQuasar()
 const ganttContainer = ref<HTMLElement>()
 
 // Composables
-const { toggleTaskExpanded, hasChildren, isExpanded } = useNestedTasks()
+const { toggleTaskExpanded } = useNestedTasks()
+
+// 本地實作 hasChildren 和 isExpanded 函數
+function hasChildren(taskId: string): boolean {
+  return ganttTasks.value.some(task => task.parentTaskId === taskId)
+}
+
+function isExpanded(taskId: string): boolean {
+  const task = ganttTasks.value.find(t => t.taskId === taskId)
+  return task ? task.isExpanded : false
+}
 const {
   settings: ganttSettings,
   timelineScaleOptions,

@@ -16,6 +16,39 @@ export class ViewConfigurationService {
   }
 
   /**
+   * 清理資料，移除不可序列化的屬性
+   */
+  private sanitizeData<T>(data: T): T {
+    if (!data || typeof data !== 'object') return data;
+    
+    const sanitized = { ...data };
+    
+    // 移除函數、Symbol、undefined 和循環引用
+    const cleanObject = (obj: unknown): unknown => {
+      if (obj === null || obj === undefined) return obj;
+      if (obj instanceof Date) return obj;
+      if (Array.isArray(obj)) return obj.map(item => cleanObject(item));
+      
+      if (typeof obj === 'object') {
+        const cleaned: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === 'function') continue;
+          if (typeof value === 'symbol') continue;
+          if (value === undefined) continue;
+          if (key === 'children') continue;
+          
+          cleaned[key] = cleanObject(value);
+        }
+        return cleaned;
+      }
+      
+      return obj;
+    };
+    
+    return cleanObject(sanitized);
+  }
+
+  /**
    * 初始化資料表
    */
   private async initializeTables(): Promise<void> {
@@ -48,7 +81,7 @@ export class ViewConfigurationService {
         configuration,
         updatedAt: now,
       };
-      await db.viewConfigurations.update(existing.configId, updates);
+      await db.viewConfigurations.update(existing.configId, this.sanitizeData(updates));
     } else {
       // 建立新配置
       const newConfig: UserViewConfiguration = {
@@ -60,7 +93,7 @@ export class ViewConfigurationService {
         createdAt: now,
         updatedAt: now,
       };
-      await db.viewConfigurations.add(newConfig);
+      await db.viewConfigurations.add(this.sanitizeData(newConfig));
     }
   }
 
@@ -123,7 +156,7 @@ export class ViewConfigurationService {
       createdAt: now,
       updatedAt: now,
     };
-    await db.viewPresets.add(newPreset);
+    await db.viewPresets.add(this.sanitizeData(newPreset));
 
     return presetId;
   }
@@ -138,7 +171,7 @@ export class ViewConfigurationService {
       ...updates,
       updatedAt: new Date(),
     };
-    await db.viewPresets.update(presetId, updateData);
+    await db.viewPresets.update(presetId, this.sanitizeData(updateData));
   }
 
   /**

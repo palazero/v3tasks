@@ -7,221 +7,187 @@
     }"
     @click="$emit('click')"
   >
-    <div class="row items-start q-gutter-md">
-      <!-- 任務狀態勾選框 -->
+    <!-- 單行佈局 -->
+    <div class="row items-center no-wrap q-gutter-md">
+      <!-- 任務狀態切換按鈕 -->
       <div class="col-auto">
-        <q-checkbox
-          :model-value="task.statusId === 'done'"
-          @update:model-value="toggleStatus"
-          @click.stop
-          color="positive"
-        />
+        <q-btn
+          flat
+          dense
+          round
+          size="sm"
+          :icon="statusInfo.icon"
+          :color="statusInfo.color"
+          @click.stop="cycleStatus"
+          class="status-btn"
+        >
+          <q-tooltip>{{ statusInfo.label }} (點擊切換)</q-tooltip>
+        </q-btn>
       </div>
 
-      <!-- 主要內容區域 -->
-      <div class="col">
-        <div class="row items-start justify-between">
-          <div class="col">
-            <!-- 任務標題 -->
-            <div class="task-title text-body1 text-weight-medium">
-              {{ task.title }}
-            </div>
-
-            <!-- 任務描述預覽 -->
-            <div
-              v-if="descriptionText"
-              class="task-description text-body2 text-grey-7 q-mt-xs"
-            >
-              {{ descriptionText }}
-            </div>
-
-            <!-- 標籤行 -->
-            <div class="row items-center q-gutter-sm q-mt-sm">
-              <!-- 專案標籤（AllTasks 視圖才顯示） -->
-              <q-chip
-                v-if="showProject && projectName"
-                size="sm"
-                dense
-                color="blue-1"
-                text-color="blue-8"
-                icon="folder"
-              >
-                {{ projectName }}
-              </q-chip>
-
-              <!-- 優先級標籤 -->
-              <q-chip
-                v-if="priorityInfo"
-                size="sm"
-                dense
-                :color="priorityInfo.color"
-                :text-color="priorityInfo.color === 'grey' ? 'grey-8' : 'white'"
-                :icon="priorityInfo.icon"
-              >
-                {{ priorityInfo.label }}
-              </q-chip>
-
-              <!-- 任務標籤 -->
-              <q-chip
-                v-for="tag in task.tags"
-                :key="tag"
-                size="sm"
-                dense
-                color="grey-3"
-                text-color="grey-8"
-              >
-                {{ tag }}
-              </q-chip>
-
-              <!-- 逾期標籤 -->
-              <q-chip
-                v-if="isOverdue"
-                size="sm"
-                dense
-                color="negative"
-                text-color="white"
-                icon="schedule"
-              >
-                已逾期
-              </q-chip>
-            </div>
-          </div>
-
-          <!-- 右側資訊區域 -->
-          <div class="col-auto">
-            <div class="column items-end q-gutter-xs">
-              <!-- 指派對象頭像 -->
-              <q-avatar
-                v-if="assigneeInfo"
-                size="32px"
-                class="cursor-pointer"
-                @click.stop="showAssigneeMenu = true"
-              >
-                <img
-                  v-if="assigneeInfo.avatar"
-                  :src="assigneeInfo.avatar"
-                  :alt="assigneeInfo.name"
-                >
-                <q-icon v-else name="person" />
-                <q-tooltip>{{ assigneeInfo.name }}</q-tooltip>
-
-                <!-- 指派對象快速選單 -->
-                <q-menu v-model="showAssigneeMenu">
-                  <q-list dense style="min-width: 200px">
-                    <q-item-label header>重新指派給</q-item-label>
-                    <q-item
-                      v-for="user in availableUsers"
-                      :key="user.userId"
-                      clickable
-                      v-close-popup
-                      @click="assignTo(user.userId)"
-                    >
-                      <q-item-section avatar>
-                        <q-avatar size="24px">
-                          <img
-                            v-if="user.avatar"
-                            :src="user.avatar"
-                            :alt="user.name"
-                          >
-                          <q-icon v-else name="person" />
-                        </q-avatar>
-                      </q-item-section>
-                      <q-item-section>{{ user.name }}</q-item-section>
-                    </q-item>
-                    <q-separator />
-                    <q-item
-                      clickable
-                      v-close-popup
-                      @click="assignTo(undefined)"
-                    >
-                      <q-item-section avatar>
-                        <q-icon name="person_off" />
-                      </q-item-section>
-                      <q-item-section>取消指派</q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-menu>
-              </q-avatar>
-
-              <!-- 未指派狀態 -->
-              <q-btn
-                v-else
-                flat
-                dense
-                round
-                icon="person_add"
-                size="sm"
-                color="grey"
-                @click.stop="showAssigneeMenu = true"
-              >
-                <q-tooltip>指派任務</q-tooltip>
-
-                <!-- 指派選單 -->
-                <q-menu v-model="showAssigneeMenu">
-                  <q-list dense style="min-width: 200px">
-                    <q-item-label header>指派給</q-item-label>
-                    <q-item
-                      v-for="user in availableUsers"
-                      :key="user.userId"
-                      clickable
-                      v-close-popup
-                      @click="assignTo(user.userId)"
-                    >
-                      <q-item-section avatar>
-                        <q-avatar size="24px">
-                          <img
-                            v-if="user.avatar"
-                            :src="user.avatar"
-                            :alt="user.name"
-                          >
-                          <q-icon v-else name="person" />
-                        </q-avatar>
-                      </q-item-section>
-                      <q-item-section>{{ user.name }}</q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-menu>
-              </q-btn>
-
-              <!-- 到期時間 -->
-              <div
-                v-if="task.endDateTime"
-                class="text-caption"
-                :class="isOverdue ? 'text-negative' : 'text-grey-6'"
-              >
-                {{ formatDate(task.endDateTime) }}
-              </div>
-
-              <!-- 子任務指示器 -->
-              <q-chip
-                v-if="task.children && task.children.length > 0"
-                size="sm"
-                dense
-                color="grey-3"
-                text-color="grey-8"
-                icon="account_tree"
-              >
-                {{ task.children.length }}
-              </q-chip>
-            </div>
-          </div>
+      <!-- 任務標題（主要內容） -->
+      <div class="col task-title-section">
+        <div class="task-title text-body1 text-weight-medium ellipsis">
+          {{ task.title }}
         </div>
+      </div>
 
-        <!-- 進度條（如果有設定進度） -->
-        <div
-          v-if="task.progress !== undefined && task.progress > 0"
-          class="q-mt-sm"
+      <!-- 標籤區域 -->
+      <div class="col-auto row items-center q-gutter-xs no-wrap">
+        <!-- 專案標籤（AllTasks 視圖才顯示） -->
+        <q-chip
+          v-if="showProject && projectName"
+          size="sm"
+          dense
+          color="blue-1"
+          text-color="blue-8"
+          icon="folder"
+          class="chip-compact"
         >
-          <q-linear-progress
-            :value="task.progress / 100"
-            color="primary"
-            size="4px"
-            rounded
-          />
-          <div class="text-caption text-grey-6 q-mt-xs">
-            進度: {{ task.progress }}%
-          </div>
+          {{ projectName }}
+        </q-chip>
+
+        <!-- 優先級圖示 -->
+        <q-icon
+          v-if="priorityInfo && priorityInfo.id !== 'medium'"
+          :name="priorityInfo.icon"
+          :color="priorityInfo.color"
+          size="sm"
+        >
+          <q-tooltip>{{ priorityInfo.label }}</q-tooltip>
+        </q-icon>
+
+        <!-- 逾期指示 -->
+        <q-icon
+          v-if="isOverdue"
+          name="schedule"
+          color="negative"
+          size="sm"
+        >
+          <q-tooltip>已逾期</q-tooltip>
+        </q-icon>
+
+        <!-- 子任務指示器 -->
+        <div
+          v-if="task.children && task.children.length > 0"
+          class="text-caption text-grey-6"
+        >
+          <q-icon name="account_tree" size="xs" />
+          {{ task.children.length }}
         </div>
+
+        <!-- 進度指示 -->
+        <div
+          v-if="task.progress && task.progress > 0"
+          class="text-caption text-primary"
+        >
+          {{ task.progress }}%
+        </div>
+      </div>
+
+      <!-- 到期時間 -->
+      <div
+        v-if="task.endDateTime"
+        class="col-auto text-caption"
+        :class="isOverdue ? 'text-negative' : 'text-grey-6'"
+      >
+        {{ formatDate(task.endDateTime) }}
+      </div>
+
+      <!-- 指派對象 -->
+      <div class="col-auto">
+        <!-- 指派對象頭像 -->
+        <q-avatar
+          v-if="assigneeInfo"
+          size="28px"
+          class="cursor-pointer"
+          @click.stop="showAssigneeMenu = true"
+        >
+          <img
+            v-if="assigneeInfo.avatar"
+            :src="assigneeInfo.avatar"
+            :alt="assigneeInfo.name"
+          >
+          <q-icon v-else name="person" />
+          <q-tooltip>{{ assigneeInfo.name }}</q-tooltip>
+
+          <!-- 指派對象快速選單 -->
+          <q-menu v-model="showAssigneeMenu">
+            <q-list dense style="min-width: 200px">
+              <q-item-label header>重新指派給</q-item-label>
+              <q-item
+                v-for="user in availableUsers"
+                :key="user.userId"
+                clickable
+                v-close-popup
+                @click="assignTo(user.userId)"
+              >
+                <q-item-section avatar>
+                  <q-avatar size="24px">
+                    <img
+                      v-if="user.avatar"
+                      :src="user.avatar"
+                      :alt="user.name"
+                    >
+                    <q-icon v-else name="person" />
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>{{ user.name }}</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item
+                clickable
+                v-close-popup
+                @click="assignTo(undefined)"
+              >
+                <q-item-section avatar>
+                  <q-icon name="person_off" />
+                </q-item-section>
+                <q-item-section>取消指派</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-avatar>
+
+        <!-- 未指派狀態 -->
+        <q-btn
+          v-else
+          flat
+          dense
+          round
+          icon="person_add"
+          size="sm"
+          color="grey"
+          @click.stop="showAssigneeMenu = true"
+        >
+          <q-tooltip>指派任務</q-tooltip>
+
+          <!-- 指派選單 -->
+          <q-menu v-model="showAssigneeMenu">
+            <q-list dense style="min-width: 200px">
+              <q-item-label header>指派給</q-item-label>
+              <q-item
+                v-for="user in availableUsers"
+                :key="user.userId"
+                clickable
+                v-close-popup
+                @click="assignTo(user.userId)"
+              >
+                <q-item-section avatar>
+                  <q-avatar size="24px">
+                    <img
+                      v-if="user.avatar"
+                      :src="user.avatar"
+                      :alt="user.name"
+                    >
+                    <q-icon v-else name="person" />
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>{{ user.name }}</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
       </div>
     </div>
   </div>
@@ -230,7 +196,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Task } from '@/types'
-import { DEFAULT_PRIORITIES } from '@/types'
+import { DEFAULT_PRIORITIES, DEFAULT_STATUSES } from '@/types'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { getProjectRepository } from '@/services/repositories'
 
@@ -260,7 +226,7 @@ const isOverdue = computed(() => {
   return new Date(props.task.endDateTime) < new Date()
 })
 
-const descriptionText = computed(() => {
+const _descriptionText = computed(() => {
   if (!props.task.description || typeof props.task.description !== 'object') {
     return ''
   }
@@ -292,6 +258,31 @@ const priorityInfo = computed(() => {
   return DEFAULT_PRIORITIES.find(p => p.id === props.task.priorityId)
 })
 
+const statusInfo = computed(() => {
+  const status = DEFAULT_STATUSES.find(s => s.id === props.task.statusId)
+  if (!status) {
+    return { 
+      id: 'todo', 
+      label: '待處理', 
+      color: 'grey',
+      icon: 'radio_button_unchecked'
+    }
+  }
+
+  // 根據狀態 ID 設定對應圖示
+  const iconMap: Record<string, string> = {
+    todo: 'radio_button_unchecked',
+    inProgress: 'play_circle',
+    done: 'check_circle',
+    cancelled: 'cancel'
+  }
+
+  return {
+    ...status,
+    icon: iconMap[status.id] || 'radio_button_unchecked'
+  }
+})
+
 const assigneeInfo = computed(() => {
   if (!props.task.assigneeId) return null
 
@@ -312,9 +303,13 @@ if (props.showProject) {
   }).catch(console.error)
 }
 
-// 切換任務狀態
-function toggleStatus(completed: boolean): void {
-  const newStatus = completed ? 'done' : 'todo'
+// 循環切換任務狀態 (todo -> inProgress -> done -> todo)
+function cycleStatus(): void {
+  const statusCycle = ['todo', 'inProgress', 'done']
+  const currentIndex = statusCycle.indexOf(props.task.statusId || 'todo')
+  const nextIndex = (currentIndex + 1) % statusCycle.length
+  const newStatus = statusCycle[nextIndex]
+  
   emit('update', { statusId: newStatus })
 }
 
@@ -356,11 +351,12 @@ function formatDate(date: Date | string): string {
 
 <style scoped lang="scss">
 .task-item {
-  border-bottom: 1px solid $grey-4;
+  border-bottom: 1px solid #e0e0e0;
   transition: background-color 0.2s ease;
-
+  min-height: 48px;
+  
   &:hover {
-    background-color: $grey-1;
+    background-color: #f5f5f5;
   }
 
   &--completed {
@@ -368,23 +364,33 @@ function formatDate(date: Date | string): string {
 
     .task-title {
       text-decoration: line-through;
-      color: $grey-6;
+      color: #757575;
     }
   }
 
   &--overdue {
-    border-left: 4px solid $negative;
+    border-left: 4px solid #f44336;
   }
 
-  .task-title {
-    line-height: 1.4;
-    word-wrap: break-word;
+  .task-title-section {
+    min-width: 0; // 允許 flex 收縮
+    
+    .task-title {
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 
-  .task-description {
-    line-height: 1.3;
-    max-width: 500px;
-    word-wrap: break-word;
+  .chip-compact {
+    max-width: 120px;
+    
+    .q-chip__content {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 }
 </style>

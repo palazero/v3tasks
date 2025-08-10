@@ -7,7 +7,20 @@
 import type { Task } from '@/types';
 import { nanoid } from 'nanoid';
 
-export function useNestedTasks(): any {
+export interface NestedTasksUtils {
+  MAX_LEVEL: number;
+  buildTaskTree: (tasks: Task[]) => Task[];
+  flattenTaskTree: (tasks: Task[]) => Task[];
+  createSubtask: (parentTask: Task, title: string) => Partial<Task>;
+  indentTask: (task: Task, allTasks: Task[]) => { taskId: string; updates: Partial<Task> } | null;
+  outdentTask: (task: Task, allTasks: Task[]) => { taskId: string; updates: Partial<Task> } | null;
+  toggleTaskExpanded: (task: Task) => { taskId: string; updates: Partial<Task> };
+  reorderTasks: (draggedTask: Task, targetTask: Task, position: 'before' | 'after' | 'child') => Array<{ taskId: string; updates: Partial<Task> }>;
+  getSiblings: (task: Task, allTasks: Task[]) => Task[];
+  normalizeTaskOrder: (tasks: Task[]) => Array<{ taskId: string; updates: Partial<Task> }>;
+}
+
+export function useNestedTasks(): NestedTasksUtils {
   // 最大巢狀層級
   const MAX_LEVEL = 3;
 
