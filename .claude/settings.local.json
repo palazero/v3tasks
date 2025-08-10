@@ -17,7 +17,8 @@
       "Bash(rg:*)",
       "Bash(git add:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "WebFetch(domain:quasar.dev)"
     ],
     "deny": []
   }

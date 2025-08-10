@@ -46,17 +46,135 @@
 
     <!-- 表格主體 -->
     <div class="table-container">
-      <q-table
-        :rows="filteredTasks"
-        :columns="tableColumns"
-        row-key="taskId"
-        flat
-        square
-        :pagination="{ rowsPerPage: 0 }"
-        hide-pagination
-        :table-style="{ minHeight: '400px' }"
-        class="task-table"
-      >
+      <!-- AllTasks 專案分組顯示 -->
+      <template v-if="projectId === 'all' && view.config.groupBy === 'projectId'">
+        <div
+          v-for="[projectId, projectTasks] in sortedGroupedTasks"
+          :key="projectId"
+          class="project-group q-mb-lg"
+        >
+          <!-- 專案分組標題 -->
+          <div 
+            class="project-group-header q-pa-xs bg-grey-2 rounded-borders-top cursor-pointer"
+            @click="toggleProjectExpanded(projectId)"
+          >
+            <div class="row items-center justify-between">
+              <div class="row items-center q-gutter-sm">
+                <q-btn
+                  flat
+                  dense
+                  round
+                  size="sm"
+                  :icon="isProjectExpanded(projectId) ? 'expand_less' : 'expand_more'"
+                  @click.stop="toggleProjectExpanded(projectId)"
+                />
+                <q-avatar size="24px" color="primary" text-color="white">
+                  <q-icon name="folder" />
+                </q-avatar>
+                <span class="text-h6 text-weight-medium">
+                  {{ getProjectName(projectId) }}
+                </span>
+                
+                <!-- 專案統計資訊 -->
+                <div class="project-stats row items-center q-gutter-xs">
+                  <q-badge 
+                    color="grey" 
+                    :label="`${getCachedProjectStats(projectId).total} 任務`" 
+                  />
+                  <q-badge 
+                    :color="getCachedProjectStats(projectId).progress === 100 ? 'positive' : 'info'" 
+                    :label="`${getCachedProjectStats(projectId).progress}%`" 
+                  />
+                  <q-badge 
+                    v-if="getCachedProjectStats(projectId).overdue > 0"
+                    color="negative" 
+                    :label="`${getCachedProjectStats(projectId).overdue} 逾期`" 
+                  />
+                  <q-badge 
+                    v-if="getCachedProjectStats(projectId).inProgress > 0"
+                    color="warning" 
+                    :label="`${getCachedProjectStats(projectId).inProgress} 進行中`" 
+                  />
+                </div>
+              </div>
+
+              <div class="row q-gutter-xs">
+                <!-- 專案排序選單 -->
+                <q-btn
+                  flat
+                  dense
+                  icon="sort"
+                  size="sm"
+                  @click.stop
+                >
+                  <q-tooltip>排序專案</q-tooltip>
+                  <q-menu>
+                    <q-list dense style="min-width: 150px">
+                      <q-item clickable @click="setProjectSort('name')">
+                        <q-item-section>
+                          <q-item-label>依名稱排序</q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-icon v-if="projectSortBy === 'name'" name="check" />
+                        </q-item-section>
+                      </q-item>
+                      <q-item clickable @click="setProjectSort('taskCount')">
+                        <q-item-section>
+                          <q-item-label>依任務數量</q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-icon v-if="projectSortBy === 'taskCount'" name="check" />
+                        </q-item-section>
+                      </q-item>
+                      <q-item clickable @click="setProjectSort('progress')">
+                        <q-item-section>
+                          <q-item-label>依進度排序</q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-icon v-if="projectSortBy === 'progress'" name="check" />
+                        </q-item-section>
+                      </q-item>
+                      <q-item clickable @click="setProjectSort('overdue')">
+                        <q-item-section>
+                          <q-item-label>依逾期任務</q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-icon v-if="projectSortBy === 'overdue'" name="check" />
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
+
+                <q-btn
+                  flat
+                  dense
+                  icon="open_in_new"
+                  size="sm"
+                  @click.stop="$router.push({ name: 'ProjectView', params: { projectId } })"
+                >
+                  <q-tooltip>開啟專案</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+          </div>
+
+          <!-- 專案任務表格 -->
+          <div 
+            v-show="isProjectExpanded(projectId)" 
+            class="project-tasks bg-white rounded-borders-bottom"
+          >
+            <q-table
+              :rows="getFilteredProjectTasks(projectTasks)"
+              :columns="tableColumns"
+              row-key="taskId"
+              flat
+              square
+              :pagination="{ rowsPerPage: 0 }"
+              hide-pagination
+              :table-style="{ minHeight: '300px' }"
+              class="project-task-table"
+            >
         <!-- 任務標題欄（支援樹狀結構） -->
         <template v-slot:body-cell-title="props">
           <q-td :props="props" class="task-title-cell">
@@ -306,7 +424,21 @@
             </div>
           </q-td>
         </template>
-      </q-table>
+            </q-table>
+          </div>
+        </div>
+      </template>
+
+      <!-- 一般表格顯示（非專案分組模式）- 暫時使用簡化版本 -->
+      <div v-else class="non-grouped-notice q-pa-lg text-center">
+        <q-icon name="info" size="2em" color="grey-6" />
+        <div class="text-h6 q-mt-md text-grey-6">
+          Table View 專案分組模式
+        </div>
+        <div class="text-body2 text-grey-6 q-mt-sm">
+          Table View 目前僅支援「所有任務」頁面的專案分組顯示
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -317,6 +449,7 @@ import type { Task, View, ViewConfiguration, FilterCondition } from '@/types'
 import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
+import { getProjectRepository } from '@/services/repositories'
 import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
 
 // Props
@@ -341,6 +474,7 @@ const { buildTaskTree } = useNestedTasks()
 const { availableUsers } = useCurrentUser()
 const { visibleFields: visibleCustomFields } = useCustomFields(props.projectId)
 const { getCustomFieldDisplayValue, getCustomFieldValue } = useCustomFieldUtils()
+const projectRepo = getProjectRepository()
 
 // 搜尋查詢
 const searchQuery = ref('')
@@ -348,6 +482,109 @@ const searchQuery = ref('')
 // 行內編輯狀態
 const editingCell = ref<{ taskId: string; field: string } | null>(null)
 const editingValue = ref('')
+
+// 專案名稱快取
+const projectNamesCache = new Map<string, string>()
+
+// 專案展開/收合狀態管理
+const PROJECT_EXPAND_KEY = 'projectExpandState_table'
+
+function loadProjectExpandState(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(PROJECT_EXPAND_KEY)
+    return stored ? JSON.parse(stored) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveProjectExpandState(state: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(PROJECT_EXPAND_KEY, JSON.stringify(state))
+  } catch (error) {
+    console.warn('Failed to save project expand state:', error)
+  }
+}
+
+const projectExpandState = ref<Record<string, boolean>>(loadProjectExpandState())
+
+function isProjectExpanded(projectId: string): boolean {
+  return projectExpandState.value[projectId] ?? true
+}
+
+function toggleProjectExpanded(projectId: string): void {
+  const currentState = isProjectExpanded(projectId)
+  projectExpandState.value[projectId] = !currentState
+  saveProjectExpandState(projectExpandState.value)
+}
+
+// 專案排序狀態管理
+const PROJECT_SORT_KEY = 'projectSortBy_table'
+
+function loadProjectSortBy(): string {
+  return localStorage.getItem(PROJECT_SORT_KEY) || 'name'
+}
+
+function saveProjectSortBy(sortBy: string): void {
+  localStorage.setItem(PROJECT_SORT_KEY, sortBy)
+}
+
+const projectSortBy = ref<string>(loadProjectSortBy())
+
+function setProjectSort(sortBy: string): void {
+  projectSortBy.value = sortBy
+  saveProjectSortBy(sortBy)
+}
+
+// 計算專案統計資訊
+function getProjectStats(tasks: Task[]): {
+  total: number
+  completed: number
+  inProgress: number
+  overdue: number
+  priority: { high: number; medium: number; low: number }
+  progress: number
+} {
+  const total = tasks.length
+  const completed = tasks.filter(task => task.statusId === 'completed').length
+  const inProgress = tasks.filter(task => task.statusId === 'in-progress').length
+  const overdue = tasks.filter(task => {
+    if (!task.endDateTime) return false
+    return new Date(task.endDateTime) < new Date() && task.statusId !== 'completed'
+  }).length
+  
+  const priority = {
+    high: tasks.filter(task => task.priorityId === 'high').length,
+    medium: tasks.filter(task => task.priorityId === 'medium').length,
+    low: tasks.filter(task => task.priorityId === 'low').length
+  }
+  
+  const progress = total > 0 ? Math.round((completed / total) * 100) : 0
+  
+  return {
+    total,
+    completed,
+    inProgress,
+    overdue,
+    priority,
+    progress
+  }
+}
+
+// 取得專案名稱
+function getProjectName(projectId: string): string {
+  if (projectNamesCache.has(projectId)) {
+    return projectNamesCache.get(projectId)!
+  }
+
+  projectRepo.findById(projectId).then(project => {
+    if (project) {
+      projectNamesCache.set(projectId, project.name)
+    }
+  }).catch(console.error)
+
+  return '載入中...'
+}
 
 // 所有可用欄位定義
 const availableColumns = [
@@ -514,8 +751,128 @@ const priorityOptions = [
 // 樹狀結構任務
 const nestedTasks = computed(() => buildTaskTree(props.tasks))
 
+// 根據專案分組任務
+const groupedTasks = computed(() => {
+  if (props.projectId !== 'all' || props.view.config.groupBy !== 'projectId') {
+    return new Map()
+  }
+
+  const grouped = new Map<string, Task[]>()
+
+  props.tasks.forEach(task => {
+    const projectId = task.projectId
+    if (!grouped.has(projectId)) {
+      grouped.set(projectId, [])
+    }
+    grouped.get(projectId)!.push(task)
+  })
+
+  // 每個分組內部排序（任務排序）
+  grouped.forEach((tasks) => {
+    tasks.sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+  })
+
+  return grouped
+})
+
+// 排序後的專案分組
+const sortedGroupedTasks = computed(() => {
+  const entries = Array.from(groupedTasks.value.entries())
+  
+  entries.sort(([projectIdA, _tasksA], [projectIdB, _tasksB]) => {
+    const statsA = projectStatsCache.value.get(projectIdA)
+    const statsB = projectStatsCache.value.get(projectIdB)
+    
+    if (!statsA || !statsB) return 0
+    
+    if (projectSortBy.value === 'name') {
+      const nameA = getProjectName(projectIdA)
+      const nameB = getProjectName(projectIdB)
+      return nameA.localeCompare(nameB)
+    } else if (projectSortBy.value === 'taskCount') {
+      return statsB.total - statsA.total
+    } else if (projectSortBy.value === 'progress') {
+      return statsB.progress - statsA.progress
+    } else if (projectSortBy.value === 'overdue') {
+      return statsB.overdue - statsA.overdue
+    }
+    
+    return 0
+  })
+  
+  return new Map(entries)
+})
+
+// 專案統計資訊快取
+const projectStatsCache = computed(() => {
+  const cache = new Map<string, ReturnType<typeof getProjectStats>>()
+  
+  groupedTasks.value.forEach((tasks, projectId) => {
+    cache.set(projectId, getProjectStats(tasks))
+  })
+  
+  return cache
+})
+
+// 取得專案統計資訊（從快取）
+function getCachedProjectStats(projectId: string): {
+  total: number
+  completed: number
+  inProgress: number
+  overdue: number
+  priority: { high: number; medium: number; low: number }
+  progress: number
+} {
+  return projectStatsCache.value.get(projectId) || {
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    overdue: 0,
+    priority: { high: 0, medium: 0, low: 0 },
+    progress: 0
+  }
+}
+
+// 篩選專案任務（用於表格顯示）
+function getFilteredProjectTasks(projectTasks: Task[]): Task[] {
+  // 先構建樹狀結構
+  const nestedProjectTasks = buildTaskTree(projectTasks)
+  
+  // 然後扁平化
+  const flattenWithLevel = (tasks: Task[], level = 0): Task[] => {
+    const result: Task[] = []
+
+    tasks.forEach(task => {
+      const taskWithLevel = { ...task, level }
+
+      let passesSearch = true
+      if (searchQuery.value) {
+        passesSearch = task.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+      }
+
+      if (passesSearch) {
+        result.push(taskWithLevel)
+      }
+
+      // 如果任務有子項目且展開，遞迴處理子項目
+      if ((task.isExpanded !== false) && task.children && task.children.length > 0) {
+        result.push(...flattenWithLevel(task.children, level + 1))
+      }
+    })
+
+    return result
+  }
+
+  return flattenWithLevel(nestedProjectTasks)
+}
+
 // 篩選後的任務（扁平化顯示，但保留層級信息）
-const filteredTasks = computed(() => {
+const _filteredTasks = computed(() => {
   const flattenWithLevel = (tasks: Task[], level = 0): Task[] => {
     const result: Task[] = []
 
@@ -827,6 +1184,72 @@ function deleteTask(task: Task): void {
   }
 
   .table-container {
+    // 專案分組樣式
+    .project-group {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: box-shadow 0.2s ease;
+
+      &:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .project-group-header {
+        border-bottom: 1px solid #e0e0e0;
+        transition: background-color 0.2s ease;
+        
+        &:hover {
+          background-color: #f5f5f5 !important;
+        }
+
+        .project-stats {
+          .q-badge {
+            font-size: 11px;
+            font-weight: 500;
+          }
+        }
+      }
+      
+      .project-task-table {
+        background-color: white;
+        
+        :deep(.q-table__top) {
+          padding: 0;
+        }
+
+        :deep(thead) {
+          th {
+            position: sticky;
+            top: 0;
+            background-color: $grey-2;
+            font-weight: 600;
+            border-bottom: 2px solid $grey-4;
+          }
+        }
+
+        :deep(tbody) {
+          tr {
+            border-bottom: 1px solid $grey-3;
+
+            &:hover {
+              background-color: $grey-1;
+            }
+
+            &:last-child {
+              border-bottom: none;
+            }
+          }
+
+          td {
+            padding: 8px 12px;
+            vertical-align: middle;
+          }
+        }
+      }
+    }
+
     .task-table {
       background-color: white;
 

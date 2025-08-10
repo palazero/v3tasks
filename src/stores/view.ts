@@ -47,7 +47,7 @@ export const useViewStore = defineStore('view', () => {
       }
       
       // 恢復上次選中的視圖或設定預設視圖
-      if (allTasksViews.length > 0 && !currentViewId.value) {
+      if (allTasksViews.length > 0) {
         restoreLastView('all')
       }
     } catch (err) {
@@ -73,7 +73,7 @@ export const useViewStore = defineStore('view', () => {
       }
       
       // 恢復上次選中的視圖或設定預設視圖
-      if (projectViews.length > 0 && !currentViewId.value) {
+      if (projectViews.length > 0) {
         restoreLastView(projectId)
       }
     } catch (err) {
@@ -186,6 +186,13 @@ export const useViewStore = defineStore('view', () => {
       // 記住當前選中的視圖
       setLastViewId(view.projectId, viewId)
     }
+  }
+
+  // 清理當前專案狀態（用於專案切換）
+  function clearCurrentProject(): void {
+    views.value = []
+    currentViewId.value = null
+    error.value = null
   }
 
   // 建立新視圖
@@ -385,6 +392,7 @@ export const useViewStore = defineStore('view', () => {
 
   function restoreLastView(projectId: string): void {
     const lastViewId = getLastViewId(projectId)
+    
     if (lastViewId && views.value.find(v => v.viewId === lastViewId)) {
       currentViewId.value = lastViewId
     } else if (views.value.length > 0) {
@@ -459,6 +467,7 @@ export const useViewStore = defineStore('view', () => {
     setLastViewId,
     getLastViewId,
     restoreLastView,
+    clearCurrentProject,
     reset
   }
 })

@@ -99,7 +99,8 @@
     <q-card class="full-width">
       <!-- 標準 Quasar Tabs (暫時不使用拖拉排序) -->
       <q-tabs
-        v-model="viewStore.currentViewId"
+        :model-value="viewStore.currentViewId"
+        @update:model-value="handleViewChange"
         dense
         class="text-grey"
         active-color="primary"
@@ -333,7 +334,7 @@
 import { ref, computed, onMounted, watch, defineAsyncComponent, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { VueDraggable } from 'vue-draggable-plus'
+// import { VueDraggable } from 'vue-draggable-plus'
 import type { Task, View, ViewType, FilterConfig, SortConfig, Project, User } from '@/types'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
@@ -393,19 +394,19 @@ const tabMenuRefs = ref<Record<string, { show: () => void } | null>>({})
 // 判斷是否為 AllTasks 模式
 const isAllTasksView = computed(() => props.projectId === 'all')
 
-// 可拖拉的視圖列表
-const draggableViews = computed({
-  get: () => viewStore.sortedViews,
-  set: (newViews: View[]) => {
-    // 當拖拉重新排序時，直接更新
-    handleTabsReorderImmediate(newViews)
-  }
-})
+// 可拖拉的視圖列表（暫時註釋，未使用）
+// const draggableViews = computed({
+//   get: () => viewStore.sortedViews,
+//   set: (newViews: View[]) => {
+//     // 當拖拉重新排序時，直接更新
+//     void handleTabsReorderImmediate(newViews)
+//   }
+// })
 
-// 切換到指定視圖
-function switchToView(view: View): void {
-  viewStore.switchView(view.viewId)
-}
+// 切換到指定視圖（暫時註釋，未使用）
+// function switchToView(view: View): void {
+//   viewStore.switchView(view.viewId)
+// }
 
 // 計算屬性
 const currentFilters = computed(() => taskStore.currentFilters)
@@ -505,6 +506,9 @@ async function loadProjectData(): Promise<void> {
 
 // 載入所有資料
 async function loadData(): Promise<void> {
+  // 清理上一個專案的視圖狀態
+  viewStore.clearCurrentProject()
+
   if (isAllTasksView.value) {
     // AllTasks 模式：載入所有用戶任務和AllTasks視圖
     await Promise.all([
@@ -536,6 +540,13 @@ function setTabMenuRef(viewId: string, el: { show: () => void } | null): void {
   }
 }
 
+// 處理視圖變化（來自 q-tabs v-model）
+function handleViewChange(viewId: string | null): void {
+  if (viewId) {
+    viewStore.switchView(viewId)
+  }
+}
+
 // 記錄上次點擊的狀態
 const lastClickedViewId = ref<string | null>(null)
 const clickStartTime = ref<number>(0)
@@ -545,17 +556,17 @@ function handleTabClick(view: View, event: Event): void {
   // 如果是點擊已選中的 tab，則顯示選單
   const isCurrentlySelected = view.viewId === viewStore.currentViewId
   const now = Date.now()
-  
+
   if (isCurrentlySelected) {
     // 檢查是否是重複點擊
     const timeSinceLastClick = now - clickStartTime.value
     const isSameTabAsLastClick = lastClickedViewId.value === view.viewId
-    
+
     if (isSameTabAsLastClick && timeSinceLastClick > 100) {
       // 阻止切換並顯示選單
       event.preventDefault()
       event.stopPropagation()
-      
+
       setTimeout(() => {
         const menuRef = tabMenuRefs.value[view.viewId]
         if (menuRef) {
@@ -567,14 +578,14 @@ function handleTabClick(view: View, event: Event): void {
     // 切換到新的 tab
     viewStore.switchView(view.viewId)
   }
-  
+
   // 記錄點擊狀態
   lastClickedViewId.value = view.viewId
   clickStartTime.value = now
 }
 
-// Tab 拖拉排序處理（即時更新）
-async function handleTabsReorderImmediate(newViews: View[]): Promise<void> {
+// Tab 拖拉排序處理（即時更新）（暫時註釋，未使用）
+async function _handleTabsReorderImmediate(newViews: View[]): Promise<void> {
   try {
     // 建立新的排序資料
     const reorderData = newViews.map((view, index) => ({
@@ -584,7 +595,7 @@ async function handleTabsReorderImmediate(newViews: View[]): Promise<void> {
 
     // 更新視圖順序
     const success = await viewStore.reorderViews(reorderData)
-    
+
     if (success) {
       $q.notify({
         type: 'positive',
@@ -600,43 +611,6 @@ async function handleTabsReorderImmediate(newViews: View[]): Promise<void> {
       position: 'top'
     })
   }
-}
-
-// Tab 拖拉排序處理（拖拉結束事件）
-async function handleTabsReorder(): Promise<void> {
-  // 這個函數主要用於處理拖拉結束事件，實際更新已在 computed setter 中處理
-}
-
-// 處理 tab 直接點擊
-function handleTabDirectClick(view: View, event: Event): void {
-  const isCurrentlySelected = view.viewId === viewStore.currentViewId
-  const now = Date.now()
-
-  // 如果點擊的是已經選中的標籤
-  if (isCurrentlySelected) {
-    // 檢查是否是在很短時間內的重複點擊（排除 Quasar 自動觸發的點擊）
-    const timeSinceLastClick = now - clickStartTime.value
-    const isSameTabAsLastClick = lastClickedViewId.value === view.viewId
-
-    // 如果是真正的重複點擊（超過 100ms，避免雙重觸發）
-    if (isSameTabAsLastClick && timeSinceLastClick > 100) {
-      // 阻止 tab 切換
-      event.preventDefault()
-      event.stopPropagation()
-
-      // 顯示選單
-      setTimeout(() => {
-        const menuRef = tabMenuRefs.value[view.viewId]
-        if (menuRef) {
-          menuRef.show()
-        }
-      }, 10)
-    }
-  }
-
-  // 記錄這次點擊
-  lastClickedViewId.value = view.viewId
-  clickStartTime.value = now
 }
 
 // 編輯視圖

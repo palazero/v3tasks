@@ -32,6 +32,8 @@
         </div>
       </div>
 
+      <q-space />
+
       <!-- 標籤區域 -->
       <div class="col-auto row items-center q-gutter-xs no-wrap">
         <!-- 專案標籤（AllTasks 視圖才顯示） -->

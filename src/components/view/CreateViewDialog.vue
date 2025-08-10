@@ -175,7 +175,7 @@ const viewTypeOptions = [
   }
 ]
 
-const selectedViewType = computed(() => {
+const _selectedViewType = computed(() => {
   return viewTypeOptions.find(option => option.value === viewType.value)
 })
 
