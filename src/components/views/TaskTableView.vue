@@ -54,7 +54,7 @@
         square
         :pagination="{ rowsPerPage: 0 }"
         hide-pagination
-        :table-style="{ 'min-height': '400px' }"
+        :table-style="{ minHeight: '400px' }"
         class="task-table"
       >
         <!-- 任務標題欄（支援樹狀結構） -->
@@ -192,7 +192,7 @@
                 :step="10"
                 label
                 label-always
-                @update:model-value="updateTask(props.row.taskId, { progress: $event })"
+                @update:model-value="$event != null && updateTask(props.row.taskId, { progress: $event })"
                 class="progress-slider"
               />
             </div>
@@ -333,7 +333,7 @@ const availableColumns = [
     name: 'title',
     required: true,
     label: '任務標題',
-    align: 'left',
+    align: 'left' as const,
     field: 'title',
     sortable: true,
     style: 'width: 300px'
@@ -341,7 +341,7 @@ const availableColumns = [
   {
     name: 'status',
     label: '狀態',
-    align: 'center',
+    align: 'center' as const,
     field: 'statusId',
     sortable: true,
     style: 'width: 120px'
@@ -349,7 +349,7 @@ const availableColumns = [
   {
     name: 'assignee',
     label: '指派人員',
-    align: 'center',
+    align: 'center' as const,
     field: 'assigneeId',
     sortable: true,
     style: 'width: 150px'
@@ -357,7 +357,7 @@ const availableColumns = [
   {
     name: 'priority',
     label: '優先級',
-    align: 'center',
+    align: 'center' as const,
     field: 'priorityId',
     sortable: true,
     style: 'width: 120px'
@@ -365,7 +365,7 @@ const availableColumns = [
   {
     name: 'deadline',
     label: '截止日期',
-    align: 'center',
+    align: 'center' as const,
     field: 'endDateTime',
     sortable: true,
     style: 'width: 180px'
@@ -373,7 +373,7 @@ const availableColumns = [
   {
     name: 'progress',
     label: '進度',
-    align: 'center',
+    align: 'center' as const,
     field: 'progress',
     sortable: true,
     style: 'width: 150px'
@@ -381,7 +381,7 @@ const availableColumns = [
   {
     name: 'creator',
     label: '建立者',
-    align: 'center',
+    align: 'center' as const,
     field: 'creatorId',
     sortable: true,
     style: 'width: 120px'
@@ -389,7 +389,7 @@ const availableColumns = [
   {
     name: 'createdAt',
     label: '建立時間',
-    align: 'center',
+    align: 'center' as const,
     field: 'createdAt',
     sortable: true,
     style: 'width: 160px'
@@ -397,7 +397,7 @@ const availableColumns = [
   {
     name: 'updatedAt',
     label: '更新時間',
-    align: 'center',
+    align: 'center' as const,
     field: 'updatedAt',
     sortable: true,
     style: 'width: 160px'
@@ -405,7 +405,8 @@ const availableColumns = [
   {
     name: 'actions',
     label: '操作',
-    align: 'center',
+    align: 'center' as const,
+    field: 'actions',
     style: 'width: 150px'
   }
 ]
@@ -444,7 +445,7 @@ const tableColumns = computed(() => {
     name: `custom_${field.fieldId}`,
     label: field.name,
     align: 'left' as const,
-    field: (row: Task) => getCustomFieldDisplayValue(row.customFields, field.fieldId),
+    field: (row: Task): string => getCustomFieldDisplayValue(row.customFields, field.fieldId),
     sortable: true,
     style: `width: ${field.type === 'text' ? '200' : '150'}px`
   }))
@@ -475,8 +476,8 @@ const statusOptions = [
 // 指派人員選項
 const assigneeOptions = computed(() => 
   availableUsers.value.map(user => ({
-    label: user.label,
-    value: user.value
+    label: user.name,
+    value: user.userId
   }))
 )
 
@@ -598,7 +599,7 @@ function updateTask(taskId: string, updates: Partial<Task>): void {
 }
 
 // 更新日期
-function updateTaskDate(taskId: string, dateString: string): void {
+function updateTaskDate(taskId: string, dateString: string | number | null): void {
   const date = dateString ? new Date(dateString) : null
   emit('task-update', taskId, { endDateTime: date })
 }
@@ -634,14 +635,14 @@ function getPriorityColor(priority: string): string {
 
 // 取得用戶姓名縮寫
 function getUserInitials(userId: string): string {
-  const user = availableUsers.value.find(u => u.value === userId)
-  return user ? user.label.substring(0, 2).toUpperCase() : userId.substring(0, 2).toUpperCase()
+  const user = availableUsers.value.find(u => u.userId === userId)
+  return user ? user.name.substring(0, 2).toUpperCase() : userId.substring(0, 2).toUpperCase()
 }
 
 // 取得用戶姓名
 function getUserName(userId: string): string {
-  const user = availableUsers.value.find(u => u.value === userId)
-  return user ? user.label : userId
+  const user = availableUsers.value.find(u => u.userId === userId)
+  return user ? user.name : userId
 }
 
 // 格式化日期時間

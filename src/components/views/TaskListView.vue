@@ -37,8 +37,8 @@
           <DraggableTaskList
             :tasks="projectTasks"
             :show-project="false"
-            @task-click="$emit('task-click', $event)"
-            @task-update="$emit('task-update', $event)"
+            @task-click="emit('task-click', $event)"
+            @task-update="(taskId: string, updates: Partial<Task>) => emit('task-update', taskId, updates)"
             @tasks-reorder="handleTasksReorder"
             @add-subtask="handleAddSubtask"
             @indent-task="handleIndentTask"
@@ -55,8 +55,8 @@
         <DraggableTaskList
           :tasks="tasks"
           :show-project="projectId === 'all'"
-          @task-click="$emit('task-click', $event)"
-          @task-update="$emit('task-update', $event)"
+          @task-click="emit('task-click', $event)"
+          @task-update="(taskId: string, updates: Partial<Task>) => emit('task-update', taskId, updates)"
           @tasks-reorder="handleTasksReorder"
           @add-subtask="handleAddSubtask"
           @indent-task="handleIndentTask"
@@ -72,7 +72,7 @@
 import { computed } from 'vue'
 import { useQuasar } from 'quasar'
 import type { Task, View } from '@/types'
-import { useCurrentUser } from '@/composables/useCurrentUser'
+// import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useTaskStore } from '@/stores/task'
 import { getProjectRepository } from '@/services/repositories'
 import DraggableTaskList from '@/components/task/DraggableTaskList.vue'
@@ -203,12 +203,12 @@ function getProjectName(projectId: string): string {
 <style scoped lang="scss">
 .task-list-view {
   .project-group {
-    border: 1px solid $grey-4;
-    border-radius: $border-radius;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
     overflow: hidden;
 
     .project-group-header {
-      border-bottom: 1px solid $grey-4;
+      border-bottom: 1px solid #e0e0e0;
     }
 
     .project-tasks {
@@ -219,7 +219,7 @@ function getProjectName(projectId: string): string {
   }
 
   .task-list {
-    border: 1px solid $grey-4;
+    border: 1px solid #e0e0e0;
 
     .task-item:last-child {
       border-bottom: none;

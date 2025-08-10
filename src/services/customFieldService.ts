@@ -3,47 +3,17 @@
  * 處理自訂欄位的 CRUD 操作和驗證
  */
 
-import { databaseService } from './databaseService';
+import { getDatabase } from './db/database';
 import type {
   CustomField,
   CustomFieldGroup,
   FieldType,
-  FieldOption,
-  FieldValidation,
-  CustomFieldValue,
 } from '@/types';
 import { nanoid } from 'nanoid';
 
 export class CustomFieldService {
   private readonly fieldsTableName = 'customFields';
   private readonly groupsTableName = 'customFieldGroups';
-
-  constructor() {
-    this.initializeTables();
-  }
-
-  /**
-   * 初始化資料表
-   */
-  private async initializeTables(): Promise<void> {
-    const db = databaseService.getDatabase();
-
-    // 確保自訂欄位表存在
-    if (!db.customFields) {
-      await databaseService.addTable(
-        'customFields',
-        '++id, fieldId, projectId, name, type, isRequired, isSystem, displayOrder, isVisible, groupId, createdBy, createdAt, updatedAt',
-      );
-    }
-
-    // 確保自訂欄位群組表存在
-    if (!db.customFieldGroups) {
-      await databaseService.addTable(
-        'customFieldGroups',
-        '++id, groupId, projectId, name, displayOrder, isCollapsible, isCollapsed, createdBy, createdAt, updatedAt',
-      );
-    }
-  }
 
   // ============= 自訂欄位 CRUD =============
 
@@ -53,7 +23,7 @@ export class CustomFieldService {
   async createCustomField(
     field: Omit<CustomField, 'fieldId' | 'createdAt' | 'updatedAt'>,
   ): Promise<string> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     const newField: CustomField = {
       ...field,
@@ -70,20 +40,19 @@ export class CustomFieldService {
    * 取得專案的所有自訂欄位
    */
   async getProjectCustomFields(projectId: string): Promise<CustomField[]> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     return await db.customFields
       .where('projectId')
       .equals(projectId)
-      .orderBy('displayOrder')
-      .toArray();
+      .sortBy('displayOrder');
   }
 
   /**
    * 取得特定自訂欄位
    */
   async getCustomField(fieldId: string): Promise<CustomField | null> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     const field = await db.customFields.where('fieldId').equals(fieldId).first();
 
@@ -94,7 +63,7 @@ export class CustomFieldService {
    * 更新自訂欄位
    */
   async updateCustomField(fieldId: string, updates: Partial<CustomField>): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     await db.customFields
       .where('fieldId')
@@ -109,7 +78,7 @@ export class CustomFieldService {
    * 刪除自訂欄位
    */
   async deleteCustomField(fieldId: string): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     await db.customFields.where('fieldId').equals(fieldId).delete();
 
@@ -143,7 +112,7 @@ export class CustomFieldService {
   async createCustomFieldGroup(
     group: Omit<CustomFieldGroup, 'groupId' | 'createdAt' | 'updatedAt'>,
   ): Promise<string> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     const newGroup: CustomFieldGroup = {
       ...group,
@@ -160,20 +129,19 @@ export class CustomFieldService {
    * 取得專案的所有自訂欄位群組
    */
   async getProjectCustomFieldGroups(projectId: string): Promise<CustomFieldGroup[]> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     return await db.customFieldGroups
       .where('projectId')
       .equals(projectId)
-      .orderBy('displayOrder')
-      .toArray();
+      .sortBy('displayOrder');
   }
 
   /**
    * 更新自訂欄位群組
    */
   async updateCustomFieldGroup(groupId: string, updates: Partial<CustomFieldGroup>): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     await db.customFieldGroups
       .where('groupId')
@@ -188,10 +156,12 @@ export class CustomFieldService {
    * 刪除自訂欄位群組
    */
   async deleteCustomFieldGroup(groupId: string): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     // 將群組內的欄位移至預設群組
-    await db.customFields.where('groupId').equals(groupId).modify({ groupId: undefined });
+    await db.customFields.where('groupId').equals(groupId).modify(field => {
+      delete field.groupId;
+    });
 
     await db.customFieldGroups.where('groupId').equals(groupId).delete();
   }
@@ -272,7 +242,7 @@ export class CustomFieldService {
       }
 
       const validOptions = field.options?.map((option) => option.value) || [];
-      const invalidValues = (value as unknown[]).filter((v) => !validOptions.includes(v));
+      const invalidValues = (value as unknown[]).filter((v) => !validOptions.includes(String(v)));
 
       if (invalidValues.length > 0) {
         return { isValid: false, error: '包含無效的選項' };
@@ -294,12 +264,23 @@ export class CustomFieldService {
 
     if (field.type === 'select') {
       const option = field.options?.find((opt) => opt.value === value);
-      return option?.label || String(value);
+      if (option?.label) return option.label;
+      // 安全轉換為字串
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number' || typeof value === 'boolean') return value.toString();
+      return '-';
     } else if (field.type === 'multiSelect') {
       if (!Array.isArray(value)) return '-';
 
       const labels = (value as unknown[])
-        .map((v) => field.options?.find((opt) => opt.value === v)?.label || String(v))
+        .map((v) => {
+          const option = field.options?.find((opt) => opt.value === v);
+          if (option?.label) return option.label;
+          // 安全轉換為字串
+          if (typeof v === 'string') return v;
+          if (typeof v === 'number' || typeof v === 'boolean') return v.toString();
+          return null;
+        })
         .filter(Boolean);
 
       return labels.join(', ') || '-';
@@ -311,7 +292,11 @@ export class CustomFieldService {
     } else if (field.type === 'checkbox') {
       return value ? '是' : '否';
     } else {
-      return String(value);
+      // 安全轉換為字串
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number' || typeof value === 'boolean') return value.toString();
+      if (value instanceof Date) return value.toLocaleDateString('zh-TW');
+      return '-';
     }
   }
 
@@ -340,16 +325,19 @@ export class CustomFieldService {
    * 重新排序自訂欄位
    */
   async reorderCustomFields(projectId: string, fieldIds: string[]): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     for (let i = 0; i < fieldIds.length; i++) {
-      await db.customFields
-        .where('fieldId')
-        .equals(fieldIds[i])
-        .modify({
-          displayOrder: (i + 1) * 1000,
-          updatedAt: new Date(),
-        });
+      const fieldId = fieldIds[i];
+      if (fieldId) {
+        await db.customFields
+          .where('fieldId')
+          .equals(fieldId)
+          .modify({
+            displayOrder: (i + 1) * 1000,
+            updatedAt: new Date(),
+          });
+      }
     }
   }
 
@@ -357,8 +345,6 @@ export class CustomFieldService {
    * 批次更新欄位可見性
    */
   async updateFieldsVisibility(fieldIds: string[], isVisible: boolean): Promise<void> {
-    const db = databaseService.getDatabase();
-
     for (const fieldId of fieldIds) {
       await this.updateCustomField(fieldId, { isVisible });
     }

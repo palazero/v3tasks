@@ -205,7 +205,7 @@
     <TaskDialog
       v-model="showEditTaskDialog"
       mode="edit"
-      :task="selectedTask"
+      :task="selectedTask as Task"
       @task-updated="handleTaskUpdated"
     />
 
@@ -233,7 +233,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent, type Component } from 'vue'
 import { useQuasar } from 'quasar'
 import type { Task, View, ViewType, FilterConfig, SortConfig } from '@/types'
 import { useTaskStore } from '@/stores/task'
@@ -303,14 +303,14 @@ function getViewIcon(type: ViewType): string {
 }
 
 // 取得視圖元件
-function getViewComponent(type: ViewType): any {
-  const components: Record<ViewType, any> = {
+function getViewComponent(type: ViewType): Component {
+  const components: Record<ViewType, Component> = {
     list: TaskListView,
     table: TaskTableView,
     board: TaskBoardView,
     gantt: TaskGanttView,
     dashboard: TaskDashboardView
-  } as unknown as Record<ViewType, any>
+  } as unknown as Record<ViewType, Component>
   return components[type] || TaskListView
 }
 

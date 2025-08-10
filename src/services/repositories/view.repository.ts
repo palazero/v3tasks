@@ -3,37 +3,34 @@
  * 處理視圖相關的資料存取
  */
 
-import { BaseRepository } from './base.repository'
-import { db } from '../db/database'
-import type { View, ViewType } from '@/types'
+import { BaseRepository } from './base.repository';
+import { db } from '../db/database';
+import type { View, ViewType } from '@/types';
 
 export class ViewRepository extends BaseRepository<View> {
   constructor() {
-    super(db.views)
+    super(db.views);
   }
 
   /**
    * 取得專案的所有視圖
    */
   async findByProject(projectId: string): Promise<View[]> {
-    return await this.table.where('projectId').equals(projectId).toArray()
+    return await this.table.where('projectId').equals(projectId).toArray();
   }
 
   /**
    * 取得用戶建立的視圖
    */
   async findByCreator(creatorId: string): Promise<View[]> {
-    return await this.table.where('creatorId').equals(creatorId).toArray()
+    return await this.table.where('creatorId').equals(creatorId).toArray();
   }
 
   /**
    * 取得專案的特定類型視圖
    */
   async findByProjectAndType(projectId: string, type: ViewType): Promise<View[]> {
-    return await this.table
-      .where('[projectId+type]')
-      .equals([projectId, type])
-      .toArray()
+    return await this.table.where('[projectId+type]').equals([projectId, type]).toArray();
   }
 
   /**
@@ -41,9 +38,10 @@ export class ViewRepository extends BaseRepository<View> {
    */
   async findPersonalViews(projectId: string, userId: string): Promise<View[]> {
     return await this.table
-      .where('projectId').equals(projectId)
-      .and(view => view.isPersonal && view.creatorId === userId)
-      .toArray()
+      .where('projectId')
+      .equals(projectId)
+      .and((view) => view.isPersonal && view.creatorId === userId)
+      .toArray();
   }
 
   /**
@@ -51,9 +49,10 @@ export class ViewRepository extends BaseRepository<View> {
    */
   async findTeamViews(projectId: string): Promise<View[]> {
     return await this.table
-      .where('projectId').equals(projectId)
-      .and(view => !view.isPersonal)
-      .toArray()
+      .where('projectId')
+      .equals(projectId)
+      .and((view) => !view.isPersonal)
+      .toArray();
   }
 
   /**
@@ -61,9 +60,10 @@ export class ViewRepository extends BaseRepository<View> {
    */
   async findDeletableViews(projectId: string): Promise<View[]> {
     return await this.table
-      .where('projectId').equals(projectId)
-      .and(view => view.isDeletable)
-      .toArray()
+      .where('projectId')
+      .equals(projectId)
+      .and((view) => view.isDeletable)
+      .toArray();
   }
 
   /**
@@ -71,115 +71,113 @@ export class ViewRepository extends BaseRepository<View> {
    */
   async findDefaultViews(projectId: string): Promise<View[]> {
     return await this.table
-      .where('projectId').equals(projectId)
-      .and(view => !view.isDeletable)
-      .toArray()
+      .where('projectId')
+      .equals(projectId)
+      .and((view) => !view.isDeletable)
+      .toArray();
   }
 
   /**
    * 取得 All Tasks 視圖
    */
   async findAllTasksViews(): Promise<View[]> {
-    return await this.table.where('projectId').equals('all').toArray()
+    return await this.table.where('projectId').equals('all').toArray();
   }
 
   /**
    * 複製視圖
    */
   async duplicate(viewId: string, newName: string, creatorId: string): Promise<string> {
-    const view = await this.findById(viewId)
+    const view = await this.findById(viewId);
     if (!view) {
-      throw new Error('View not found')
+      throw new Error('View not found');
     }
 
-    const newView: View = {
-      ...view,
-      viewId: '', // 將由資料庫自動生成
+    // 排除 viewId 屬性
+    const { viewId: _, ...viewData } = view;
+
+    const newView: Omit<View, 'viewId'> = {
+      ...viewData,
       name: newName,
       creatorId,
       isDeletable: true, // 複製的視圖都可刪除
       isPersonal: true, // 複製的視圖預設為個人視圖
       createdAt: new Date(),
-      updatedAt: new Date()
-    }
+      updatedAt: new Date(),
+    };
 
-    // @ts-ignore - viewId will be generated
-    delete newView.viewId
-    
-    const newId = await this.create(newView as View)
-    return String(newId)
+    const newId = await this.create(newView as View);
+    return String(newId);
   }
 
   /**
    * 更新視圖配置
    */
   async updateConfig(viewId: string, config: Partial<View['config']>): Promise<void> {
-    const view = await this.findById(viewId)
-    if (!view) return
+    const view = await this.findById(viewId);
+    if (!view) return;
 
     const updatedConfig = {
       ...view.config,
-      ...config
-    }
+      ...config,
+    };
 
-    await this.update(viewId, { 
+    await this.update(viewId, {
       config: updatedConfig,
-      updatedAt: new Date()
-    })
+      updatedAt: new Date(),
+    });
   }
 
   /**
    * 切換視圖的個人/團隊屬性
    */
   async togglePersonal(viewId: string): Promise<void> {
-    const view = await this.findById(viewId)
-    if (!view) return
+    const view = await this.findById(viewId);
+    if (!view) return;
 
     await this.update(viewId, {
       isPersonal: !view.isPersonal,
-      updatedAt: new Date()
-    })
+      updatedAt: new Date(),
+    });
   }
 
   /**
    * 取得視圖統計資訊
    */
   async getProjectStats(projectId: string): Promise<{
-    total: number
-    personal: number
-    team: number
-    byType: Record<ViewType, number>
+    total: number;
+    personal: number;
+    team: number;
+    byType: Record<ViewType, number>;
   }> {
-    const views = await this.findByProject(projectId)
-    
+    const views = await this.findByProject(projectId);
+
     const byType: Record<ViewType, number> = {
       list: 0,
       table: 0,
       board: 0,
       gantt: 0,
-      dashboard: 0
-    }
+      dashboard: 0,
+    };
 
-    views.forEach(view => {
-      byType[view.type]++
-    })
+    views.forEach((view) => {
+      byType[view.type]++;
+    });
 
     return {
       total: views.length,
-      personal: views.filter(v => v.isPersonal).length,
-      team: views.filter(v => !v.isPersonal).length,
-      byType
-    }
+      personal: views.filter((v) => v.isPersonal).length,
+      team: views.filter((v) => !v.isPersonal).length,
+      byType,
+    };
   }
 
   /**
    * 檢查視圖名稱是否已存在
    */
   async isNameExists(projectId: string, name: string, excludeId?: string): Promise<boolean> {
-    const views = await this.findByProject(projectId)
-    return views.some(view => 
-      view.name === name && view.viewId !== excludeId
-    )
+    const views = await this.findByProject(projectId);
+    return views.some((view) => view.name === name && view.viewId !== excludeId);
   }
 
   /**
@@ -189,15 +187,8 @@ export class ViewRepository extends BaseRepository<View> {
     const baseConfig: View['config'] = {
       filters: [],
       sorts: [],
-      visibleFields: [
-        'title',
-        'status',
-        'assignee',
-        'priority',
-        'startDateTime',
-        'endDateTime'
-      ]
-    }
+      visibleFields: ['title', 'status', 'assignee', 'priority', 'startDateTime', 'endDateTime'],
+    };
 
     switch (type) {
       case 'board':
@@ -205,52 +196,52 @@ export class ViewRepository extends BaseRepository<View> {
           ...baseConfig,
           groupBy: 'status',
           viewSpecificSettings: {
-            boardColumns: ['todo', 'inProgress', 'done']
-          }
-        }
+            boardColumns: ['todo', 'inProgress', 'done'],
+          },
+        };
 
       case 'gantt':
         return {
           ...baseConfig,
           viewSpecificSettings: {
             timeScale: 'week',
-            showDependencies: true
-          }
-        }
+            showDependencies: true,
+          },
+        };
 
       case 'table':
         return {
           ...baseConfig,
           viewSpecificSettings: {
             columnWidths: {},
-            rowHeight: 40
-          }
-        }
+            rowHeight: 40,
+          },
+        };
 
       case 'dashboard':
         return {
           ...baseConfig,
           visibleFields: [],
           viewSpecificSettings: {
-            widgets: []
-          }
-        }
+            widgets: [],
+          },
+        };
 
       default:
-        return baseConfig
+        return baseConfig;
     }
   }
 }
 
 // 建立單例實例
-let viewRepositoryInstance: ViewRepository | null = null
+let viewRepositoryInstance: ViewRepository | null = null;
 
 /**
  * 取得 ViewRepository 實例
  */
 export function getViewRepository(): ViewRepository {
   if (!viewRepositoryInstance) {
-    viewRepositoryInstance = new ViewRepository()
+    viewRepositoryInstance = new ViewRepository();
   }
-  return viewRepositoryInstance
+  return viewRepositoryInstance;
 }

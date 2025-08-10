@@ -3,8 +3,9 @@
  * 處理視圖配置的持久化儲存
  */
 
-import { databaseService } from './databaseService';
-import type { ViewConfiguration, ViewPreset } from '@/types';
+import { getDatabase } from './db/database';
+import type { ViewConfiguration, ViewPreset, UserViewConfiguration } from '@/types';
+import { nanoid } from 'nanoid';
 
 export class ViewConfigurationService {
   private readonly tableName = 'viewConfigurations';
@@ -18,23 +19,8 @@ export class ViewConfigurationService {
    * 初始化資料表
    */
   private async initializeTables(): Promise<void> {
-    const db = databaseService.getDatabase();
-
-    // 確保視圖配置表存在
-    if (!db.viewConfigurations) {
-      await databaseService.addTable(
-        'viewConfigurations',
-        '++id, userId, projectId, viewType, configuration, createdAt, updatedAt',
-      );
-    }
-
-    // 確保視圖預設表存在
-    if (!db.viewPresets) {
-      await databaseService.addTable(
-        'viewPresets',
-        '++id, name, description, configuration, isSystem, createdBy, createdAt, updatedAt',
-      );
-    }
+    // 資料表在 database.ts 中已經定義，這裡不需要額外初始化
+    // 如果需要預設資料，可以在這裡初始化預設視圖配置
   }
 
   /**
@@ -46,32 +32,35 @@ export class ViewConfigurationService {
     viewType: string,
     configuration: ViewConfiguration,
   ): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     // 檢查是否已存在配置
     const existing = await db.viewConfigurations
       .where(['userId', 'projectId', 'viewType'])
       .equals([userId, projectId, viewType])
-      .first();
+      .first() as UserViewConfiguration | undefined;
 
     const now = new Date();
 
     if (existing) {
       // 更新現有配置
-      await db.viewConfigurations.update(existing.id, {
+      const updates: Partial<UserViewConfiguration> = {
         configuration,
         updatedAt: now,
-      });
+      };
+      await db.viewConfigurations.update(existing.configId, updates);
     } else {
       // 建立新配置
-      await db.viewConfigurations.add({
+      const newConfig: UserViewConfiguration = {
+        configId: nanoid(),
         userId,
         projectId,
         viewType,
         configuration,
         createdAt: now,
         updatedAt: now,
-      });
+      };
+      await db.viewConfigurations.add(newConfig);
     }
   }
 
@@ -83,12 +72,12 @@ export class ViewConfigurationService {
     projectId: string,
     viewType: string,
   ): Promise<ViewConfiguration | null> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     const config = await db.viewConfigurations
       .where(['userId', 'projectId', 'viewType'])
       .equals([userId, projectId, viewType])
-      .first();
+      .first() as UserViewConfiguration | undefined;
 
     return config?.configuration || null;
   }
@@ -101,7 +90,7 @@ export class ViewConfigurationService {
     projectId: string,
     viewType: string,
   ): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     await db.viewConfigurations
       .where(['userId', 'projectId', 'viewType'])
@@ -112,54 +101,51 @@ export class ViewConfigurationService {
   /**
    * 取得用戶所有視圖配置
    */
-  async getUserViewConfigurations(userId: string): Promise<
-    Array<{
-      projectId: string;
-      viewType: string;
-      configuration: ViewConfiguration;
-      updatedAt: Date;
-    }>
-  > {
-    const db = databaseService.getDatabase();
+  async getUserViewConfigurations(userId: string): Promise<UserViewConfiguration[]> {
+    const db = getDatabase();
 
-    return await db.viewConfigurations.where('userId').equals(userId).toArray();
+    return await db.viewConfigurations.where('userId').equals(userId).toArray() as UserViewConfiguration[];
   }
 
   /**
    * 儲存視圖預設配置
    */
   async saveViewPreset(
-    preset: Omit<ViewPreset, 'id' | 'createdAt' | 'updatedAt'>,
+    preset: Omit<ViewPreset, 'presetId' | 'createdAt' | 'updatedAt'>,
   ): Promise<string> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     const now = new Date();
-    const id = await db.viewPresets.add({
+    const presetId = nanoid();
+    const newPreset: ViewPreset = {
       ...preset,
+      presetId,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+    await db.viewPresets.add(newPreset);
 
-    return String(id);
+    return presetId;
   }
 
   /**
    * 更新視圖預設配置
    */
-  async updateViewPreset(presetId: string, updates: Partial<ViewPreset>): Promise<void> {
-    const db = databaseService.getDatabase();
+  async updateViewPreset(presetId: string, updates: Partial<Omit<ViewPreset, 'presetId'>>): Promise<void> {
+    const db = getDatabase();
 
-    await db.viewPresets.update(presetId, {
+    const updateData: Partial<ViewPreset> = {
       ...updates,
       updatedAt: new Date(),
-    });
+    };
+    await db.viewPresets.update(presetId, updateData);
   }
 
   /**
    * 刪除視圖預設配置
    */
   async deleteViewPreset(presetId: string): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     await db.viewPresets.delete(presetId);
   }
@@ -168,7 +154,7 @@ export class ViewConfigurationService {
    * 取得所有視圖預設配置
    */
   async getViewPresets(includeSystem = true): Promise<ViewPreset[]> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     let query = db.viewPresets.orderBy('name');
 
@@ -183,7 +169,7 @@ export class ViewConfigurationService {
    * 取得特定視圖預設配置
    */
   async getViewPreset(presetId: string): Promise<ViewPreset | null> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     const preset = await db.viewPresets.get(presetId);
     return preset || null;
@@ -193,16 +179,17 @@ export class ViewConfigurationService {
    * 初始化系統預設配置
    */
   async initializeSystemPresets(): Promise<void> {
-    const db = databaseService.getDatabase();
+    const db = getDatabase();
 
     // 檢查是否已有系統預設
-    const existingSystemPresets = await db.viewPresets.where('isSystem').equals(true).count();
+    const allPresets = await db.viewPresets.toArray();
+    const existingSystemPresets = allPresets.filter((preset: ViewPreset) => preset.isSystem).length;
 
     if (existingSystemPresets > 0) {
       return; // 系統預設已存在
     }
 
-    const systemPresets: Array<Omit<ViewPreset, 'id' | 'createdAt' | 'updatedAt'>> = [
+    const systemPresets: Array<Omit<ViewPreset, 'presetId' | 'createdAt' | 'updatedAt'>> = [
       {
         name: '預設視圖',
         description: '標準任務表格視圖',

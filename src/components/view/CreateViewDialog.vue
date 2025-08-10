@@ -77,12 +77,14 @@ function createView(): void {
     name: viewName.value,
     type: viewType.value,
     projectId: props.projectId,
-    isDefault: false,
+    isDeletable: true,
+    isPersonal: true,
+    creatorId: 'current-user', // This should be populated from current user
     config: {
       filters: [],
       sorts: [],
-      groupBy: props.projectId === 'all' ? 'projectId' : undefined,
-      columns: []
+      ...(props.projectId === 'all' ? { groupBy: 'projectId' } : {}),
+      visibleFields: []
     },
     createdAt: new Date(),
     updatedAt: new Date()

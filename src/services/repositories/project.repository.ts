@@ -33,14 +33,18 @@ export class ProjectRepository extends BaseRepository<Project> {
    * 取得未封存的專案
    */
   async findActive(): Promise<Project[]> {
-    return await this.table.where('isArchived').equals(false).toArray()
+    // 使用 filter 而不是 where，因為 boolean 索引可能有問題
+    const allProjects = await this.findAll()
+    return allProjects.filter(project => !project.isArchived)
   }
 
   /**
    * 取得已封存的專案
    */
   async findArchived(): Promise<Project[]> {
-    return await this.table.where('isArchived').equals(true).toArray()
+    // 使用 filter 而不是 where，因為 boolean 索引可能有問題
+    const allProjects = await this.findAll()
+    return allProjects.filter(project => project.isArchived)
   }
 
   /**
@@ -135,10 +139,9 @@ export class ProjectRepository extends BaseRepository<Project> {
     active: number
     archived: number
   }> {
-    const [total, archived] = await Promise.all([
-      this.count(),
-      this.countBy({ isArchived: true })
-    ])
+    const allProjects = await this.findAll()
+    const total = allProjects.length
+    const archived = allProjects.filter(project => project.isArchived).length
 
     return {
       total,
@@ -156,9 +159,10 @@ export class ProjectRepository extends BaseRepository<Project> {
       throw new Error('Project not found')
     }
 
-    const newProject: Project = {
-      ...project,
-      projectId: '', // 將由資料庫自動生成
+    const { projectId: _, ...projectWithoutId } = project
+    
+    const newProject: Omit<Project, 'projectId'> = {
+      ...projectWithoutId,
       name: newName,
       ownerId: newOwnerId,
       memberIds: [],
@@ -166,9 +170,6 @@ export class ProjectRepository extends BaseRepository<Project> {
       updatedAt: new Date(),
       isArchived: false
     }
-
-    // @ts-ignore - projectId will be generated
-    delete newProject.projectId
     
     const newId = await this.create(newProject as Project)
     return String(newId)

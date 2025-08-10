@@ -3,7 +3,7 @@
     <!-- 文字欄位 -->
     <q-input
       v-if="field.type === 'text'"
-      v-model="localValue"
+      v-model="localValue as string"
       :label="showLabel ? field.name : undefined"
       :placeholder="field.validation?.placeholder || `請輸入${field.name}`"
       :readonly="readonly"
@@ -12,7 +12,7 @@
       :borderless="readonly"
       :required="field.isRequired"
       :error="!!validationError"
-      :error-message="validationError"
+      :error-message="validationError || undefined"
       @blur="validateAndEmit"
       @keyup.enter="validateAndEmit"
     />
@@ -20,7 +20,7 @@
     <!-- 數字欄位 -->
     <q-input
       v-else-if="field.type === 'number'"
-      v-model.number="localValue"
+      v-model.number="localValue as number"
       type="number"
       :label="showLabel ? field.name : undefined"
       :placeholder="field.validation?.placeholder || `請輸入${field.name}`"
@@ -30,7 +30,7 @@
       :borderless="readonly"
       :required="field.isRequired"
       :error="!!validationError"
-      :error-message="validationError"
+      :error-message="validationError || undefined"
       :min="field.validation?.min"
       :max="field.validation?.max"
       @blur="validateAndEmit"
@@ -48,7 +48,7 @@
       :borderless="readonly"
       :required="field.isRequired"
       :error="!!validationError"
-      :error-message="validationError"
+      :error-message="validationError || undefined"
       @blur="validateAndEmit"
     >
       <template v-if="!readonly" v-slot:append>
@@ -80,7 +80,7 @@
       :borderless="readonly"
       :required="field.isRequired"
       :error="!!validationError"
-      :error-message="validationError"
+      :error-message="validationError || undefined"
       emit-value
       map-options
       clearable
@@ -127,7 +127,7 @@
       :borderless="readonly"
       :required="field.isRequired"
       :error="!!validationError"
-      :error-message="validationError"
+      :error-message="validationError || undefined"
       multiple
       emit-value
       map-options
@@ -166,7 +166,7 @@
       :borderless="readonly"
       :required="field.isRequired"
       :error="!!validationError"
-      :error-message="validationError"
+      :error-message="validationError || undefined"
       emit-value
       map-options
       clearable
@@ -188,7 +188,7 @@
       <template v-if="localValue" v-slot:selected>
         <div class="row items-center q-gutter-xs">
           <q-avatar size="20px" color="primary" text-color="white">
-            {{ getUserInitials(localValue) }}
+            {{ getUserInitials(localValue as string) }}
           </q-avatar>
           <span>{{ selectedUser?.label || localValue }}</span>
         </div>
@@ -251,7 +251,8 @@ const emit = defineEmits<{
   'validation-error': [error: string | null]
 }>()
 
-const { availableUsers } = useCurrentUser()
+const { getUserOptions } = useCurrentUser()
+const availableUsers = computed(() => getUserOptions())
 
 // 本地值
 const localValue = ref(props.value)

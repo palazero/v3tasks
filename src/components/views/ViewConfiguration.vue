@@ -1,6 +1,6 @@
 <template>
-  <q-dialog 
-    v-model="isDialogOpen" 
+  <q-dialog
+    v-model="isDialogOpen"
     position="right"
     :maximized="$q.screen.lt.md"
     class="view-config-dialog"
@@ -32,7 +32,8 @@
           <div class="text-subtitle1 q-mb-md">顯示欄位</div>
           <div class="column-config">
             <VueDraggable
-              v-model="localConfig.visibleColumns"
+              :model-value="localConfig.visibleColumns || []"
+              @update:model-value="(value: NonNullable<ViewConfiguration['visibleColumns']>) => updateVisibleColumns(value)"
               :animation="200"
               ghost-class="column-ghost"
               handle=".column-handle"
@@ -40,11 +41,11 @@
             >
               <template #item="{ element: column }">
                 <div class="column-item row items-center q-pa-sm q-mb-xs">
-                  <q-icon 
-                    name="drag_indicator" 
+                  <q-icon
+                    name="drag_indicator"
                     class="column-handle cursor-pointer text-grey-6 q-mr-sm"
                   />
-                  <q-checkbox 
+                  <q-checkbox
                     :model-value="column.visible"
                     @update:model-value="toggleColumnVisible(column.key, $event)"
                     color="primary"
@@ -105,7 +106,7 @@
                 />
                 <q-input
                   v-if="!isSelectField(filter.field)"
-                  v-model="filter.value"
+                  v-model="filter.value as string"
                   dense
                   outlined
                   placeholder="篩選值"
@@ -134,7 +135,7 @@
                 />
               </div>
             </div>
-            
+
             <q-btn
               flat
               dense
@@ -240,7 +241,7 @@
 import { ref, computed, watch } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import { useQuasar } from 'quasar'
-import type { ViewConfiguration, FilterCondition } from '@/types'
+import type { ViewConfiguration } from '@/types'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 
 // Props
@@ -343,6 +344,12 @@ watch(() => props.configuration, (newConfig) => {
   }
 }, { deep: true })
 
+// 更新可見欄位
+function updateVisibleColumns(columns: NonNullable<ViewConfiguration['visibleColumns']>): void {
+  localConfig.value.visibleColumns = columns
+  onConfigChange()
+}
+
 // 切換欄位顯示
 function toggleColumnVisible(columnKey: string, visible: boolean): void {
   const column = localConfig.value.visibleColumns?.find(col => col.key === columnKey)
@@ -357,13 +364,13 @@ function addFilter(): void {
   if (!localConfig.value.filters) {
     localConfig.value.filters = []
   }
-  
+
   localConfig.value.filters.push({
     field: 'title',
     operator: 'contains',
     value: ''
   })
-  
+
   onConfigChange()
 }
 
@@ -376,7 +383,7 @@ function removeFilter(index: number): void {
 }
 
 // 取得運算子選項
-function getOperatorOptions(field: string) {
+function getOperatorOptions(field: string): Array<{ label: string; value: string }> {
   if (field === 'title' || field === 'tags') {
     return [
       { label: '包含', value: 'contains' },
@@ -399,7 +406,7 @@ function isSelectField(field: string): boolean {
 }
 
 // 取得欄位值選項
-function getFieldValueOptions(field: string) {
+function getFieldValueOptions(field: string): Array<{ label: string; value: string }> {
   if (field === 'statusId') {
     return [
       { label: '待辦', value: 'todo' },
@@ -407,7 +414,10 @@ function getFieldValueOptions(field: string) {
       { label: '已完成', value: 'done' }
     ]
   } else if (field === 'assigneeId' || field === 'creatorId') {
-    return availableUsers.value
+    return availableUsers.value.map(user => ({
+      label: user.name,
+      value: user.userId
+    }))
   } else if (field === 'priorityId') {
     return [
       { label: '低', value: 'low' },
@@ -454,7 +464,7 @@ function loadPreset(presetKey: string): void {
       sortOrder: 'asc'
     }
   }
-  
+
   onConfigChange()
 }
 
@@ -473,13 +483,13 @@ function savePreset(): void {
     })
     return
   }
-  
+
   // TODO: 實作儲存到 IndexedDB
   $q.notify({
     type: 'positive',
     message: `預設「${presetName.value}」已儲存`
   })
-  
+
   showSaveDialog.value = false
 }
 
@@ -497,7 +507,7 @@ function onConfigChange(): void {
 function applyConfig(): void {
   emit('update:configuration', localConfig.value)
   isDialogOpen.value = false
-  
+
   $q.notify({
     type: 'positive',
     message: '視圖配置已套用',
@@ -529,7 +539,7 @@ function applyConfig(): void {
 
       .column-handle {
         cursor: grab;
-        
+
         &:active {
           cursor: grabbing;
         }

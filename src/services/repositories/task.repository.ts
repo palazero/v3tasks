@@ -24,8 +24,9 @@ export class TaskRepository extends BaseRepository<Task> {
    */
   async findRootTasks(projectId: string): Promise<Task[]> {
     return await this.table
-      .where('[projectId+parentTaskId]')
-      .equals([projectId, undefined])
+      .where('projectId')
+      .equals(projectId)
+      .and((task) => !task.parentTaskId)
       .sortBy('order');
   }
 
@@ -273,25 +274,22 @@ export class TaskRepository extends BaseRepository<Task> {
       throw new Error('Task not found');
     }
 
-    // 複製主任務
-    const newTask: Task = {
-      ...task,
-      taskId: '', // 將由資料庫自動生成
+    // 複製主任務，排除 taskId 和 children
+    const { taskId: _, children: __, ...taskData } = task;
+    
+    const newTask: Omit<Task, 'taskId'> = {
+      ...taskData,
       title: `${task.title} (複製)`,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    // @ts-expect-error - taskId will be generated
-    delete newTask.taskId;
-    delete newTask.children; // 不複製 children 陣列
-
-    const newTaskId = await this.create(newTask);
+    const newTaskId = await this.create(newTask as Task);
 
     // 複製子任務
     if (includeChildren) {
-      const children = await this.findChildren(taskId);
-      for (const child of children) {
+      const childTasks = await this.findChildren(taskId);
+      for (const child of childTasks) {
         await this.duplicateWithNewParent(child.taskId, String(newTaskId));
       }
     }
@@ -306,23 +304,21 @@ export class TaskRepository extends BaseRepository<Task> {
     const task = await this.findById(taskId);
     if (!task) return;
 
-    const newTask: Task = {
-      ...task,
-      taskId: '', // 將由資料庫自動生成
+    // 排除 taskId 和 children
+    const { taskId: _, children: __, ...taskData } = task;
+    
+    const newTask: Omit<Task, 'taskId'> = {
+      ...taskData,
       parentTaskId: newParentId,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    // @ts-expect-error - taskId will be generated
-    delete newTask.taskId;
-    delete newTask.children;
-
-    const newTaskId = await this.create(newTask);
+    const newTaskId = await this.create(newTask as Task);
 
     // 遞迴複製子任務
-    const children = await this.findChildren(taskId);
-    for (const child of children) {
+    const childTasks = await this.findChildren(taskId);
+    for (const child of childTasks) {
       await this.duplicateWithNewParent(child.taskId, String(newTaskId));
     }
   }

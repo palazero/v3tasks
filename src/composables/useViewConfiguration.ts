@@ -4,11 +4,32 @@
  */
 
 import { ref, computed, watch } from 'vue';
-import type { ViewConfiguration, ViewPreset, ViewType } from '@/types';
+import type { Ref, ComputedRef } from 'vue';
+import type { ViewConfiguration, ViewPreset, ViewType, FilterCondition } from '@/types';
 import { viewConfigurationService } from '@/services/viewConfigurationService';
 import { useCurrentUser } from './useCurrentUser';
 
-export function useViewConfiguration(projectId: string, viewType: ViewType | string) {
+export function useViewConfiguration(projectId: string, viewType: ViewType | string): {
+  currentConfiguration: Ref<ViewConfiguration>;
+  availablePresets: Ref<ViewPreset[]>;
+  isLoading: Ref<boolean>;
+  error: Ref<string | null>;
+  hasCustomConfiguration: ComputedRef<boolean>;
+  visibleColumnKeys: ComputedRef<string[]>;
+  activeFilters: ComputedRef<FilterCondition[]>;
+  defaultConfiguration: ViewConfiguration;
+  loadConfiguration: () => Promise<void>;
+  saveConfiguration: (config?: ViewConfiguration) => Promise<void>;
+  updateConfiguration: (updates: Partial<ViewConfiguration>) => Promise<void>;
+  resetToDefault: () => Promise<void>;
+  loadPresets: () => Promise<void>;
+  applyPreset: (presetId: string) => Promise<void>;
+  saveAsPreset: (name: string, description?: string) => Promise<void>;
+  deletePreset: (presetId: string) => Promise<void>;
+  exportConfiguration: () => Promise<string>;
+  importConfiguration: (jsonData: string) => Promise<number>;
+  autoSave: (config: ViewConfiguration) => void;
+} {
   const { currentUser } = useCurrentUser();
 
   // 狀態
@@ -156,7 +177,7 @@ export function useViewConfiguration(projectId: string, viewType: ViewType | str
    * 套用預設配置
    */
   async function applyPreset(presetId: string): Promise<void> {
-    const preset = availablePresets.value.find((p) => p.id === presetId);
+    const preset = availablePresets.value.find((p) => p.presetId === presetId);
     if (!preset) {
       throw new Error('找不到指定的預設配置');
     }
@@ -253,7 +274,7 @@ export function useViewConfiguration(projectId: string, viewType: ViewType | str
 
   // 自動儲存 (防抖)
   let saveTimeout: NodeJS.Timeout | null = null;
-  const autoSave = (config: ViewConfiguration) => {
+  const autoSave = (config: ViewConfiguration): void => {
     if (saveTimeout) {
       clearTimeout(saveTimeout);
     }
@@ -293,7 +314,16 @@ export function useViewConfiguration(projectId: string, viewType: ViewType | str
 /**
  * 全域視圖配置管理
  */
-export function useGlobalViewConfiguration() {
+export function useGlobalViewConfiguration(): {
+  initializeSystemPresets: () => Promise<void>;
+  getUserConfigurations: () => Promise<Array<{
+    projectId: string;
+    viewType: string;
+    configuration: ViewConfiguration;
+    updatedAt: Date;
+  }>>;
+  clearAllConfigurations: () => Promise<void>;
+} {
   const { currentUser } = useCurrentUser();
 
   /**

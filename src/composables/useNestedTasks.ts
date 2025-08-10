@@ -58,7 +58,7 @@ export function useNestedTasks() {
   function flattenTaskTree(tasks: Task[]): Task[] {
     const flattened: Task[] = [];
 
-    function traverse(tasks: Task[], level = 0) {
+    function traverse(tasks: Task[], level = 0): void {
       tasks.forEach((task) => {
         const flatTask = { ...task, level };
         delete flatTask.children; // 移除 children 避免序列化問題
@@ -240,7 +240,7 @@ export function useNestedTasks() {
   function normalizeTaskOrder(tasks: Task[]): Array<{ taskId: string; updates: Partial<Task> }> {
     const updates: Array<{ taskId: string; updates: Partial<Task> }> = [];
 
-    function processLevel(tasks: Task[], startOrder = 1000) {
+    function processLevel(tasks: Task[], startOrder = 1000): void {
       tasks.sort((a, b) => a.order - b.order);
 
       tasks.forEach((task, index) => {

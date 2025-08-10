@@ -4,7 +4,7 @@
  */
 
 import Dexie, { type Table } from 'dexie';
-import type { User, Project, Task, View, CustomFieldDefinition } from '@/types';
+import type { User, Project, Task, View, CustomField, CustomFieldGroup, ViewConfiguration, ViewPreset } from '@/types';
 
 /**
  * 資料庫類別
@@ -15,7 +15,10 @@ export class AppDatabase extends Dexie {
   projects!: Table<Project>;
   tasks!: Table<Task>;
   views!: Table<View>;
-  customFields!: Table<CustomFieldDefinition>;
+  customFields!: Table<CustomField>;
+  customFieldGroups!: Table<CustomFieldGroup>;
+  viewConfigurations!: Table<ViewConfiguration>;
+  viewPresets!: Table<ViewPreset>;
 
   constructor() {
     super('TaskManagementDB');
@@ -37,7 +40,16 @@ export class AppDatabase extends Dexie {
       views: 'viewId, projectId, type, creatorId, isDeletable, isPersonal, [projectId+type]',
 
       // 自訂欄位表
-      customFields: 'fieldId, projectId, type, order, [projectId+order]',
+      customFields: 'fieldId, projectId, type, displayOrder, isRequired, isSystem, isVisible, groupId, [projectId+displayOrder]',
+      
+      // 自訂欄位群組表
+      customFieldGroups: 'groupId, projectId, name, displayOrder, [projectId+displayOrder]',
+      
+      // 視圖配置表
+      viewConfigurations: 'configId, userId, projectId, viewType, [userId+projectId+viewType]',
+      
+      // 視圖預設表
+      viewPresets: 'presetId, name, viewType, isSystem, isGlobal, createdBy',
     });
 
     // 映射到類別屬性
@@ -46,6 +58,9 @@ export class AppDatabase extends Dexie {
     this.tasks = this.table('tasks');
     this.views = this.table('views');
     this.customFields = this.table('customFields');
+    this.customFieldGroups = this.table('customFieldGroups');
+    this.viewConfigurations = this.table('viewConfigurations');
+    this.viewPresets = this.table('viewPresets');
   }
 
   /**
@@ -54,7 +69,7 @@ export class AppDatabase extends Dexie {
   async clearAllData(): Promise<void> {
     await this.transaction(
       'rw',
-      [this.users, this.projects, this.tasks, this.views, this.customFields],
+      [this.users, this.projects, this.tasks, this.views, this.customFields, this.customFieldGroups, this.viewConfigurations, this.viewPresets],
       async () => {
         await Promise.all([
           this.users.clear(),
@@ -62,6 +77,9 @@ export class AppDatabase extends Dexie {
           this.tasks.clear(),
           this.views.clear(),
           this.customFields.clear(),
+          this.customFieldGroups.clear(),
+          this.viewConfigurations.clear(),
+          this.viewPresets.clear(),
         ]);
       },
     );
@@ -84,13 +102,19 @@ export class AppDatabase extends Dexie {
     tasks: number;
     views: number;
     customFields: number;
+    customFieldGroups: number;
+    viewConfigurations: number;
+    viewPresets: number;
   }> {
-    const [users, projects, tasks, views, customFields] = await Promise.all([
+    const [users, projects, tasks, views, customFields, customFieldGroups, viewConfigurations, viewPresets] = await Promise.all([
       this.users.count(),
       this.projects.count(),
       this.tasks.count(),
       this.views.count(),
       this.customFields.count(),
+      this.customFieldGroups.count(),
+      this.viewConfigurations.count(),
+      this.viewPresets.count(),
     ]);
 
     return {
@@ -99,6 +123,9 @@ export class AppDatabase extends Dexie {
       tasks,
       views,
       customFields,
+      customFieldGroups,
+      viewConfigurations,
+      viewPresets,
     };
   }
 }
@@ -117,6 +144,11 @@ export function getDatabase(): AppDatabase {
 }
 
 /**
+ * 主要資料庫實例 (alias for getDatabase())
+ */
+export const db = getDatabase();
+
+/**
  * 關閉資料庫連線
  */
 export function closeDatabase(): void {
@@ -125,6 +157,3 @@ export function closeDatabase(): void {
     dbInstance = null;
   }
 }
-
-// 導出預設實例
-export const db = getDatabase();

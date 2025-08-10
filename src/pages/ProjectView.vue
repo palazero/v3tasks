@@ -7,7 +7,7 @@
           <q-avatar size="40px" color="primary" text-color="white">
             <q-icon :name="projectIcon" />
           </q-avatar>
-          
+
           <div>
             <h4 class="text-h4 q-my-none text-weight-light">
               {{ project?.name || '載入中...' }}
@@ -18,15 +18,15 @@
           </div>
 
           <!-- 專案狀態標籤 -->
-          <q-badge 
+          <q-badge
             v-if="isProjectOwner"
-            color="orange" 
+            color="orange"
             label="擁有者"
             class="q-ml-md"
           />
-          <q-badge 
+          <q-badge
             v-else-if="isProjectMember"
-            color="blue" 
+            color="blue"
             label="成員"
             class="q-ml-md"
           />
@@ -42,15 +42,15 @@
               size="24px"
               class="cursor-pointer"
             >
-              <img 
-                v-if="member.avatar" 
+              <img
+                v-if="member.avatar"
                 :src="member.avatar"
                 :alt="member.name"
               >
               <q-icon v-else name="person" />
               <q-tooltip>{{ member.name }}</q-tooltip>
             </q-avatar>
-            
+
             <q-btn
               v-if="isProjectOwner"
               flat
@@ -76,7 +76,7 @@
               <div class="text-caption text-grey-6">總任務</div>
             </q-card-section>
           </q-card>
-          
+
           <q-card class="stat-card">
             <q-card-section class="q-pa-sm text-center">
               <div class="text-h6 text-weight-bold text-orange">{{ projectStats.inProgress }}</div>
@@ -116,7 +116,7 @@
           :icon="getViewIcon(view.type)"
           @click="viewStore.switchView(view.viewId)"
         />
-        
+
         <!-- 新增視圖按鈕 -->
         <q-btn
           flat
@@ -147,7 +147,7 @@
               </q-item-section>
               <q-item-section>複製視圖</q-item-section>
             </q-item>
-            
+
             <q-item
               v-if="viewStore.currentView.isDeletable"
               clickable
@@ -181,10 +181,10 @@
               <q-icon name="search" />
             </template>
             <template v-slot:append>
-              <q-icon 
-                v-if="searchQuery" 
-                name="clear" 
-                class="cursor-pointer" 
+              <q-icon
+                v-if="searchQuery"
+                name="clear"
+                class="cursor-pointer"
                 @click="searchQuery = ''"
               />
             </template>
@@ -199,7 +199,7 @@
             :color="hasActiveFilters ? 'primary' : 'grey'"
             @click="showFilterDialog = true"
           >
-            <q-badge 
+            <q-badge
               v-if="activeFiltersCount > 0"
               color="primary"
               :label="activeFiltersCount"
@@ -275,7 +275,7 @@
       </div>
 
       <!-- 無任務狀態 -->
-      <div 
+      <div
         v-if="!isLoading && !error && filteredTasks.length === 0"
         class="q-pa-xl text-center text-grey-6"
       >
@@ -296,7 +296,7 @@
     <TaskDialog
       v-model="showEditTaskDialog"
       mode="edit"
-      :task="selectedTask"
+      :task="selectedTask as Task"
       @task-updated="handleTaskUpdated"
     />
 
@@ -320,14 +320,15 @@
 
     <MemberManagementDialog
       v-model="showMemberDialog"
-      :project-id="projectId"
-      @members-updated="loadProjectData"
+      :project="project!"
+      @ok="showMemberDialog = false"
+      @hide="showMemberDialog = false"
     />
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import type { Task, View, ViewType, FilterConfig, SortConfig, Project, User } from '@/types'
@@ -380,7 +381,7 @@ const showCreateViewDialog = ref(false)
 const showFilterDialog = ref(false)
 const showSortDialog = ref(false)
 const showMemberDialog = ref(false)
-const selectedTask = ref<Task | null>(null)
+const selectedTask = ref<Task | undefined>(undefined)
 
 // 計算屬性
 const currentFilters = computed(() => taskStore.currentFilters)
@@ -396,7 +397,7 @@ const isProjectOwner = computed(() => {
 
 const isProjectMember = computed(() => {
   if (!project.value) return false
-  return project.value.ownerId === currentUserId.value || 
+  return project.value.ownerId === currentUserId.value ||
          project.value.memberIds.includes(currentUserId.value)
 })
 
@@ -415,7 +416,7 @@ const filteredTasks = computed(() => {
     const query = searchQuery.value.toLowerCase()
     tasks = tasks.filter(task =>
       task.title.toLowerCase().includes(query) ||
-      (typeof task.description === 'object' && 
+      (typeof task.description === 'object' &&
        JSON.stringify(task.description).toLowerCase().includes(query))
     )
   }
@@ -436,7 +437,7 @@ function getViewIcon(type: ViewType): string {
 }
 
 // 取得視圖元件
-function getViewComponent(type: ViewType): any {
+function getViewComponent(type: ViewType): Component {
   const components = {
     list: TaskListView,
     table: TaskTableView,
@@ -484,17 +485,17 @@ async function loadData(): Promise<void> {
 
 // 前往專案設定
 function goToSettings(): void {
-  router.push({
+  void router.push({
     name: 'ProjectSettings',
     params: { projectId: props.projectId }
   })
 }
 
 // 複製當前視圖
-async function duplicateCurrentView(): Promise<void> {
+function duplicateCurrentView(): void {
   if (!viewStore.currentView) return
 
-  const viewName = await $q.dialog({
+  $q.dialog({
     title: '複製視圖',
     message: '請輸入新視圖的名稱',
     prompt: {
@@ -503,41 +504,41 @@ async function duplicateCurrentView(): Promise<void> {
     },
     cancel: true,
     persistent: false
-  })
-
-  if (viewName) {
-    const newView = await viewStore.duplicateView(viewStore.currentView.viewId, viewName)
-    if (newView) {
-      $q.notify({
-        type: 'positive',
-        message: `視圖「${newView.name}」複製成功`,
-        position: 'top'
+  }).onOk((viewName: string) => {
+    if (viewName) {
+      void viewStore.duplicateView(viewStore.currentView!.viewId, viewName).then((newView) => {
+        if (newView) {
+          $q.notify({
+            type: 'positive',
+            message: `視圖「${newView.name}」複製成功`,
+            position: 'top'
+          })
+        }
       })
     }
-  }
+  })
 }
 
 // 刪除當前視圖
-async function deleteCurrentView(): Promise<void> {
+function deleteCurrentView(): void {
   if (!viewStore.currentView || !viewStore.currentView.isDeletable) return
 
-  const confirmed = await $q.dialog({
+  $q.dialog({
     title: '刪除視圖',
     message: `確定要刪除視圖「${viewStore.currentView.name}」嗎？此操作無法復原。`,
     cancel: true,
     persistent: false
+  }).onOk(() => {
+    void viewStore.deleteView(viewStore.currentView!.viewId).then((success) => {
+      if (success) {
+        $q.notify({
+          type: 'positive',
+          message: '視圖已刪除',
+          position: 'top'
+        })
+      }
+    })
   })
-
-  if (confirmed) {
-    const success = await viewStore.deleteView(viewStore.currentView.viewId)
-    if (success) {
-      $q.notify({
-        type: 'positive',
-        message: '視圖已刪除',
-        position: 'top'
-      })
-    }
-  }
 }
 
 // 處理任務點擊
@@ -606,7 +607,7 @@ watch(() => viewStore.currentView, (newView) => {
 
 // 監聽專案 ID 變更
 watch(() => props.projectId, () => {
-  loadData()
+  void loadData()
 }, { immediate: false })
 
 // 初始化

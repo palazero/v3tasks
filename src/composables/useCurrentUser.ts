@@ -3,11 +3,36 @@
  * 提供便捷的用戶相關功能
  */
 
-import { computed } from 'vue';
+import { computed, type ComputedRef } from 'vue';
 import { useUserStore } from '@/stores/user';
 import type { User } from '@/types';
 
-export function useCurrentUser() {
+export function useCurrentUser(): {
+  currentUser: ComputedRef<User | null>
+  userId: ComputedRef<string>
+  userName: ComputedRef<string>
+  userRole: ComputedRef<string>
+  userEmail: ComputedRef<string>
+  userAvatar: ComputedRef<string>
+  isLoggedIn: ComputedRef<boolean>
+  isAdmin: ComputedRef<boolean>
+  isLoading: ComputedRef<boolean>
+  error: ComputedRef<string | null>
+  availableUsers: ComputedRef<User[]>
+  userStats: ComputedRef<{ total: number; admins: number; regularUsers: number }>
+  getUserDisplayName: (userId?: string) => string
+  getUserAvatar: (userId?: string) => string
+  getUser: (userId: string) => User | undefined
+  switchUser: (userId: string) => Promise<void>
+  logout: () => void
+  isCurrentUser: (userId: string) => boolean
+  isUserAdmin: (userId: string) => boolean
+  formatUserInfo: (userId?: string, options?: { showEmail?: boolean; showRole?: boolean; showAvatar?: boolean }) => { name: string; email?: string; role?: string; avatar?: string; isAdmin: boolean }
+  getUserOptions: (excludeIds?: string[]) => Array<{ label: string; value: string; avatar: string; isAdmin: boolean }>
+  searchUsers: (keyword: string) => User[]
+  isUserOnline: (userId: string) => boolean
+  getUserStatusIndicator: (userId: string) => { color: string; text: string; icon: string }
+} {
   const userStore = useUserStore();
 
   // 當前用戶

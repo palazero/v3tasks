@@ -85,7 +85,16 @@ export default defineConfigWithVueTs(
       // 通用程式品質規則
       'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
       'no-unused-vars': 'off', // 由 @typescript-eslint/no-unused-vars 處理
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
 

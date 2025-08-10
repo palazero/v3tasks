@@ -5,7 +5,18 @@
 
 import type { Task } from '@/types';
 
-export function useTaskDependencies() {
+export function useTaskDependencies(): {
+  canTaskStart: (task: Task, allTasks: Task[]) => boolean;
+  getTaskDependencies: (task: Task, allTasks: Task[]) => Task[];
+  getBlockedTasks: (task: Task, allTasks: Task[]) => Task[];
+  addTaskDependency: (taskId: string, dependencyId: string, allTasks: Task[]) => { valid: boolean; updates?: Array<{ taskId: string; updates: Partial<Task> }>; error?: string };
+  removeTaskDependency: (taskId: string, dependencyId: string, allTasks: Task[]) => { valid: boolean; updates?: Array<{ taskId: string; updates: Partial<Task> }>; error?: string };
+  wouldCreateCircularDependency: (taskId: string, dependencyId: string, allTasks: Task[]) => boolean;
+  getTaskDependencyStatus: (task: Task, allTasks: Task[]) => { canStart: boolean; blockedBy: Task[] };
+  autoUpdateTaskStatus: (completedTaskId: string, allTasks: Task[], onTaskUpdate: (task: Task) => void) => void;
+  getProjectDependencyGraph: (tasks: Task[]) => { nodes: Array<{ id: string; title: string; status: string }>; edges: Array<{ from: string; to: string }> };
+  validateTaskDependencies: (tasks: Task[]) => { valid: boolean; errors: string[] };
+} {
   /**
    * 檢查任務是否可以開始（所有前置任務都已完成）
    */

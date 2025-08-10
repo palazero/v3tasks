@@ -111,7 +111,7 @@ const $q = useQuasar()
 const userStore = useUserStore()
 
 // 切換用戶
-async function handleSwitchUser(userId: string) {
+async function handleSwitchUser(userId: string): Promise<void> {
   if (userId === userStore.currentUserId) {
     return
   }
@@ -139,7 +139,7 @@ async function handleSwitchUser(userId: string) {
 }
 
 // 重新載入用戶列表
-async function handleRefresh() {
+async function handleRefresh(): Promise<void> {
   try {
     await userStore.initializeUsers()
     
@@ -160,7 +160,7 @@ async function handleRefresh() {
 }
 
 // 登出
-function handleLogout() {
+function handleLogout(): void {
   $q.dialog({
     title: '確認登出',
     message: '確定要登出嗎？',

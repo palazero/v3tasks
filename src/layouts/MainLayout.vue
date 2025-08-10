@@ -35,9 +35,9 @@
             <q-icon name="dashboard" class="q-mr-sm" />
             總覽
           </q-item-label>
-          
-          <q-item 
-            clickable 
+
+          <q-item
+            clickable
             v-ripple
             :active="isAllTasksActive"
             active-class="bg-primary text-white"
@@ -87,10 +87,10 @@
 
           <!-- 專案列表 -->
           <template v-else>
-            <q-item 
-              v-for="project in userProjects" 
+            <q-item
+              v-for="project in userProjects"
               :key="project.projectId"
-              clickable 
+              clickable
               v-ripple
               :active="currentProjectId === project.projectId"
               active-class="bg-primary text-white"
@@ -99,25 +99,25 @@
               <q-item-section avatar>
                 <q-icon :name="getProjectIcon(project)" />
               </q-item-section>
-              
+
               <q-item-section>
                 <q-item-label>{{ project.name }}</q-item-label>
                 <q-item-label caption class="ellipsis">
                   {{ project.description || '無描述' }}
                 </q-item-label>
               </q-item-section>
-              
+
               <q-item-section side>
                 <div class="column items-end">
-                  <q-badge 
+                  <q-badge
                     v-if="isProjectOwner(project)"
-                    color="orange" 
+                    color="orange"
                     label="Owner"
                     dense
                     class="q-mb-xs"
                   />
-                  <q-badge 
-                    color="grey" 
+                  <q-badge
+                    color="grey"
                     :label="getProjectTaskCount(project.projectId)"
                     dense
                   />
@@ -174,7 +174,7 @@
               :rules="[val => !!val || '請輸入專案名稱']"
               class="q-mb-md"
             />
-            
+
             <q-input
               v-model="newProject.description"
               label="專案描述"
@@ -186,9 +186,9 @@
 
           <q-card-actions align="right">
             <q-btn flat label="取消" v-close-popup />
-            <q-btn 
-              type="submit" 
-              color="primary" 
+            <q-btn
+              type="submit"
+              color="primary"
               label="建立"
               :loading="isCreating"
             />
@@ -210,6 +210,7 @@ import { useUserStore } from '@/stores/user'
 import { usePermission } from '@/composables/usePermission'
 import { getProjectRepository, getTaskRepository } from '@/services/repositories'
 import type { Project } from '@/types'
+import { PermissionAction } from '@/types'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -253,7 +254,7 @@ async function loadUserProjects(): Promise<void> {
   try {
     const projects = await projectRepo.findByMember(userStore.currentUserId)
     userProjects.value = projects.filter(p => !p.isArchived)
-    
+
     // 更新任務總數
     await updateTasksCount()
   } catch (error) {
@@ -299,7 +300,7 @@ function isProjectOwner(project: Project): boolean {
 }
 
 // 取得專案任務數量
-function getProjectTaskCount(projectId: string): string {
+function getProjectTaskCount(_projectId: string): string {
   // 這裡可以實作快取機制
   // 暫時返回佔位符
   return '...'
@@ -307,16 +308,16 @@ function getProjectTaskCount(projectId: string): string {
 
 // 導航
 function navigateToAllTasks(): void {
-  router.push({ name: 'AllTasks' })
+  void router.push({ name: 'AllTasks' })
 }
 
 function navigateToProject(projectId: string): void {
-  router.push({ name: 'ProjectView', params: { projectId } })
+  void router.push({ name: 'ProjectView', params: { projectId } })
 }
 
 // 顯示建立專案對話框
 function showCreateProject(): void {
-  if (!hasPermission('createProject')) {
+  if (!hasPermission(PermissionAction.CREATE_PROJECT)) {
     $q.notify({
       type: 'negative',
       message: '無權限建立專案',
@@ -324,7 +325,7 @@ function showCreateProject(): void {
     })
     return
   }
-  
+
   newProject.value = { name: '', description: '' }
   showCreateProjectDialog.value = true
 }
@@ -353,9 +354,9 @@ async function handleCreateProject(): Promise<void> {
 
     await projectRepo.create(project)
     await loadUserProjects()
-    
+
     showCreateProjectDialog.value = false
-    
+
     $q.notify({
       type: 'positive',
       message: `專案「${project.name}」建立成功`,
@@ -364,7 +365,7 @@ async function handleCreateProject(): Promise<void> {
 
     // 導航到新專案
     navigateToProject(project.projectId)
-    
+
   } catch (error) {
     console.error('Failed to create project:', error)
     $q.notify({
@@ -385,14 +386,14 @@ function toggleLeftDrawer(): void {
 
 // 監聽用戶變更
 userStore.$subscribe(() => {
-  loadUserProjects()
+  void loadUserProjects()
 })
 
 // 初始化
 onMounted(async () => {
   // 初始化用戶系統
   await userStore.initializeUsers()
-  
+
   // 載入專案
   await loadUserProjects()
 })

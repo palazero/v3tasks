@@ -277,7 +277,14 @@ export function useCustomFields(projectId: string) {
   function formatDisplayValue(fieldId: string, value: unknown): string {
     const field = customFields.value.find((f) => f.fieldId === fieldId);
     if (!field) {
-      return String(value || '-');
+      if (value === null || value === undefined) {
+        return '-';
+      }
+      // 安全轉換為字串
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number' || typeof value === 'boolean') return value.toString();
+      if (value instanceof Date) return value.toLocaleDateString('zh-TW');
+      return '-';
     }
 
     return customFieldService.formatDisplayValue(field, value);

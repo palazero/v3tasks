@@ -113,7 +113,8 @@
             <!-- 群組內欄位 -->
             <div v-if="!group.isCollapsed" class="group-fields bg-white rounded-borders-bottom">
               <VueDraggable
-                v-model="groupedFields[group.groupId] || []"
+                :model-value="groupedFields[group.groupId] || []"
+                @update:model-value="(value: CustomField[]) => updateGroupFields(group.groupId, value)"
                 :group="{ name: 'fields', pull: true, put: true }"
                 :animation="200"
                 handle=".field-handle"
@@ -241,13 +242,14 @@
       </VueDraggable>
 
       <!-- 未分組欄位 -->
-      <div v-if="groupedFields.ungrouped?.length > 0" class="field-group q-ma-md">
+      <div v-if="groupedFields.ungrouped && groupedFields.ungrouped.length > 0" class="field-group q-ma-md">
         <div class="group-header q-pa-md bg-grey-1 rounded-borders-top">
           <div class="text-subtitle1 text-weight-medium">未分組欄位</div>
         </div>
         <div class="group-fields bg-white rounded-borders-bottom">
           <VueDraggable
-            v-model="groupedFields.ungrouped || []"
+            :model-value="groupedFields.ungrouped || []"
+            @update:model-value="(value: CustomField[]) => updateGroupFields('ungrouped', value)"
             :group="{ name: 'fields', pull: true, put: true }"
             :animation="200"
             handle=".field-handle"
@@ -582,6 +584,13 @@ function onGroupReorder(): void {
 
 function onFieldReorder(): void {
   // TODO: 實作欄位重排序
+}
+
+function updateGroupFields(groupId: string, fields: CustomField[]): void {
+  // 更新群組內欄位順序
+  if (groupedFields.value[groupId]) {
+    groupedFields.value[groupId] = fields
+  }
 }
 
 // 對話框事件

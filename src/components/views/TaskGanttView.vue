@@ -72,7 +72,7 @@
           :highlight-on-hover="true"
         >
           <!-- 任務標籤模板 -->
-          <template #label="{ bar, label }">
+          <template #label="{ label }">
             <div 
               class="gantt-task-label"
               :class="{
@@ -127,7 +127,7 @@
           </template>
 
           <!-- 任務條模板 -->
-          <template #bar="{ bar }">
+          <template #bar>
             <div 
               class="gantt-task-bar"
               :class="{
@@ -192,7 +192,7 @@
 import { computed, ref, onMounted } from 'vue'
 // Note: @infectoone/vue-ganttastic would be imported here when available
 // import { GGanttChart, GGanttRow } from '@infectoone/vue-ganttastic'
-import type { Task, View } from '@/types'
+import type { Task, View, CustomField } from '@/types'
 import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useTaskDependencies } from '@/composables/useTaskDependencies'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
@@ -319,12 +319,12 @@ const taskDependencies = computed(() => {
 const dateFormat = 'YYYY-MM-DD'
 
 // 甘特圖條開始時間取值函數
-function barStart(bar: any): string {
+function barStart(bar: { start: Date }): string {
   return bar.start.toISOString()
 }
 
 // 甘特圖條結束時間取值函數
-function barEnd(bar: any): string {
+function barEnd(bar: { end: Date }): string {
   return bar.end.toISOString()
 }
 
@@ -406,7 +406,7 @@ function getUserInitials(userId: string): string {
 }
 
 // 取得任務的重要自訂欄位（最多顯示1個）
-function getTaskCustomFieldSummary(task: Task): { field: any; value: unknown } | null {
+function getTaskCustomFieldSummary(task: Task): { field: CustomField; value: unknown } | null {
   if (!visibleCustomFields.value || !task.customFields) return null
   
   // 找到第一個有值的必填欄位或重要欄位
@@ -426,7 +426,7 @@ function getTaskCustomFieldSummary(task: Task): { field: any; value: unknown } |
 }
 
 // 取得依賴關係路徑（SVG路徑）
-function getDependencyPath(dependency: { from: string; to: string }): string {
+function getDependencyPath(_dependency: { from: string; to: string }): string {
   // 簡化實作：直線連接
   // 實際應該根據任務在甘特圖中的位置計算路徑
   return `M 0 0 L 100 100`

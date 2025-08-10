@@ -5,6 +5,7 @@
       'task-card--completed': task.statusId === 'done',
       'task-card--overdue': isOverdue
     }"
+    :data-task-id="task.taskId"
     @click="$emit('click')"
   >
     <!-- 任務標題 -->

@@ -98,6 +98,14 @@ export interface Project {
 }
 
 /**
+ * 專案成員 (用於 UI 顯示)
+ */
+export interface ProjectMember {
+  userId: string;
+  role: 'owner' | 'member' | 'admin';
+}
+
+/**
  * 任務
  */
 export interface Task {
@@ -512,12 +520,25 @@ export interface ViewConfiguration {
  * 視圖預設配置
  */
 export interface ViewPreset {
-  id: string;
+  presetId: string;
   name: string;
   description?: string;
   configuration: ViewConfiguration;
   isSystem: boolean;
   createdBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 用戶視圖配置（資料庫儲存格式）
+ */
+export interface UserViewConfiguration {
+  configId: string;
+  userId: string;
+  projectId: string;
+  viewType: string;
+  configuration: ViewConfiguration;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -573,6 +594,8 @@ export interface FieldValidation {
   pattern?: string;
   customValidator?: string;
   errorMessage?: string;
+  placeholder?: string;
+  helpText?: string;
 }
 
 /**
