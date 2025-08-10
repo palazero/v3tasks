@@ -4,7 +4,16 @@
  */
 
 import Dexie, { type Table } from 'dexie';
-import type { User, Project, Task, View, CustomField, CustomFieldGroup, ViewConfiguration, ViewPreset } from '@/types';
+import type {
+  User,
+  Project,
+  Task,
+  View,
+  CustomField,
+  CustomFieldGroup,
+  ViewConfiguration,
+  ViewPreset,
+} from '@/types';
 
 /**
  * 資料庫類別
@@ -24,7 +33,7 @@ export class AppDatabase extends Dexie {
     super('TaskManagementDB');
 
     // 定義資料庫結構
-    // 版本 1
+    // 版本 1 - 初始版本
     this.version(1).stores({
       // 用戶表
       users: 'userId, email, role, name',
@@ -40,17 +49,39 @@ export class AppDatabase extends Dexie {
       views: 'viewId, projectId, type, creatorId, isDeletable, isPersonal, [projectId+type]',
 
       // 自訂欄位表
-      customFields: 'fieldId, projectId, type, displayOrder, isRequired, isSystem, isVisible, groupId, [projectId+displayOrder]',
-      
+      customFields:
+        'fieldId, projectId, type, displayOrder, isRequired, isSystem, isVisible, groupId, [projectId+displayOrder]',
+
       // 自訂欄位群組表
       customFieldGroups: 'groupId, projectId, name, displayOrder, [projectId+displayOrder]',
-      
+
       // 視圖配置表
       viewConfigurations: 'configId, userId, projectId, viewType, [userId+projectId+viewType]',
-      
+
       // 視圖預設表
       viewPresets: 'presetId, name, viewType, isSystem, isGlobal, createdBy',
     });
+
+    // 版本 2 - 增加專案icon欄位
+    this.version(2)
+      .stores({
+        // 專案表 - 增加icon欄位
+        projects: 'projectId, name, description, icon, ownerId, *memberIds, isArchived',
+      })
+      .upgrade((tx) => {
+        // 遷移現有專案資料，為沒有icon的專案設定預設值
+        return tx
+          .table('projects')
+          .toCollection()
+          .modify((project) => {
+            if (!Object.hasOwn(project, 'icon')) {
+              project.icon = '📁'; // 預設專案圖示
+            }
+            if (!Object.hasOwn(project, 'description')) {
+              project.description = ''; // 確保description欄位存在
+            }
+          });
+      });
 
     // 映射到類別屬性
     this.users = this.table('users');
@@ -69,7 +100,16 @@ export class AppDatabase extends Dexie {
   async clearAllData(): Promise<void> {
     await this.transaction(
       'rw',
-      [this.users, this.projects, this.tasks, this.views, this.customFields, this.customFieldGroups, this.viewConfigurations, this.viewPresets],
+      [
+        this.users,
+        this.projects,
+        this.tasks,
+        this.views,
+        this.customFields,
+        this.customFieldGroups,
+        this.viewConfigurations,
+        this.viewPresets,
+      ],
       async () => {
         await Promise.all([
           this.users.clear(),
@@ -106,7 +146,16 @@ export class AppDatabase extends Dexie {
     viewConfigurations: number;
     viewPresets: number;
   }> {
-    const [users, projects, tasks, views, customFields, customFieldGroups, viewConfigurations, viewPresets] = await Promise.all([
+    const [
+      users,
+      projects,
+      tasks,
+      views,
+      customFields,
+      customFieldGroups,
+      viewConfigurations,
+      viewPresets,
+    ] = await Promise.all([
       this.users.count(),
       this.projects.count(),
       this.tasks.count(),

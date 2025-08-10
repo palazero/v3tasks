@@ -251,7 +251,8 @@ async function saveAllChanges(): Promise<void> {
 
   isSaving.value = true
   try {
-    await projectRepo.update(project.value)
+    // 使用便利方法更新整個專案物件
+    await projectRepo.updateProject(project.value)
     hasUnsavedChanges.value = false
 
     $q.notify({

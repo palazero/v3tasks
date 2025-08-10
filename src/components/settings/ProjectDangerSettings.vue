@@ -305,7 +305,7 @@ async function archiveProject(): Promise<void> {
       updatedAt: new Date()
     }
 
-    await projectRepo.update(updatedProject)
+    await projectRepo.updateProject(updatedProject)
 
     $q.notify({
       type: 'positive',
@@ -345,7 +345,7 @@ async function unarchiveProject(): Promise<void> {
       updatedAt: new Date()
     }
 
-    await projectRepo.update(updatedProject)
+    await projectRepo.updateProject(updatedProject)
 
     $q.notify({
       type: 'positive',

@@ -97,7 +97,9 @@
               @click="navigateToProject(project.projectId)"
             >
               <q-item-section avatar>
-                <q-icon :name="getProjectIcon(project)" />
+                <q-avatar size="32px" color="primary" text-color="white">
+                  <span class="text-body1">{{ getProjectIcon(project) }}</span>
+                </q-avatar>
               </q-item-section>
 
               <q-item-section>
@@ -171,7 +173,7 @@
               label="專案名稱"
               filled
               autofocus
-              :rules="[val => !!val || '請輸入專案名稱']"
+              :rules="[(val: string) => !!val || '請輸入專案名稱']"
               class="q-mb-md"
             />
 
@@ -181,7 +183,25 @@
               filled
               type="textarea"
               rows="3"
+              class="q-mb-md"
             />
+
+            <!-- 專案圖示選擇 -->
+            <div class="q-mb-md">
+              <div class="text-body2 text-weight-medium q-mb-sm">專案圖示</div>
+              <div class="row q-gutter-sm">
+                <q-btn
+                  v-for="icon in projectIcons"
+                  :key="icon"
+                  :icon="icon"
+                  :color="newProject.icon === icon ? 'primary' : 'grey'"
+                  :outline="newProject.icon !== icon"
+                  size="sm"
+                  @click="newProject.icon = icon"
+                  class="icon-btn"
+                />
+              </div>
+            </div>
           </q-card-section>
 
           <q-card-actions align="right">
@@ -209,6 +229,7 @@ import UserSwitcher from '@/components/layout/UserSwitcher.vue'
 import { useUserStore } from '@/stores/user'
 import { usePermission } from '@/composables/usePermission'
 import { getProjectRepository, getTaskRepository } from '@/services/repositories'
+import { eventBus, EVENTS } from '@/services/eventBus'
 import type { Project } from '@/types'
 import { PermissionAction } from '@/types'
 
@@ -233,8 +254,15 @@ const showCreateProjectDialog = ref(false)
 const isCreating = ref(false)
 const newProject = ref({
   name: '',
-  description: ''
+  description: '',
+  icon: '📁'
 })
+
+// 專案圖示選項
+const projectIcons = [
+  '📁', '📂', '💼', '🏢', '💻', '📱', '🌐', '☁️',
+  '🔨', '💻', '🎨', '📊', '📈', '📋', '✅', '🚀'
+]
 
 // 計算屬性
 const currentProjectId = computed(() => {
@@ -288,6 +316,11 @@ async function updateTasksCount(): Promise<void> {
 
 // 取得專案圖示
 function getProjectIcon(project: Project): string {
+  // 如果專案有自訂圖示，使用自訂圖示
+  if (project.icon && project.icon !== '') {
+    return project.icon
+  }
+  // 否則根據是否為擁有者來決定預設圖示
   if (checkIsProjectOwner(project.ownerId)) {
     return 'folder_special'
   }
@@ -326,7 +359,7 @@ function showCreateProject(): void {
     return
   }
 
-  newProject.value = { name: '', description: '' }
+  newProject.value = { name: '', description: '', icon: '📁' }
   showCreateProjectDialog.value = true
 }
 
@@ -342,6 +375,7 @@ async function handleCreateProject(): Promise<void> {
       projectId: nanoid(8),
       name: newProject.value.name.trim(),
       description: newProject.value.description.trim(),
+      icon: newProject.value.icon, // 使用選擇的圖示
       ownerId: userStore.currentUserId,
       memberIds: [],
       createdAt: new Date(),
@@ -389,6 +423,11 @@ userStore.$subscribe(() => {
   void loadUserProjects()
 })
 
+// 監聽專案更新事件
+eventBus.on(EVENTS.PROJECT_UPDATED, () => {
+  void loadUserProjects()
+})
+
 // 初始化
 onMounted(async () => {
   // 初始化用戶系統
@@ -398,3 +437,11 @@ onMounted(async () => {
   await loadUserProjects()
 })
 </script>
+
+<style scoped lang="scss">
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+}
+</style>

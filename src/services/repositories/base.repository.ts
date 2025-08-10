@@ -5,6 +5,7 @@
 
 import type { Table, UpdateSpec } from 'dexie';
 import type { PaginatedResult, PaginationParams } from '@/types';
+import { eventBus, EVENTS } from '../eventBus';
 
 export abstract class BaseRepository<T> {
   protected table: Table<T>;
@@ -97,7 +98,8 @@ export abstract class BaseRepository<T> {
       return obj;
     };
     
-    return cleanObject(sanitized);
+    const cleaned = cleanObject(sanitized);
+    return cleaned as Partial<T>;
   }
 
   /**
@@ -105,7 +107,14 @@ export abstract class BaseRepository<T> {
    */
   async update(id: string | number, data: Partial<T>): Promise<number> {
     const sanitizedData = this.sanitizeData(data);
-    return await this.table.update(id, sanitizedData as UpdateSpec<T>);
+    const result = await this.table.update(id, sanitizedData as UpdateSpec<T>);
+    
+    // 觸發更新事件（如果這是專案更新）
+    if (this.table.name === 'projects') {
+      eventBus.emit(EVENTS.PROJECT_UPDATED, { id, data: sanitizedData });
+    }
+    
+    return result;
   }
 
   /**

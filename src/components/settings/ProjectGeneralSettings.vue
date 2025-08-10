@@ -13,14 +13,14 @@
       <div class="col-12">
         <q-card flat bordered class="q-pa-md">
           <div class="text-subtitle1 text-weight-medium q-mb-md">專案詳情</div>
-          
+
           <!-- 專案名稱 -->
           <div class="form-group">
             <q-input
               v-model="localProject.name"
               label="專案名稱 *"
               outlined
-              :rules="[val => !!val || '請輸入專案名稱']"
+              :rules="[(val: string) => !!val || '請輸入專案名稱']"
               @update:model-value="emitChange"
               class="q-mb-md"
             />
@@ -47,19 +47,20 @@
               <q-btn
                 v-for="icon in projectIcons"
                 :key="icon"
-                :icon="icon"
                 :color="localProject.icon === icon ? 'primary' : 'grey'"
                 :outline="localProject.icon !== icon"
                 size="sm"
                 @click="selectIcon(icon)"
                 class="icon-btn"
-              />
+              >
+                <span class="text-body1">{{ icon }}</span>
+              </q-btn>
             </div>
           </div>
 
           <!-- 建立資訊（唯讀） -->
           <q-separator class="q-my-md" />
-          
+
           <div class="project-meta text-caption text-grey-6">
             <div class="row q-gutter-md">
               <div>
@@ -102,7 +103,7 @@ const localProject = ref<Project>({
   projectId: '',
   name: '',
   description: '',
-  icon: 'folder',
+  icon: '📁',
   ownerId: '',
   memberIds: [],
   createdAt: new Date(),
@@ -111,9 +112,8 @@ const localProject = ref<Project>({
 
 // 專案圖示選項
 const projectIcons = [
-  'folder', 'folder_special', 'work', 'business_center',
-  'laptop', 'phone_android', 'web', 'cloud',
-  'build', 'code', 'design_services', 'analytics'
+  '📁', '📂', '💼', '🏢', '💻', '📱', '🌐', '☁️',
+  '🔨', '💻', '🎨', '📊', '📈', '📋', '✅', '🚀'
 ]
 
 // 計算建立者名稱

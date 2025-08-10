@@ -307,12 +307,15 @@ if (props.showProject) {
 
 // 循環切換任務狀態 (todo -> inProgress -> done -> todo)
 function cycleStatus(): void {
-  const statusCycle = ['todo', 'inProgress', 'done']
+  const statusCycle: string[] = ['todo', 'inProgress', 'done']
   const currentIndex = statusCycle.indexOf(props.task.statusId || 'todo')
   const nextIndex = (currentIndex + 1) % statusCycle.length
   const newStatus = statusCycle[nextIndex]
 
-  emit('update', { statusId: newStatus })
+  // 確保 newStatus 不是 undefined
+  if (newStatus) {
+    emit('update', { statusId: newStatus })
+  }
 }
 
 // 指派任務

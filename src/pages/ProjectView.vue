@@ -5,7 +5,8 @@
       <div class="col row full-width">
         <div class="row items-center q-gutter-sm">
           <q-avatar size="40px" color="primary" text-color="white">
-            <q-icon :name="isAllTasksView ? 'list_alt' : projectIcon" />
+            <q-icon v-if="isAllTasksView" name="list_alt" />
+            <span v-else class="text-h5">{{ projectIcon }}</span>
           </q-avatar>
 
           <div>
@@ -118,7 +119,7 @@
         >
           <!-- 標籤操作選單 -->
           <q-menu
-            :ref="(el) => setTabMenuRef(view.viewId, el)"
+            :ref="(el: { show: () => void } | null) => setTabMenuRef(view.viewId, el)"
             anchor="bottom middle"
             self="top middle"
             :offset="[0, 5]"
@@ -341,6 +342,7 @@ import { useViewStore } from '@/stores/view'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { usePermission } from '@/composables/usePermission'
 import { getProjectRepository, getUserRepository } from '@/services/repositories'
+import { eventBus, EVENTS } from '@/services/eventBus'
 
 // 動態導入元件
 const TaskListView = defineAsyncComponent(() => import('@/components/views/TaskListView.vue'))
@@ -427,6 +429,11 @@ const isProjectMember = computed(() => {
 })
 
 const projectIcon = computed(() => {
+  // 如果專案有自訂圖示，使用自訂圖示
+  if (project.value?.icon && project.value.icon !== '') {
+    return project.value.icon
+  }
+  // 否則根據是否為擁有者來決定預設圖示
   return isProjectOwner.value ? 'folder_special' : 'folder'
 })
 
@@ -769,6 +776,17 @@ watch(() => viewStore.currentView, (newView) => {
 watch(() => props.projectId, () => {
   void loadData()
 }, { immediate: false })
+
+// 監聽專案更新事件
+eventBus.on(EVENTS.PROJECT_UPDATED, (updatedProject: unknown) => {
+  // 如果更新的是當前專案，重新載入專案資料
+  if (updatedProject && typeof updatedProject === 'object' && updatedProject !== null && 'projectId' in updatedProject) {
+    const project = updatedProject as { projectId: string }
+    if (project.projectId === props.projectId) {
+      void loadProjectData()
+    }
+  }
+})
 
 // 初始化
 onMounted(async () => {

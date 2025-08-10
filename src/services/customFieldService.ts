@@ -4,11 +4,7 @@
  */
 
 import { getDatabase } from './db/database';
-import type {
-  CustomField,
-  CustomFieldGroup,
-  FieldType,
-} from '@/types';
+import type { CustomField, CustomFieldGroup, FieldType } from '@/types';
 import { nanoid } from 'nanoid';
 
 export class CustomFieldService {
@@ -20,15 +16,15 @@ export class CustomFieldService {
    */
   private sanitizeData<T>(data: T): T {
     if (!data || typeof data !== 'object') return data;
-    
+
     const sanitized = { ...data };
-    
+
     // 移除函數、Symbol、undefined 和循環引用
-    const cleanObject = (obj: unknown): unknown => {
+    const cleanObject = (obj: T): T => {
       if (obj === null || obj === undefined) return obj;
       if (obj instanceof Date) return obj;
-      if (Array.isArray(obj)) return obj.map(item => cleanObject(item));
-      
+      if (Array.isArray(obj)) return obj.map((item) => cleanObject(item)) as T;
+
       if (typeof obj === 'object') {
         const cleaned: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(obj)) {
@@ -36,15 +32,15 @@ export class CustomFieldService {
           if (typeof value === 'symbol') continue;
           if (value === undefined) continue;
           if (key === 'children') continue;
-          
-          cleaned[key] = cleanObject(value);
+
+          cleaned[key] = cleanObject(value as T);
         }
-        return cleaned;
+        return cleaned as T;
       }
-      
+
       return obj;
     };
-    
+
     return cleanObject(sanitized);
   }
 
@@ -75,10 +71,7 @@ export class CustomFieldService {
   async getProjectCustomFields(projectId: string): Promise<CustomField[]> {
     const db = getDatabase();
 
-    return await db.customFields
-      .where('projectId')
-      .equals(projectId)
-      .sortBy('displayOrder');
+    return await db.customFields.where('projectId').equals(projectId).sortBy('displayOrder');
   }
 
   /**
@@ -115,8 +108,14 @@ export class CustomFieldService {
 
     await db.customFields.where('fieldId').equals(fieldId).delete();
 
-    // 同時清除相關的任務欄位值
-    // TODO: 實作清理任務中的自訂欄位值
+    // 清理任務中的自訂欄位值
+    const tasks = await db.tasks.toArray();
+    for (const task of tasks) {
+      if (task.customFields && task.customFields.length > 0) {
+        task.customFields = task.customFields.filter(cf => cf.fieldId !== fieldId);
+        await db.tasks.put(task);
+      }
+    }
   }
 
   /**
@@ -164,10 +163,7 @@ export class CustomFieldService {
   async getProjectCustomFieldGroups(projectId: string): Promise<CustomFieldGroup[]> {
     const db = getDatabase();
 
-    return await db.customFieldGroups
-      .where('projectId')
-      .equals(projectId)
-      .sortBy('displayOrder');
+    return await db.customFieldGroups.where('projectId').equals(projectId).sortBy('displayOrder');
   }
 
   /**
@@ -192,9 +188,12 @@ export class CustomFieldService {
     const db = getDatabase();
 
     // 將群組內的欄位移至預設群組
-    await db.customFields.where('groupId').equals(groupId).modify(field => {
-      delete field.groupId;
-    });
+    await db.customFields
+      .where('groupId')
+      .equals(groupId)
+      .modify((field) => {
+        delete field.groupId;
+      });
 
     await db.customFieldGroups.where('groupId').equals(groupId).delete();
   }
