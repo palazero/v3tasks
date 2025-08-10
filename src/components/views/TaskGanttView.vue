@@ -17,32 +17,56 @@
             dense
             icon="zoom_in"
             @click="zoomIn"
+            :disable="ganttSettings.timelineScale === 'day'"
           />
           <q-btn
             flat
             dense
             icon="zoom_out"
             @click="zoomOut"
+            :disable="ganttSettings.timelineScale === 'month'"
           />
           <q-separator vertical />
           <q-select
-            v-model="timelineScale"
+            v-model="ganttSettings.timelineScale"
             :options="timelineScaleOptions"
             emit-value
             map-options
             dense
             outlined
-            style="min-width: 100px"
+            style="min-width: 80px"
+          />
+          <q-separator vertical />
+          <q-btn
+            flat
+            dense
+            icon="auto_fix_high"
+            label="自動排程"
+            @click="autoSchedule"
+            :loading="isAutoScheduling"
           />
         </div>
         <div class="row items-center q-gutter-sm">
           <q-toggle
-            v-model="showDependencies"
-            label="顯示依賴關係"
+            v-model="ganttSettings.showWeekends"
+            label="顯示週末"
+            size="sm"
           />
           <q-toggle
-            v-model="showCriticalPath"
+            v-model="ganttSettings.showDependencies"
+            label="依賴關係"
+            size="sm"
+          />
+          <q-toggle
+            v-model="ganttSettings.showCriticalPath"
             label="關鍵路徑"
+            size="sm"
+            @update:model-value="updateCriticalPath"
+          />
+          <q-toggle
+            v-model="ganttSettings.showProgress"
+            label="進度條"
+            size="sm"
           />
         </div>
       </div>
@@ -50,562 +74,612 @@
 
     <!-- 甘特圖主體 -->
     <div class="gantt-container" ref="ganttContainer">
-      <g-gantt-chart
-        :chart-start="chartStart"
-        :chart-end="chartEnd"
-        precision="day"
-        :bar-start="barStart"
-        :bar-end="barEnd"
-        :date-format="dateFormat"
-        :width="ganttWidth"
-        :height="ganttHeight"
-        :grid="true"
-        :push-on-overlap="false"
-        :theme="ganttTheme"
-      >
-        <!-- 甘特圖列 -->
-        <g-gantt-row
-          v-for="task in ganttTasks"
-          :key="task.taskId"
-          :label="task.title"
-          :bars="[task.ganttBar]"
-          :highlight-on-hover="true"
-        >
-          <!-- 任務標籤模板 -->
-          <template #label="{ label }">
-            <div 
-              class="gantt-task-label"
-              :class="{
-                'gantt-task-label--completed': task.statusId === 'done',
-                'gantt-task-label--overdue': isTaskOverdue(task)
-              }"
-              :style="{ paddingLeft: `${(task.level || 0) * 20}px` }"
-              @click="$emit('task-click', task)"
-            >
-              <!-- 展開/收合按鈕 -->
-              <q-btn
-                v-if="hasChildren(task)"
-                :icon="task.isExpanded ? 'expand_more' : 'chevron_right'"
-                flat
-                dense
-                size="xs"
-                @click.stop="toggleTaskExpanded(task)"
-                class="expand-btn q-mr-xs"
-              />
-              
-              <!-- 任務圖標 -->
-              <q-icon
-                :name="getTaskIcon(task)"
-                :color="getTaskColor(task)"
-                size="sm"
-                class="q-mr-xs"
-              />
-              
-              <!-- 任務標題 -->
-              <span class="task-title">{{ label }}</span>
-              
-              <!-- 重要自訂欄位 -->
-              <span 
-                v-if="getTaskCustomFieldSummary(task)" 
-                class="custom-field-summary text-caption text-grey-6 q-ml-sm"
-              >
-                {{ getTaskCustomFieldSummary(task)!.field.name }}: 
-                <strong>{{ getTaskCustomFieldSummary(task)!.value }}</strong>
-              </span>
-              
-              <!-- 指派人員 -->
-              <q-avatar
-                v-if="task.assigneeId"
-                size="16px"
-                color="primary"
-                text-color="white"
-                class="q-ml-xs"
-              >
-                {{ getUserInitials(task.assigneeId) }}
-              </q-avatar>
-            </div>
-          </template>
+      <div v-if="isLoading" class="text-center q-py-xl">
+        <q-spinner-dots size="2rem" color="primary" />
+        <div class="text-grey-6 q-mt-md">載入甘特圖資料中...</div>
+      </div>
 
-          <!-- 任務條模板 -->
-          <template #bar>
+      <template v-else-if="ganttTasks.length > 0">
+        <!-- 時間軸標題 -->
+        <div class="gantt-timeline-header">
+          <div class="task-labels-header">任務</div>
+          <div class="timeline-grid">
             <div 
-              class="gantt-task-bar"
-              :class="{
-                'gantt-task-bar--completed': task.statusId === 'done',
-                'gantt-task-bar--in-progress': task.statusId === 'inProgress',
-                'gantt-task-bar--overdue': isTaskOverdue(task),
-                'gantt-task-bar--critical': isCriticalTask(task)
-              }"
-              @click="$emit('task-click', task)"
+              v-for="(label, index) in timelineLabels"
+              :key="index"
+              class="timeline-label"
+              :class="{ 'weekend': isWeekend(index) && !ganttSettings.showWeekends }"
             >
-              <!-- 進度條 -->
-              <div 
-                v-if="task.progress && task.progress > 0"
-                class="progress-overlay"
-                :style="{ width: `${task.progress}%` }"
-              />
-              
-              <!-- 任務標題（在條內顯示） -->
-              <span class="bar-text">{{ task.title }}</span>
+              {{ label }}
             </div>
-          </template>
-        </g-gantt-row>
-      </g-gantt-chart>
+          </div>
+        </div>
 
-      <!-- 依賴關係線條 -->
-      <svg
-        v-if="showDependencies"
-        class="dependency-overlay"
-        :width="ganttWidth"
-        :height="ganttHeight"
-      >
-        <g v-for="dependency in taskDependencies" :key="`${dependency.from}-${dependency.to}`">
-          <path
-            :d="getDependencyPath(dependency)"
-            stroke="#666"
-            stroke-width="2"
-            fill="none"
-            marker-end="url(#arrowhead)"
-            :class="{ 'critical-path': isCriticalDependency(dependency) }"
-          />
-        </g>
-        
-        <!-- 箭頭標記定義 -->
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="9"
-            refY="3.5"
-            orient="auto"
+        <!-- 任務行 -->
+        <div class="gantt-rows">
+          <div
+            v-for="(task, index) in visibleGanttTasks"
+            :key="task.taskId"
+            class="gantt-row"
+            :class="{
+              'gantt-row--critical': task.ganttCritical && ganttSettings.showCriticalPath,
+              'gantt-row--completed': task.statusId === 'done',
+              'gantt-row--overdue': isTaskOverdue(task)
+            }"
           >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
-          </marker>
-        </defs>
-      </svg>
+            <!-- 任務標籤 -->
+            <div class="task-label">
+              <div 
+                class="task-info"
+                :style="{ paddingLeft: `${(task.level || 0) * 20}px` }"
+                @click="handleTaskClick(task)"
+              >
+                <!-- 展開/收合按鈕 -->
+                <q-btn
+                  v-if="hasChildren(task)"
+                  :icon="task.isExpanded ? 'expand_more' : 'chevron_right'"
+                  flat
+                  dense
+                  size="xs"
+                  @click.stop="toggleTaskExpanded(task)"
+                  class="expand-btn q-mr-xs"
+                />
+                
+                <!-- 任務圖標 -->
+                <q-icon
+                  :name="getTaskIcon(task)"
+                  :color="getTaskColor(task)"
+                  size="sm"
+                  class="q-mr-xs"
+                />
+                
+                <!-- 任務標題 -->
+                <span class="task-title">{{ task.title }}</span>
+                
+                <!-- 指派人員 -->
+                <q-avatar
+                  v-if="task.assigneeId"
+                  size="16px"
+                  color="primary"
+                  text-color="white"
+                  class="q-ml-xs"
+                >
+                  {{ getUserInitials(task.assigneeId) }}
+                </q-avatar>
+              </div>
+              
+              <!-- 任務詳細信息 -->
+              <div class="task-details text-caption text-grey-6">
+                {{ formatTaskDuration(task) }}
+                <span v-if="task.ganttProgress > 0" class="q-ml-sm">
+                  ({{ task.ganttProgress }}%)
+                </span>
+              </div>
+            </div>
+
+            <!-- 甘特圖條 -->
+            <div class="gantt-timeline">
+              <div class="timeline-grid">
+                <div
+                  v-for="(_, dayIndex) in timelineLabels"
+                  :key="dayIndex"
+                  class="timeline-cell"
+                  :class="{ 'weekend': isWeekend(dayIndex) && ganttSettings.showWeekends }"
+                />
+              </div>
+              
+              <!-- 任務條 -->
+              <div
+                class="gantt-bar"
+                :class="{
+                  'gantt-bar--completed': task.statusId === 'done',
+                  'gantt-bar--in-progress': task.statusId === 'in-progress',
+                  'gantt-bar--overdue': isTaskOverdue(task),
+                  'gantt-bar--critical': task.ganttCritical && ganttSettings.showCriticalPath
+                }"
+                :style="getTaskBarStyle(task)"
+                @click="handleTaskClick(task)"
+              >
+                <!-- 進度條 -->
+                <div 
+                  v-if="ganttSettings.showProgress && task.ganttProgress > 0"
+                  class="progress-bar"
+                  :style="{ width: `${task.ganttProgress}%` }"
+                />
+                
+                <!-- 任務標題 -->
+                <span class="bar-text">{{ task.title }}</span>
+              </div>
+
+              <!-- 依賴線 -->
+              <svg
+                v-if="ganttSettings.showDependencies"
+                class="dependency-lines"
+                :width="timelineWidth"
+                :height="50"
+              >
+                <path
+                  v-for="dep in getTaskDependencyLines(task)"
+                  :key="dep.id"
+                  :d="dep.path"
+                  stroke="#666"
+                  stroke-width="2"
+                  fill="none"
+                  marker-end="url(#arrowhead)"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- SVG 定義 (箭頭標記) -->
+        <svg width="0" height="0">
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="0"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 10 3.5, 0 7"
+                fill="#666"
+              />
+            </marker>
+          </defs>
+        </svg>
+      </template>
+
+      <div v-else class="text-center q-py-xl text-grey-6">
+        <q-icon name="timeline" size="3rem" class="q-mb-md" />
+        <div>沒有任務資料可顯示</div>
+      </div>
+    </div>
+
+    <!-- 關鍵路徑信息 -->
+    <div v-if="ganttSettings.showCriticalPath && criticalPath.taskIds.length > 0" class="critical-path-info q-pa-md bg-orange-1 border-top">
+      <div class="row items-center">
+        <q-icon name="timeline" color="orange" class="q-mr-sm" />
+        <div>
+          <strong>關鍵路徑:</strong> {{ criticalPath.taskIds.length }} 個任務，
+          總工期 {{ Math.ceil(criticalPath.totalDuration) }} 天，
+          預計完成日期 {{ formatDate(criticalPath.endDate) }}
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
-// Note: @infectoone/vue-ganttastic would be imported here when available
-// import { GGanttChart, GGanttRow } from '@infectoone/vue-ganttastic'
-import type { Task, View, CustomField } from '@/types'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import { useNestedTasks } from '@/composables/useNestedTasks'
-import { useTaskDependencies } from '@/composables/useTaskDependencies'
-import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
+import { useGanttEnhancements } from '@/composables/useGanttEnhancements'
+import { useCurrentUser } from '@/composables/useCurrentUser'
+import type { Task } from '@/types'
+import type { GanttTask, CriticalPath } from '@/composables/useGanttEnhancements'
 
-// Props
-const props = defineProps<{
-  view: View
+interface Props {
   tasks: Task[]
-  projectId: string
-}>()
+  projectId?: string
+}
 
-// Emits
+const props = defineProps<Props>()
+
 const emit = defineEmits<{
-  'task-click': [task: Task]
-  'task-update': [taskId: string, updates: Partial<Task>]
+  taskClick: [task: Task]
+  taskUpdate: [task: Task]
 }>()
 
-const { buildTaskTree } = useNestedTasks()
-const { getProjectDependencyGraph } = useTaskDependencies()
-const { visibleFields: visibleCustomFields } = useCustomFields(props.projectId)
-const { getCustomFieldDisplayValue, getCustomFieldValue } = useCustomFieldUtils()
-
-// 甘特圖容器引用
+const $q = useQuasar()
 const ganttContainer = ref<HTMLElement>()
 
-// 甘特圖配置
-const timelineScale = ref('day')
-const showDependencies = ref(true)
-const showCriticalPath = ref(false)
-const ganttWidth = ref(1200)
-const ganttHeight = ref(600)
+// Composables
+const { toggleTaskExpanded, hasChildren, isExpanded } = useNestedTasks()
+const {
+  settings: ganttSettings,
+  timelineScaleOptions,
+  convertToGanttTasks,
+  calculateCriticalPath,
+  autoScheduleTasks,
+  getTimelineRange,
+  generateTimelineLabels
+} = useGanttEnhancements()
+const { getUserDisplayName } = useCurrentUser()
 
-// 時間軸配置選項
-const timelineScaleOptions = [
-  { label: '小時', value: 'hour' },
-  { label: '天', value: 'day' },
-  { label: '週', value: 'week' },
-  { label: '月', value: 'month' }
-]
+// 狀態
+const isLoading = ref(false)
+const isAutoScheduling = ref(false)
+const ganttTasks = ref<GanttTask[]>([])
+const criticalPath = ref<CriticalPath>({ taskIds: [], totalDuration: 0, endDate: new Date() })
+const timelineRange = ref({ start: new Date(), end: new Date() })
 
-// 甘特圖主題
-const ganttTheme = {
-  primaryColor: '#1976d2',
-  backgroundColor: '#ffffff',
-  borderColor: '#e0e0e0',
-  textColor: '#424242'
-}
-
-// 計算圖表時間範圍
-const chartStart = computed(() => {
-  const dates = props.tasks
-    .filter(task => task.startDateTime)
-    .map(task => new Date(task.startDateTime!))
-  
-  if (dates.length === 0) {
-    return new Date()
-  }
-  
-  const minDate = new Date(Math.min(...dates.map(d => d.getTime())))
-  // 提前一週顯示
-  minDate.setDate(minDate.getDate() - 7)
-  return minDate
-})
-
-const chartEnd = computed(() => {
-  const dates = props.tasks
-    .filter(task => task.endDateTime)
-    .map(task => new Date(task.endDateTime!))
-  
-  if (dates.length === 0) {
-    const end = new Date()
-    end.setMonth(end.getMonth() + 3)
-    return end
-  }
-  
-  const maxDate = new Date(Math.max(...dates.map(d => d.getTime())))
-  // 延後一週顯示
-  maxDate.setDate(maxDate.getDate() + 7)
-  return maxDate
-})
-
-// 樹狀結構任務
-const nestedTasks = computed(() => buildTaskTree(props.tasks))
-
-// 甘特圖任務數據（扁平化但保留層級）
-const ganttTasks = computed(() => {
-  const flattenTasks = (tasks: Task[], level = 0): Task[] => {
-    const result: Task[] = []
-    
-    tasks.forEach(task => {
-      const taskWithLevel = { ...task, level }
-      result.push(taskWithLevel)
-      
-      // 如果有子任務且展開狀態
-      if (task.children && task.children.length > 0 && task.isExpanded) {
-        result.push(...flattenTasks(task.children, level + 1))
-      }
-    })
-    
-    return result
-  }
-  
-  return flattenTasks(nestedTasks.value).map(task => ({
-    ...task,
-    ganttBar: {
-      id: task.taskId,
-      label: task.title,
-      start: task.startDateTime || new Date(),
-      end: task.endDateTime || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 預設7天後
-      progress: task.progress || 0,
-      color: getGanttBarColor(task),
-      style: getGanttBarStyle(task)
+// 計算屬性
+const visibleGanttTasks = computed(() => {
+  return ganttTasks.value.filter(task => {
+    // 檢查父任務是否展開
+    if (task.parentTaskId) {
+      const parent = ganttTasks.value.find(t => t.taskId === task.parentTaskId)
+      return parent ? isExpanded(parent.taskId) : true
     }
-  }))
+    return true
+  })
 })
 
-// 任務依賴關係
-const taskDependencies = computed(() => {
-  const dependencyGraph = getProjectDependencyGraph(props.tasks)
-  return dependencyGraph.edges
+const timelineLabels = computed(() => {
+  return generateTimelineLabels(
+    timelineRange.value.start,
+    timelineRange.value.end,
+    ganttSettings.value.timelineScale
+  )
 })
 
-// 日期格式化
-const dateFormat = 'YYYY-MM-DD'
+const timelineWidth = computed(() => {
+  return timelineLabels.value.length * 100 // 每個時間段100px寬度
+})
 
-// 甘特圖條開始時間取值函數
-function barStart(bar: { start: Date }): string {
-  return bar.start.toISOString()
-}
+// 方法
+function initializeGanttData(): void {
+  if (props.tasks.length === 0) return
 
-// 甘特圖條結束時間取值函數
-function barEnd(bar: { end: Date }): string {
-  return bar.end.toISOString()
-}
-
-// 取得甘特條顏色
-function getGanttBarColor(task: Task): string {
-  if (task.statusId === 'done') return '#4caf50'
-  if (task.statusId === 'inProgress') return '#ff9800'
-  if (isTaskOverdue(task)) return '#f44336'
-  return '#2196f3'
-}
-
-// 取得甘特條樣式
-function getGanttBarStyle(task: Task): Record<string, string> {
-  const style: Record<string, string> = {}
-  
-  if (task.statusId === 'done') {
-    style.opacity = '0.7'
+  isLoading.value = true
+  try {
+    ganttTasks.value = convertToGanttTasks(props.tasks)
+    timelineRange.value = getTimelineRange(ganttTasks.value)
+    
+    if (ganttSettings.value.showCriticalPath) {
+      updateCriticalPath()
+    }
+  } finally {
+    isLoading.value = false
   }
+}
+
+function updateCriticalPath(): void {
+  if (ganttTasks.value.length === 0) return
   
-  if (isCriticalTask(task)) {
-    style.border = '2px solid #ff5722'
+  criticalPath.value = calculateCriticalPath(ganttTasks.value)
+}
+
+function autoSchedule(): void {
+  if (ganttTasks.value.length === 0) return
+
+  isAutoScheduling.value = true
+  try {
+    ganttTasks.value = autoScheduleTasks(ganttTasks.value)
+    timelineRange.value = getTimelineRange(ganttTasks.value)
+    
+    if (ganttSettings.value.showCriticalPath) {
+      updateCriticalPath()
+    }
+
+    $q.notify({
+      type: 'positive',
+      message: '任務已自動重新排程',
+      position: 'top'
+    })
+  } finally {
+    isAutoScheduling.value = false
   }
-  
-  return style
 }
 
-// 是否有子任務
-function hasChildren(task: Task): boolean {
-  return !!(task.children && task.children.length > 0)
+function scrollToToday(): void {
+  // 簡化實作：滾動到當前日期
+  const today = new Date()
+  if (ganttContainer.value) {
+    ganttContainer.value.scrollLeft = 200 // 估算位置
+  }
 }
 
-// 切換任務展開狀態
-function toggleTaskExpanded(task: Task): void {
-  emit('task-update', task.taskId, { isExpanded: !task.isExpanded })
+function zoomIn(): void {
+  const scales = ['month', 'week', 'day']
+  const currentIndex = scales.indexOf(ganttSettings.value.timelineScale)
+  if (currentIndex < scales.length - 1) {
+    ganttSettings.value.timelineScale = scales[currentIndex + 1] as any
+    updateTimeline()
+  }
 }
 
-// 是否逾期
-function isTaskOverdue(task: Task): boolean {
+function zoomOut(): void {
+  const scales = ['month', 'week', 'day']
+  const currentIndex = scales.indexOf(ganttSettings.value.timelineScale)
+  if (currentIndex > 0) {
+    ganttSettings.value.timelineScale = scales[currentIndex - 1] as any
+    updateTimeline()
+  }
+}
+
+function updateTimeline(): void {
+  timelineRange.value = getTimelineRange(ganttTasks.value)
+}
+
+function handleTaskClick(task: GanttTask): void {
+  emit('taskClick', task)
+}
+
+function isTaskOverdue(task: GanttTask): boolean {
   if (!task.endDateTime || task.statusId === 'done') return false
   return new Date(task.endDateTime) < new Date()
 }
 
-// 是否為關鍵任務
-function isCriticalTask(task: Task): boolean {
-  // 簡化實作：有依賴關係且時間緊迫的任務
-  return !!(task.dependencyIds && task.dependencyIds.length > 0 && isTaskOverdue(task))
-}
-
-// 是否為關鍵依賴
-function isCriticalDependency(dependency: { from: string; to: string }): boolean {
-  const fromTask = props.tasks.find(t => t.taskId === dependency.from)
-  const toTask = props.tasks.find(t => t.taskId === dependency.to)
-  return showCriticalPath.value && !!(fromTask && toTask && 
-    isCriticalTask(fromTask) && isCriticalTask(toTask))
-}
-
-// 取得任務圖標
-function getTaskIcon(task: Task): string {
-  if (task.children && task.children.length > 0) {
-    return 'account_tree'
-  }
-  
+function getTaskIcon(task: GanttTask): string {
   if (task.statusId === 'done') return 'check_circle'
-  if (task.statusId === 'inProgress') return 'play_circle'
+  if (task.statusId === 'in-progress') return 'schedule'
+  if (isTaskOverdue(task)) return 'warning'
   return 'radio_button_unchecked'
 }
 
-// 取得任務顏色
-function getTaskColor(task: Task): string {
-  if (task.statusId === 'done') return 'green'
-  if (task.statusId === 'inProgress') return 'orange'
-  if (isTaskOverdue(task)) return 'red'
-  return 'grey'
+function getTaskColor(task: GanttTask): string {
+  if (task.statusId === 'done') return 'positive'
+  if (task.statusId === 'in-progress') return 'orange'
+  if (isTaskOverdue(task)) return 'negative'
+  return 'grey-6'
 }
 
-// 取得用戶姓名縮寫
 function getUserInitials(userId: string): string {
-  return userId.substring(0, 2).toUpperCase()
+  const name = getUserDisplayName(userId)
+  return name
+    .split(' ')
+    .map(word => word.charAt(0))
+    .join('')
+    .substring(0, 2)
+    .toUpperCase()
 }
 
-// 取得任務的重要自訂欄位（最多顯示1個）
-function getTaskCustomFieldSummary(task: Task): { field: CustomField; value: unknown } | null {
-  if (!visibleCustomFields.value || !task.customFields) return null
-  
-  // 找到第一個有值的必填欄位或重要欄位
-  const importantField = visibleCustomFields.value.find(field => {
-    const value = getCustomFieldValue(task.customFields, field.fieldId)
-    return field.isRequired && value !== null && value !== undefined && value !== ''
-  })
-  
-  if (importantField) {
-    return {
-      field: importantField,
-      value: getCustomFieldDisplayValue(task.customFields, importantField.fieldId)
-    }
+function formatTaskDuration(task: GanttTask): string {
+  const duration = Math.ceil(
+    (task.ganttEndDate.getTime() - task.ganttStartDate.getTime()) / (24 * 60 * 60 * 1000)
+  )
+  return `${duration} 天 (${formatDate(task.ganttStartDate)} - ${formatDate(task.ganttEndDate)})`
+}
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' })
+}
+
+function isWeekend(dayIndex: number): boolean {
+  const date = new Date(timelineRange.value.start)
+  date.setDate(date.getDate() + dayIndex)
+  const dayOfWeek = date.getDay()
+  return dayOfWeek === 0 || dayOfWeek === 6 // 周日或周六
+}
+
+function getTaskBarStyle(task: GanttTask): Record<string, string> {
+  // 計算任務條的位置和寬度
+  const rangeStart = timelineRange.value.start.getTime()
+  const rangeEnd = timelineRange.value.end.getTime()
+  const totalRange = rangeEnd - rangeStart
+
+  const taskStart = task.ganttStartDate.getTime()
+  const taskEnd = task.ganttEndDate.getTime()
+
+  const leftPercent = ((taskStart - rangeStart) / totalRange) * 100
+  const widthPercent = ((taskEnd - taskStart) / totalRange) * 100
+
+  return {
+    left: `${Math.max(0, leftPercent)}%`,
+    width: `${Math.min(100 - leftPercent, widthPercent)}%`
   }
-  
-  return null
 }
 
-// 取得依賴關係路徑（SVG路徑）
-function getDependencyPath(_dependency: { from: string; to: string }): string {
-  // 簡化實作：直線連接
-  // 實際應該根據任務在甘特圖中的位置計算路徑
-  return `M 0 0 L 100 100`
+function getTaskDependencyLines(task: GanttTask): Array<{ id: string; path: string }> {
+  // 簡化實作：返回依賴線的 SVG 路徑
+  if (!task.ganttDependencies.length) return []
+
+  return task.ganttDependencies.map(depId => ({
+    id: `${depId}-${task.taskId}`,
+    path: `M 10,25 L 50,25` // 簡化的直線
+  }))
 }
 
-// 工具欄功能
-function scrollToToday(): void {
-  // 滾動到今天的位置
-  console.log('Scroll to today')
-}
+// 監聽器
+watch(() => props.tasks, initializeGanttData, { immediate: false })
 
-function zoomIn(): void {
-  // 放大甘特圖
-  ganttWidth.value = Math.min(ganttWidth.value * 1.2, 3000)
-}
+watch(() => ganttSettings.value.timelineScale, updateTimeline)
 
-function zoomOut(): void {
-  // 縮小甘特圖
-  ganttWidth.value = Math.max(ganttWidth.value * 0.8, 800)
-}
-
-// 組件掛載時調整尺寸
+// 初始化
 onMounted(() => {
-  if (ganttContainer.value) {
-    const containerWidth = ganttContainer.value.clientWidth
-    ganttWidth.value = Math.max(containerWidth, 1200)
-    ganttHeight.value = Math.max(props.tasks.length * 40, 400)
-  }
+  initializeGanttData()
 })
 </script>
 
 <style scoped lang="scss">
 .task-gantt-view {
-  background-color: $grey-1;
-  height: 100%;
-  
   .gantt-toolbar {
-    background-color: white;
-    border-bottom: 1px solid $grey-4;
+    border-bottom: 1px solid #e0e0e0;
+    
+    .q-toggle {
+      font-size: 0.875rem;
+    }
   }
-  
+
   .gantt-container {
     overflow: auto;
-    height: calc(100vh - 200px);
-    
-    // 甘特圖任務標籤樣式
-    .gantt-task-label {
+    max-height: calc(100vh - 200px);
+  }
+
+  .gantt-timeline-header {
+    display: flex;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 2;
+    border-bottom: 2px solid #e0e0e0;
+
+    .task-labels-header {
+      width: 300px;
+      min-width: 300px;
+      padding: 1rem;
+      font-weight: bold;
+      background: #f5f5f5;
+      border-right: 1px solid #e0e0e0;
+    }
+
+    .timeline-grid {
       display: flex;
-      align-items: center;
-      padding: 4px 8px;
-      background-color: white;
-      border-bottom: 1px solid $grey-3;
-      cursor: pointer;
-      
-      &:hover {
-        background-color: $grey-1;
-      }
-      
-      &--completed {
-        opacity: 0.7;
-        
-        .task-title {
-          text-decoration: line-through;
-          color: $grey-6;
-        }
-      }
-      
-      &--overdue {
-        border-left: 4px solid $negative;
-      }
-      
-      .expand-btn {
-        min-width: 20px;
-      }
-      
-      .task-title {
-        font-weight: 500;
-      }
-      
-      .custom-field-summary {
-        font-size: 11px;
-        opacity: 0.8;
-        
-        strong {
-          font-weight: 600;
-          color: $grey-8;
+      flex: 1;
+
+      .timeline-label {
+        min-width: 100px;
+        padding: 1rem 0.5rem;
+        text-align: center;
+        border-right: 1px solid #e0e0e0;
+        font-size: 0.875rem;
+        background: #fafafa;
+
+        &.weekend {
+          background: #f0f0f0;
+          color: #999;
         }
       }
     }
-    
-    // 甘特圖任務條樣式
-    .gantt-task-bar {
-      position: relative;
-      height: 100%;
-      border-radius: 4px;
+  }
+
+  .gantt-rows {
+    .gantt-row {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      
+      border-bottom: 1px solid #e0e0e0;
+      min-height: 50px;
+
       &:hover {
-        transform: scale(1.05);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        background: rgba(25, 118, 210, 0.04);
       }
-      
-      &--completed {
-        background-color: #4caf50 !important;
-        opacity: 0.8;
+
+      &.gantt-row--critical {
+        background: rgba(255, 152, 0, 0.1);
       }
-      
-      &--in-progress {
-        background-color: #ff9800 !important;
+
+      &.gantt-row--completed {
+        opacity: 0.7;
       }
-      
-      &--overdue {
-        background-color: #f44336 !important;
-        animation: pulse 2s infinite;
+
+      &.gantt-row--overdue {
+        background: rgba(244, 67, 54, 0.05);
       }
-      
-      &--critical {
-        border: 2px solid #ff5722;
-        box-shadow: 0 0 8px rgba(255, 87, 34, 0.3);
+    }
+
+    .task-label {
+      width: 300px;
+      min-width: 300px;
+      padding: 0.5rem;
+      border-right: 1px solid #e0e0e0;
+      background: white;
+
+      .task-info {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 4px;
+
+        &:hover {
+          background: rgba(0, 0, 0, 0.04);
+        }
+
+        .task-title {
+          flex: 1;
+          font-size: 0.875rem;
+        }
+
+        .expand-btn {
+          min-width: auto;
+          width: 20px;
+          height: 20px;
+        }
       }
-      
-      .progress-overlay {
+
+      .task-details {
+        padding-left: 1rem;
+        margin-top: 0.25rem;
+      }
+    }
+
+    .gantt-timeline {
+      flex: 1;
+      position: relative;
+
+      .timeline-grid {
+        display: flex;
+        height: 100%;
+
+        .timeline-cell {
+          min-width: 100px;
+          border-right: 1px solid #e0e0e0;
+
+          &.weekend {
+            background: #f9f9f9;
+          }
+        }
+      }
+
+      .gantt-bar {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 24px;
+        background: #2196F3;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        padding: 0 0.5rem;
+        color: white;
+        font-size: 0.75rem;
+        overflow: hidden;
+
+        &:hover {
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        &.gantt-bar--completed {
+          background: #4CAF50;
+        }
+
+        &.gantt-bar--in-progress {
+          background: #FF9800;
+        }
+
+        &.gantt-bar--overdue {
+          background: #F44336;
+        }
+
+        &.gantt-bar--critical {
+          background: #E91E63;
+          box-shadow: 0 0 0 2px rgba(233, 30, 99, 0.3);
+        }
+
+        .progress-bar {
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 100%;
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 4px 0 0 4px;
+        }
+
+        .bar-text {
+          position: relative;
+          z-index: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      .dependency-lines {
         position: absolute;
         top: 0;
         left: 0;
-        height: 100%;
-        background-color: rgba(255, 255, 255, 0.3);
-        border-radius: 4px 0 0 4px;
-        border-right: 2px solid rgba(255, 255, 255, 0.8);
-      }
-      
-      .bar-text {
-        color: white;
-        font-size: 12px;
-        font-weight: 500;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 100%;
-        padding: 0 8px;
-      }
-    }
-    
-    // 依賴關係線條樣式
-    .dependency-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      pointer-events: none;
-      z-index: 10;
-      
-      path {
-        opacity: 0.7;
-        
-        &.critical-path {
-          stroke: #ff5722;
-          stroke-width: 3px;
-          opacity: 1;
-        }
+        pointer-events: none;
+        z-index: 1;
       }
     }
   }
-}
 
-// 脈衝動畫
-@keyframes pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
+  .critical-path-info {
+    border-top: 1px solid #e0e0e0;
   }
 }
 </style>

@@ -1,434 +1,323 @@
 <template>
   <div class="task-dashboard-view q-pa-md">
-    <!-- 統計卡片列 -->
-    <div class="row q-gutter-md q-mb-xl">
-      <div class="col-12 col-sm-6 col-md-3">
-        <q-card class="stat-card">
-          <q-card-section class="text-center">
-            <div class="stat-number text-primary">{{ stats.total }}</div>
-            <div class="stat-label">總任務數</div>
-            <q-icon name="task_alt" size="2em" class="stat-icon text-primary" />
-          </q-card-section>
-        </q-card>
-      </div>
-
-      <div class="col-12 col-sm-6 col-md-3">
-        <q-card class="stat-card">
-          <q-card-section class="text-center">
-            <div class="stat-number text-orange">{{ stats.inProgress }}</div>
-            <div class="stat-label">進行中</div>
-            <q-icon name="schedule" size="2em" class="stat-icon text-orange" />
-          </q-card-section>
-        </q-card>
-      </div>
-
-      <div class="col-12 col-sm-6 col-md-3">
-        <q-card class="stat-card">
-          <q-card-section class="text-center">
-            <div class="stat-number text-positive">{{ stats.done }}</div>
-            <div class="stat-label">已完成</div>
-            <q-icon name="check_circle" size="2em" class="stat-icon text-positive" />
-          </q-card-section>
-        </q-card>
-      </div>
-
-      <div class="col-12 col-sm-6 col-md-3">
-        <q-card class="stat-card">
-          <q-card-section class="text-center">
-            <div class="stat-number text-negative">{{ stats.overdue }}</div>
-            <div class="stat-label">已逾期</div>
-            <q-icon name="warning" size="2em" class="stat-icon text-negative" />
-          </q-card-section>
-        </q-card>
-      </div>
+    <!-- 載入狀態 -->
+    <div v-if="isLoading" class="text-center q-py-xl">
+      <q-spinner-dots size="2rem" color="primary" />
+      <div class="text-grey-6 q-mt-md">載入統計資料中...</div>
     </div>
 
-    <!-- 內容區域 -->
-    <div class="row q-gutter-md">
-      <!-- 左欄 -->
-      <div class="col-12 col-md-8">
-        <!-- 最近任務 -->
-        <q-card class="q-mb-md">
-          <q-card-section class="q-pb-none">
-            <div class="text-h6 row items-center">
-              <q-icon name="history" class="q-mr-sm" />
-              最近任務
-            </div>
-          </q-card-section>
-          
-          <q-card-section class="q-pt-none">
-            <div v-if="recentTasks.length === 0" class="text-center text-grey-6 q-pa-md">
-              <q-icon name="inbox" size="3em" />
-              <div class="q-mt-sm">暫無任務</div>
-            </div>
-            
-            <div v-else>
-              <q-list separator>
-                <q-item
-                  v-for="task in recentTasks"
-                  :key="task.taskId"
-                  clickable
-                  @click="$emit('task-click', task)"
-                >
-                  <q-item-section avatar>
-                    <q-checkbox
-                      :model-value="task.statusId === 'done'"
-                      @update:model-value="(val) => toggleTaskStatus(task, val)"
-                      @click.stop
-                    />
-                  </q-item-section>
-                  
-                  <q-item-section>
-                    <q-item-label>{{ task.title }}</q-item-label>
-                    <q-item-label caption>
-                      {{ formatRelativeTime(task.createdAt) }}
-                      <span v-if="task.assigneeId" class="q-ml-sm">
-                        · 指派給 {{ getUserDisplayName(task.assigneeId) }}
-                      </span>
-                    </q-item-label>
-                  </q-item-section>
-                  
-                  <q-item-section side>
-                    <q-badge 
-                      :color="getStatusColor(task.statusId)"
-                      :label="getStatusLabel(task.statusId)"
-                    />
-                  </q-item-section>
-                </q-item>
-              </q-list>
-              
-              <div v-if="tasks.length > 5" class="text-center q-pa-md">
-                <q-btn
-                  flat
-                  color="primary"
-                  label="查看全部"
-                  @click="$router.push(projectId === 'all' ? '/' : `/projects/${projectId}`)"
-                />
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
+    <template v-else>
+      <!-- 統計卡片列 -->
+      <div class="row q-gutter-md q-mb-xl">
+        <div class="col-12 col-sm-6 col-md-3">
+          <q-card class="stat-card">
+            <q-card-section class="text-center">
+              <div class="stat-number text-primary">{{ taskStats.total }}</div>
+              <div class="stat-label">總任務數</div>
+              <q-icon name="task_alt" size="2em" class="stat-icon text-primary" />
+            </q-card-section>
+          </q-card>
+        </div>
 
-        <!-- 進度圖表 -->
-        <q-card>
-          <q-card-section class="q-pb-none">
-            <div class="text-h6 row items-center">
-              <q-icon name="bar_chart" class="q-mr-sm" />
-              任務狀態分佈
-            </div>
-          </q-card-section>
-          
-          <q-card-section>
-            <div class="progress-chart">
-              <div
-                v-for="status in statusDistribution"
-                :key="status.id"
-                class="progress-item q-mb-md"
-              >
-                <div class="row items-center justify-between q-mb-xs">
-                  <span class="text-weight-medium">{{ status.label }}</span>
-                  <span class="text-grey-6">{{ status.count }}</span>
+        <div class="col-12 col-sm-6 col-md-3">
+          <q-card class="stat-card">
+            <q-card-section class="text-center">
+              <div class="stat-number text-orange">{{ taskStats.byStatus.inProgress || 0 }}</div>
+              <div class="stat-label">進行中</div>
+              <q-icon name="schedule" size="2em" class="stat-icon text-orange" />
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+          <q-card class="stat-card">
+            <q-card-section class="text-center">
+              <div class="stat-number text-positive">{{ taskStats.completed }}</div>
+              <div class="stat-label">已完成</div>
+              <q-icon name="check_circle" size="2em" class="stat-icon text-positive" />
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+          <q-card class="stat-card">
+            <q-card-section class="text-center">
+              <div class="stat-number text-negative">{{ taskStats.overdue }}</div>
+              <div class="stat-label">已逾期</div>
+              <q-icon name="warning" size="2em" class="stat-icon text-negative" />
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <!-- 完成率進度條 -->
+      <div class="row q-gutter-md q-mb-xl">
+        <div class="col-12">
+          <q-card class="completion-card">
+            <q-card-section>
+              <div class="row items-center">
+                <div class="col">
+                  <div class="text-h6">整體完成率</div>
+                  <div class="text-subtitle2 text-grey-6">
+                    {{ taskStats.completed }} / {{ taskStats.total }} 個任務已完成
+                  </div>
                 </div>
-                <q-linear-progress
-                  :value="status.percentage"
-                  :color="status.color"
-                  size="12px"
-                  rounded
-                />
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
-
-      <!-- 右欄 -->
-      <div class="col-12 col-md-4">
-        <!-- 我的任務 -->
-        <q-card class="q-mb-md">
-          <q-card-section class="q-pb-none">
-            <div class="text-h6 row items-center">
-              <q-icon name="person" class="q-mr-sm" />
-              我的任務
-            </div>
-          </q-card-section>
-          
-          <q-card-section class="q-pt-none">
-            <div v-if="myTasks.length === 0" class="text-center text-grey-6 q-pa-md">
-              <q-icon name="assignment_ind" size="2em" />
-              <div class="text-caption q-mt-xs">暫無指派任務</div>
-            </div>
-            
-            <q-list v-else separator>
-              <q-item
-                v-for="task in myTasks"
-                :key="task.taskId"
-                clickable
-                @click="$emit('task-click', task)"
-              >
-                <q-item-section>
-                  <q-item-label>{{ task.title }}</q-item-label>
-                  <q-item-label caption>
-                    <q-icon 
-                      v-if="isTaskOverdue(task)"
-                      name="warning"
-                      color="negative"
-                      size="xs"
-                      class="q-mr-xs"
-                    />
-                    {{ getTaskDeadline(task) }}
-                  </q-item-label>
-                </q-item-section>
-                
-                <q-item-section side>
-                  <q-icon 
-                    :name="getPriorityIcon(task.priorityId)"
-                    :color="getPriorityColor(task.priorityId)"
-                    size="sm"
-                  />
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card-section>
-        </q-card>
-
-        <!-- 即將到期 -->
-        <q-card>
-          <q-card-section class="q-pb-none">
-            <div class="text-h6 row items-center">
-              <q-icon name="schedule" class="q-mr-sm" />
-              即將到期
-            </div>
-          </q-card-section>
-          
-          <q-card-section class="q-pt-none">
-            <div v-if="upcomingTasks.length === 0" class="text-center text-grey-6 q-pa-md">
-              <q-icon name="event_available" size="2em" />
-              <div class="text-caption q-mt-xs">暫無即將到期任務</div>
-            </div>
-            
-            <q-list v-else separator>
-              <q-item
-                v-for="task in upcomingTasks"
-                :key="task.taskId"
-                clickable
-                @click="$emit('task-click', task)"
-              >
-                <q-item-section>
-                  <q-item-label>{{ task.title }}</q-item-label>
-                  <q-item-label caption>
-                    {{ formatTaskDeadline(task.endDateTime || null) }}
-                  </q-item-label>
-                </q-item-section>
-                
-                <q-item-section side>
-                  <q-chip
-                    size="sm"
-                    dense
-                    :color="getUrgencyColor(task.endDateTime || null)"
-                    text-color="white"
+                <div class="col-auto">
+                  <q-circular-progress
+                    :value="taskStats.completionRate"
+                    size="80px"
+                    :thickness="0.15"
+                    color="primary"
+                    track-color="grey-3"
+                    class="q-ma-md"
                   >
-                    {{ getDaysUntilDeadline(task.endDateTime || null) }}
-                  </q-chip>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card-section>
-        </q-card>
+                    <div class="text-h6 text-primary">
+                      {{ taskStats.completionRate.toFixed(0) }}%
+                    </div>
+                  </q-circular-progress>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
       </div>
-    </div>
+
+      <!-- 圖表區域 -->
+      <div class="row q-gutter-md q-mb-xl">
+        <!-- 任務狀態分佈 -->
+        <div class="col-12 col-md-6">
+          <q-card class="chart-card">
+            <q-card-section>
+              <TaskStatusChart :statistics="taskStats" height="350px" />
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <!-- 任務優先級分佈 -->
+        <div class="col-12 col-md-6">
+          <q-card class="chart-card">
+            <q-card-section>
+              <TaskPriorityChart :statistics="taskStats" height="350px" />
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <!-- 任務趨勢圖 -->
+      <div class="row q-gutter-md q-mb-xl">
+        <div class="col-12">
+          <q-card class="chart-card">
+            <q-card-section>
+              <TaskTimelineChart :timeline="timelineData" height="300px" />
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <!-- 專案完成率 (如果有多個專案) -->
+      <div v-if="projectStats.total > 1" class="row q-gutter-md q-mb-xl">
+        <div class="col-12">
+          <q-card class="chart-card">
+            <q-card-section>
+              <ProjectCompletionChart :statistics="projectStats" height="400px" />
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <!-- 詳細信息卡片 -->
+      <div class="row q-gutter-md">
+        <!-- 截止日期提醒 -->
+        <div class="col-12 col-md-6">
+          <q-card class="info-card">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="schedule" class="q-mr-sm" />
+                截止日期提醒
+              </div>
+              
+              <div class="reminder-list">
+                <div class="reminder-item q-mb-sm">
+                  <q-badge color="negative" class="q-mr-sm">
+                    {{ taskStats.overdue }}
+                  </q-badge>
+                  <span class="text-negative">已逾期任務</span>
+                </div>
+                
+                <div class="reminder-item q-mb-sm">
+                  <q-badge color="warning" class="q-mr-sm">
+                    {{ taskStats.dueToday }}
+                  </q-badge>
+                  <span class="text-warning">今天到期</span>
+                </div>
+                
+                <div class="reminder-item">
+                  <q-badge color="info" class="q-mr-sm">
+                    {{ taskStats.dueThisWeek }}
+                  </q-badge>
+                  <span class="text-info">本週到期</span>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <!-- 工作負載分析 -->
+        <div class="col-12 col-md-6">
+          <q-card class="info-card">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="bar_chart" class="q-mr-sm" />
+                工作負載分析
+              </div>
+              
+              <div class="workload-info">
+                <div class="workload-item">
+                  <div class="text-caption text-grey-6">緊急任務</div>
+                  <div class="text-h6 text-red">{{ taskStats.byPriority.urgent || 0 }}</div>
+                </div>
+                
+                <div class="workload-item">
+                  <div class="text-caption text-grey-6">高優先級</div>
+                  <div class="text-h6 text-orange">{{ taskStats.byPriority.high || 0 }}</div>
+                </div>
+                
+                <div class="workload-item">
+                  <div class="text-caption text-grey-6">中優先級</div>
+                  <div class="text-h6 text-yellow-8">{{ taskStats.byPriority.medium || 0 }}</div>
+                </div>
+                
+                <div class="workload-item">
+                  <div class="text-caption text-grey-6">低優先級</div>
+                  <div class="text-h6 text-green">{{ taskStats.byPriority.low || 0 }}</div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <!-- 刷新按鈕 -->
+      <div class="text-center q-mt-xl">
+        <q-btn
+          flat
+          round
+          icon="refresh"
+          @click="refreshData"
+          :loading="isRefreshing"
+        >
+          <q-tooltip>刷新統計資料</q-tooltip>
+        </q-btn>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Task, View } from '@/types'
-import { DEFAULT_STATUSES, DEFAULT_PRIORITIES } from '@/types'
-import { useCurrentUser } from '@/composables/useCurrentUser'
+import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
+import TaskStatusChart from '@/components/charts/TaskStatusChart.vue'
+import TaskPriorityChart from '@/components/charts/TaskPriorityChart.vue'
+import TaskTimelineChart from '@/components/charts/TaskTimelineChart.vue'
+import ProjectCompletionChart from '@/components/charts/ProjectCompletionChart.vue'
+import { statisticsService } from '@/services/statisticsService'
+import type { TaskStatistics, ProjectStatistics, TimelineData } from '@/services/statisticsService'
 
-// Props
-const props = defineProps<{
-  view: View
-  tasks: Task[]
-  projectId: string
-}>()
+interface Props {
+  projectId?: string
+}
 
-// Emits (moved below)
-
-const { userId: currentUserId, getUserDisplayName } = useCurrentUser()
-
-// 統計數據
-const stats = computed(() => {
-  const tasks = props.tasks
-  return {
-    total: tasks.length,
-    todo: tasks.filter(t => t.statusId === 'todo').length,
-    inProgress: tasks.filter(t => t.statusId === 'inProgress').length,
-    done: tasks.filter(t => t.statusId === 'done').length,
-    overdue: tasks.filter(t => isTaskOverdue(t)).length
-  }
+const props = withDefaults(defineProps<Props>(), {
+  projectId: 'all'
 })
 
-// 狀態分佈
-const statusDistribution = computed(() => {
-  const total = props.tasks.length
-  if (total === 0) return []
+const $q = useQuasar()
 
-  return DEFAULT_STATUSES.map(status => {
-    const count = props.tasks.filter(t => t.statusId === status.id).length
-    return {
-      id: status.id,
-      label: status.label,
-      count,
-      percentage: count / total,
-      color: status.color
-    }
-  })
+// 狀態
+const isLoading = ref(true)
+const isRefreshing = ref(false)
+const taskStats = ref<TaskStatistics>({
+  total: 0,
+  byStatus: { todo: 0, 'in-progress': 0, done: 0, archived: 0 },
+  byPriority: { low: 0, medium: 0, high: 0, urgent: 0 },
+  overdue: 0,
+  dueToday: 0,
+  dueThisWeek: 0,
+  completed: 0,
+  completionRate: 0
 })
 
-// 最近任務（最多 5 個）
-const recentTasks = computed(() => {
-  return props.tasks
-    .slice()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
+const projectStats = ref<ProjectStatistics>({
+  total: 0,
+  active: 0,
+  archived: 0,
+  tasksPerProject: [],
+  completionRates: []
 })
 
-// 我的任務
-const myTasks = computed(() => {
-  return props.tasks
-    .filter(task => task.assigneeId === currentUserId.value && task.statusId !== 'done')
-    .slice(0, 5)
-})
+const timelineData = ref<TimelineData[]>([])
 
-// 即將到期的任務
-const upcomingTasks = computed(() => {
-  const now = new Date()
-  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-  
-  return props.tasks
-    .filter(task => {
-      if (!task.endDateTime || task.statusId === 'done') return false
-      const endDate = new Date(task.endDateTime)
-      return endDate >= now && endDate <= nextWeek
+// 方法
+async function loadStatistics(): Promise<void> {
+  try {
+    const [taskStatsData, projectStatsData, timelineStats] = await Promise.all([
+      statisticsService.getTaskStatistics(props.projectId),
+      statisticsService.getProjectStatistics(),
+      statisticsService.getTimelineData(props.projectId)
+    ])
+
+    taskStats.value = taskStatsData
+    projectStats.value = projectStatsData
+    timelineData.value = timelineStats
+  } catch (error) {
+    console.error('Failed to load statistics:', error)
+    $q.notify({
+      type: 'negative',
+      message: '載入統計資料失敗',
+      position: 'top'
     })
-    .sort((a, b) => new Date(a.endDateTime!).getTime() - new Date(b.endDateTime!).getTime())
-    .slice(0, 5)
+  }
+}
+
+async function refreshData(): Promise<void> {
+  isRefreshing.value = true
+  try {
+    await loadStatistics()
+    $q.notify({
+      type: 'positive',
+      message: '統計資料已更新',
+      position: 'top'
+    })
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+// 初始化
+onMounted(async () => {
+  await loadStatistics()
+  isLoading.value = false
 })
 
-// 輔助函數
-function isTaskOverdue(task: Task): boolean {
-  if (!task.endDateTime || task.statusId === 'done') return false
-  return new Date(task.endDateTime) < new Date()
-}
-
-function getStatusLabel(statusId: string): string {
-  return DEFAULT_STATUSES.find(s => s.id === statusId)?.label || statusId
-}
-
-function getStatusColor(statusId: string): string {
-  return DEFAULT_STATUSES.find(s => s.id === statusId)?.color || 'grey'
-}
-
-function getPriorityIcon(priorityId: string): string {
-  return DEFAULT_PRIORITIES.find(p => p.id === priorityId)?.icon || 'remove'
-}
-
-function getPriorityColor(priorityId: string): string {
-  return DEFAULT_PRIORITIES.find(p => p.id === priorityId)?.color || 'grey'
-}
-
-function getTaskDeadline(task: Task): string {
-  if (!task.endDateTime) return '無截止時間'
-  return formatTaskDeadline(task.endDateTime)
-}
-
-function formatTaskDeadline(endDateTime: Date | string | null): string {
-  if (!endDateTime) return ''
-  const date = typeof endDateTime === 'string' ? new Date(endDateTime) : endDateTime
-  const now = new Date()
-  const diffTime = date.getTime() - now.getTime()
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    return '今天到期'
-  } else if (diffDays === 1) {
-    return '明天到期'
-  } else if (diffDays === -1) {
-    return '昨天到期'
-  } else if (diffDays > 0) {
-    return `${diffDays} 天後到期`
-  } else {
-    return `逾期 ${Math.abs(diffDays)} 天`
-  }
-}
-
-function getDaysUntilDeadline(endDateTime: Date | string | null): string {
-  if (!endDateTime) return ''
-  const date = typeof endDateTime === 'string' ? new Date(endDateTime) : endDateTime
-  const now = new Date()
-  const diffTime = date.getTime() - now.getTime()
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    return '今天'
-  } else if (diffDays === 1) {
-    return '1天'
-  } else if (diffDays > 1) {
-    return `${diffDays}天`
-  } else {
-    return '逾期'
-  }
-}
-
-function getUrgencyColor(endDateTime: Date | string | null): string {
-  if (!endDateTime) return 'grey'
-  const date = typeof endDateTime === 'string' ? new Date(endDateTime) : endDateTime
-  const now = new Date()
-  const diffTime = date.getTime() - now.getTime()
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays < 0) return 'negative'
-  if (diffDays <= 1) return 'orange'
-  if (diffDays <= 3) return 'warning'
-  return 'positive'
-}
-
-function formatRelativeTime(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date
-  const now = new Date()
-  const diffTime = now.getTime() - d.getTime()
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) {
-    const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
-    if (diffHours === 0) {
-      const diffMinutes = Math.floor(diffTime / (1000 * 60))
-      return `${diffMinutes} 分鐘前`
-    }
-    return `${diffHours} 小時前`
-  } else if (diffDays === 1) {
-    return '昨天'
-  } else if (diffDays < 7) {
-    return `${diffDays} 天前`
-  } else {
-    return d.toLocaleDateString('zh-TW')
-  }
-}
-
-const emit = defineEmits<{
-  'task-click': [task: Task]
-  'task-update': [taskId: string, updates: Partial<Task>]
-}>()
-
-function toggleTaskStatus(task: Task, completed: boolean): void {
-  const newStatus = completed ? 'done' : 'todo'
-  emit('task-update', task.taskId, { statusId: newStatus })
-}
+// 監聽 projectId 變化
+import { watch } from 'vue'
+watch(() => props.projectId, async () => {
+  isLoading.value = true
+  await loadStatistics()
+  isLoading.value = false
+})
 </script>
 
 <style scoped lang="scss">
 .task-dashboard-view {
+  max-width: 1400px;
+  margin: 0 auto;
+  
   .stat-card {
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+    
     .stat-number {
       font-size: 2.5rem;
       font-weight: bold;
@@ -437,27 +326,71 @@ function toggleTaskStatus(task: Task, completed: boolean): void {
     
     .stat-label {
       font-size: 0.875rem;
-      color: $grey-6;
-      margin-top: 4px;
+      color: #666;
+      margin-top: 0.25rem;
     }
     
     .stat-icon {
       position: absolute;
-      top: 16px;
-      right: 16px;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
       opacity: 0.1;
     }
-    
+  }
+
+  .completion-card {
     .q-card__section {
-      position: relative;
+      padding: 1.5rem;
     }
   }
-  
-  .progress-chart {
-    .progress-item {
-      &:last-child {
-        margin-bottom: 0;
+
+  .chart-card {
+    .q-card__section {
+      padding: 1rem;
+    }
+  }
+
+  .info-card {
+    .reminder-list {
+      .reminder-item {
+        display: flex;
+        align-items: center;
+        padding: 0.25rem 0;
       }
+    }
+
+    .workload-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      
+      .workload-item {
+        text-align: center;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        background: rgba(0, 0, 0, 0.02);
+      }
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .task-dashboard-view {
+    .stat-card {
+      height: 100px;
+      
+      .stat-number {
+        font-size: 2rem;
+      }
+      
+      .stat-icon {
+        font-size: 1.5rem;
+      }
+    }
+
+    .workload-info {
+      grid-template-columns: 1fr !important;
     }
   }
 }
