@@ -133,76 +133,87 @@
       <q-separator />
 
       <!-- 視圖工具列 -->
-      <div class="row items-center justify-between compact-toolbar bg-grey-1">
-        <div class="row items-center q-gutter-xs">
-          <!-- 搜尋 -->
-          <q-input
-            v-model="searchQuery"
-            placeholder="搜尋任務..."
-            dense
-            style="min-width: 180px"
-            class="compact-input"
-            debounce="300"
-          >
-            <template v-slot:prepend>
-              <q-icon name="search" size="sm" />
-            </template>
-            <template v-slot:append>
-              <q-icon
-                v-if="searchQuery"
-                name="clear"
-                size="sm"
-                class="cursor-pointer"
-                @click="searchQuery = ''"
-              />
-            </template>
-          </q-input>
-
-          <!-- 篩選按鈕 -->
-          <q-btn
-            dense
-            flat
-            icon="filter_list"
-            label="篩選"
-            size="sm"
-            :color="hasActiveFilters ? 'primary' : 'grey'"
-            @click="showFilterDialog = true"
-            class="compact-btn"
-          >
-            <q-badge
-              v-if="activeFiltersCount > 0"
-              color="primary"
-              :label="activeFiltersCount"
-              rounded
-              floating
-            />
-          </q-btn>
-
-          <!-- 排序按鈕 -->
-          <q-btn
-            dense
-            flat
-            icon="sort"
-            label="排序"
-            size="sm"
-            :color="hasActiveSorts ? 'primary' : 'grey'"
-            @click="showSortDialog = true"
-            class="compact-btn"
+      <ViewToolbar
+        :search="searchQuery"
+        :has-active-filters="hasActiveFilters"
+        :active-filters-count="activeFiltersCount"
+        :has-active-sorts="hasActiveSorts"
+        @search="handleSearch"
+        @show-filter="showFilterDialog = true"
+        @show-sort="showSortDialog = true"
+        @add-task="showCreateTaskDialog = true"
+      >
+        <!-- 視圖專屬工具 -->
+        <template #left-tools>
+          <!-- 甘特圖專屬工具 -->
+          <GanttToolbar
+            v-if="isGanttView"
+            :timeline-scale="ganttSettings.timelineScale"
+            :show-weekends="ganttSettings.showWeekends"
+            :show-dependencies="ganttSettings.showDependencies"
+            :show-progress="ganttSettings.showProgress"
+            :timeline-drag-enabled="ganttSettings.timelineDragEnabled"
+            @expand-all="handleGanttExpandAll"
+            @collapse-all="handleGanttCollapseAll"
+            @zoom-in="handleGanttZoomIn"
+            @zoom-out="handleGanttZoomOut"
+            @fit-to-screen="handleGanttFitToScreen"
+            @update:timeline-scale="ganttSettings.timelineScale = $event"
+            @update:show-weekends="ganttSettings.showWeekends = $event"
+            @update:show-dependencies="ganttSettings.showDependencies = $event"
+            @update:show-progress="ganttSettings.showProgress = $event"
+            @update:timeline-drag-enabled="ganttSettings.timelineDragEnabled = $event"
           />
-        </div>
 
-        <!-- 右側操作 -->
-        <div class="row items-center q-gutter-xs">
-          <q-btn
-            color="primary"
-            icon="add"
-            label="新增任務"
-            size="sm"
-            @click="showCreateTaskDialog = true"
-            class="compact-btn"
+          <!-- 專案排序工具 -->
+          <ProjectSortToolbar
+            v-if="shouldShowProjectSort"
+            :show-project-sort="true"
+            :is-grouped-by-project="isGroupedByProject"
+            :project-sort-by="projectSortBy"
+            @toggle-project-grouping="handleToggleProjectGrouping"
+            @set-project-sort="handleSetProjectSort"
           />
-        </div>
-      </div>
+
+          <!-- 看板專屬工具 -->
+          <BoardToolbar
+            v-if="isBoardView"
+            :show-assignee="boardSettings.showAssignee"
+            :show-due-date="boardSettings.showDueDate"
+            :show-tags="boardSettings.showTags"
+            :show-description="boardSettings.showDescription"
+            :card-size="boardSettings.cardSize"
+            @show-board-settings="handleShowBoardSettings"
+            @update:show-assignee="boardSettings.showAssignee = $event"
+            @update:show-due-date="boardSettings.showDueDate = $event"
+            @update:show-tags="boardSettings.showTags = $event"
+            @update:show-description="boardSettings.showDescription = $event"
+            @update:card-size="boardSettings.cardSize = $event"
+            @refresh="handleBoardRefresh"
+            @toggle-fullscreen="handleBoardToggleFullscreen"
+          />
+
+          <!-- 儀表板專屬工具 -->
+          <DashboardToolbar
+            v-if="isDashboardView"
+            :time-range="dashboardSettings.timeRange"
+            :show-status-chart="dashboardSettings.showStatusChart"
+            :show-priority-chart="dashboardSettings.showPriorityChart"
+            :show-timeline-chart="dashboardSettings.showTimelineChart"
+            :show-completion-chart="dashboardSettings.showCompletionChart"
+            :view-mode="dashboardSettings.viewMode"
+            @update:time-range="dashboardSettings.timeRange = $event"
+            @update:show-status-chart="dashboardSettings.showStatusChart = $event"
+            @update:show-priority-chart="dashboardSettings.showPriorityChart = $event"
+            @update:show-timeline-chart="dashboardSettings.showTimelineChart = $event"
+            @update:show-completion-chart="dashboardSettings.showCompletionChart = $event"
+            @update:view-mode="dashboardSettings.viewMode = $event"
+            @refresh="handleDashboardRefresh"
+            @export="handleDashboardExport"
+            @show-settings="handleShowDashboardSettings"
+          />
+        </template>
+      </ViewToolbar>
 
       <!-- 視圖內容區 -->
       <q-tab-panels
@@ -217,7 +228,20 @@
           class="view-panel q-pa-none"
         >
           <!-- 根據視圖類型顯示不同元件 -->
+          <TaskGanttView
+            v-if="view.type === 'gantt'"
+            :ref="(el) => setGanttViewRef(el, view.viewId)"
+            :view="view"
+            :tasks="filteredTasks"
+            :project-id="projectId"
+            @task-click="handleTaskClick"
+            @task-update="handleTaskUpdate"
+            @task-create="handleTaskCreate"
+            @task-delete="handleTaskDelete"
+            @gantt-settings-changed="handleGanttSettingsChanged"
+          />
           <component
+            v-else
             :is="getViewComponent(view.type)"
             :view="view"
             :tasks="filteredTasks"
@@ -365,6 +389,11 @@ const CreateViewDialog = defineAsyncComponent(() => import('@/components/view/Cr
 const EditViewDialog = defineAsyncComponent(() => import('@/components/view/EditViewDialog.vue'))
 const FilterDialog = defineAsyncComponent(() => import('@/components/common/FilterDialog.vue'))
 const SortDialog = defineAsyncComponent(() => import('@/components/common/SortDialog.vue'))
+const ViewToolbar = defineAsyncComponent(() => import('@/components/common/ViewToolbar.vue'))
+const GanttToolbar = defineAsyncComponent(() => import('@/components/views/GanttToolbar.vue'))
+const ProjectSortToolbar = defineAsyncComponent(() => import('@/components/views/ProjectSortToolbar.vue'))
+const BoardToolbar = defineAsyncComponent(() => import('@/components/views/BoardToolbar.vue'))
+const DashboardToolbar = defineAsyncComponent(() => import('@/components/views/DashboardToolbar.vue'))
 
 // Props
 const props = defineProps<{
@@ -405,8 +434,55 @@ const menuVisible = ref(false)
 const menuTarget = ref<HTMLElement | null>(null)
 const selectedViewForMenu = ref<View | null>(null)
 
+// 甘特圖工具列狀態
+const ganttSettings = ref({
+  timelineScale: 'day',
+  showWeekends: false,
+  showDependencies: true,
+  showProgress: true,
+  timelineDragEnabled: false
+})
+
+// 甘特圖視圖引用
+const ganttViewRefs = ref<Map<string, InstanceType<typeof TaskGanttView> | null>>(new Map())
+
+// 專案排序狀態
+const isGroupedByProject = ref(false)
+const projectSortBy = ref<string>('name')
+
+// 看板工具列狀態
+const boardSettings = ref({
+  showAssignee: true,
+  showDueDate: true,
+  showTags: true,
+  showDescription: true,
+  cardSize: 'medium' as 'small' | 'medium' | 'large'
+})
+
+// 儀表板工具列狀態
+const dashboardSettings = ref({
+  timeRange: 'month',
+  showStatusChart: true,
+  showPriorityChart: true,
+  showTimelineChart: false,
+  showCompletionChart: true,
+  viewMode: 'grid' as 'grid' | 'list'
+})
+
 // 判斷是否為 AllTasks 模式
 const isAllTasksView = computed(() => props.projectId === 'all')
+
+// 判斷當前視圖類型
+const isGanttView = computed(() => viewStore.currentView?.type === 'gantt')
+const isBoardView = computed(() => viewStore.currentView?.type === 'board')
+const isDashboardView = computed(() => viewStore.currentView?.type === 'dashboard')
+const isListOrTableView = computed(() => {
+  const viewType = viewStore.currentView?.type
+  return viewType === 'list' || viewType === 'table'
+})
+const shouldShowProjectSort = computed(() => 
+  isAllTasksView.value && isListOrTableView.value
+)
 
 // 計算屬性
 const currentFilters = computed(() => taskStore.currentFilters)
@@ -540,7 +616,20 @@ function goToSettings(): void {
 
 // 設定標籤選單 ref
 function setTabMenuRef(viewId: string, el: HTMLElement | null): void {
-  if (el) tabMenuRefs.value[viewId] = el.$el
+  if (el && 'el' in el) {
+    tabMenuRefs.value[viewId] = (el as any).$el
+  } else {
+    tabMenuRefs.value[viewId] = el
+  }
+}
+
+// 設定甘特圖視圖 ref
+function setGanttViewRef(el: InstanceType<typeof TaskGanttView> | null, viewId: string): void {
+  if (el) {
+    ganttViewRefs.value.set(viewId, el)
+  } else {
+    ganttViewRefs.value.delete(viewId)
+  }
 }
 
 // Tab 點擊事件處理
@@ -727,6 +816,128 @@ function handleSortsUpdated(sorts: SortConfig[]): void {
   taskStore.setSorts(sorts)
 }
 
+// 處理搜尋更新
+function handleSearch(query: string): void {
+  searchQuery.value = query
+}
+
+// 取得當前甘特圖視圖實例
+function getCurrentGanttView(): InstanceType<typeof TaskGanttView> | null {
+  const currentViewId = viewStore.currentViewId
+  if (currentViewId && viewStore.currentView?.type === 'gantt') {
+    return ganttViewRefs.value.get(currentViewId) || null
+  }
+  return null
+}
+
+// 甘特圖工具列事件處理
+function handleGanttExpandAll(): void {
+  getCurrentGanttView()?.expandAll()
+}
+
+function handleGanttCollapseAll(): void {
+  getCurrentGanttView()?.collapseAll()
+}
+
+function handleGanttZoomIn(): void {
+  getCurrentGanttView()?.zoomIn()
+}
+
+function handleGanttZoomOut(): void {
+  getCurrentGanttView()?.zoomOut()
+}
+
+function handleGanttFitToScreen(): void {
+  getCurrentGanttView()?.fitToScreen()
+}
+
+// 處理甘特圖設定變更
+function handleGanttSettingsChanged(settings: typeof ganttSettings.value): void {
+  ganttSettings.value = { ...settings }
+}
+
+// 專案排序工具事件處理
+function handleToggleProjectGrouping(): void {
+  isGroupedByProject.value = !isGroupedByProject.value
+  // 通知視圖組件更新分組狀態
+  if (isGroupedByProject.value) {
+    // 啟用專案分組
+    taskStore.setGroupBy('projectId')
+  } else {
+    // 取消分組
+    taskStore.setGroupBy(null)
+  }
+}
+
+function handleSetProjectSort(sortBy: string): void {
+  projectSortBy.value = sortBy
+  // 可以在這裡添加通知視圖組件更新排序的邏輯
+}
+
+// 看板工具列事件處理
+function handleShowBoardSettings(): void {
+  $q.dialog({
+    title: '看板設定',
+    message: '看板設定功能即將推出',
+    persistent: false
+  })
+}
+
+function handleBoardRefresh(): void {
+  // 重新載入看板資料
+  $q.notify({
+    type: 'positive',
+    message: '看板已重新整理',
+    position: 'top'
+  })
+}
+
+function handleBoardToggleFullscreen(): void {
+  // 切換全螢幕模式
+  const element = document.documentElement
+  if (document.fullscreenElement) {
+    void document.exitFullscreen()
+  } else {
+    void element.requestFullscreen()
+  }
+}
+
+// 儀表板工具列事件處理
+function handleDashboardRefresh(): void {
+  // 重新載入儀表板資料
+  $q.notify({
+    type: 'positive',
+    message: '儀表板資料已重新載入',
+    position: 'top'
+  })
+}
+
+function handleDashboardExport(format: 'pdf' | 'excel' | 'image'): void {
+  // 處理導出功能
+  $q.notify({
+    type: 'info',
+    message: `正在導出 ${format.toUpperCase()} 格式的報表...`,
+    position: 'top'
+  })
+  
+  // 這裡可以添加實際的導出邏輯
+  setTimeout(() => {
+    $q.notify({
+      type: 'positive',
+      message: `${format.toUpperCase()} 報表導出完成`,
+      position: 'top'
+    })
+  }, 2000)
+}
+
+function handleShowDashboardSettings(): void {
+  $q.dialog({
+    title: '儀表板設定',
+    message: '儀表板設定功能即將推出',
+    persistent: false
+  })
+}
+
 // 監聽視圖變更
 watch(() => viewStore.currentView, (newView) => {
   if (newView) {
@@ -806,34 +1017,7 @@ onMounted(async () => {
   }
 }
 
-// 緊湊工具列
-.compact-toolbar {
-  min-height: 40px;
-  padding: 0 8px;
-}
-
-// 緊湊輸入框
-.compact-input :deep(.q-field__control) {
-  min-height: 28px;
-  max-height: 28px;
-}
-
-.compact-input :deep(.q-field__native) {
-  min-height: 28px;
-  max-height: 28px;
-}
-
-.compact-input :deep(.q-field__marginal) {
-  min-height: 28px;
-  max-height: 28px;
-}
-
-// 緊湊按鈕
-.compact-btn {
-  min-height: 30px;
-  padding: 4px 8px;
-  font-size: 0.875rem;
-}
+// 工具列樣式已移至 ViewToolbar 組件
 
 .q-tab-panel {
   padding: 0;

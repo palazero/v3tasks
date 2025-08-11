@@ -1,131 +1,5 @@
 <template>
   <div class="gantt-wrapper">
-    <!-- 甘特圖工具欄 -->
-    <div class="gantt-toolbar">
-      <div class="toolbar-section">
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="add"
-          label="新增任務"
-          color="primary"
-          @click="addNewTask"
-        >
-          <q-tooltip>新增任務</q-tooltip>
-        </q-btn>
-      </div>
-
-      <div class="toolbar-section">
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="unfold_more"
-          label="全部展開"
-          color="blue-grey"
-          @click="expandAll"
-        >
-          <q-tooltip>展開所有任務</q-tooltip>
-        </q-btn>
-
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="unfold_less"
-          label="全部縮合"
-          color="blue-grey"
-          @click="collapseAll"
-        >
-          <q-tooltip>縮合所有任務</q-tooltip>
-        </q-btn>
-      </div>
-
-      <div class="toolbar-section">
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="zoom_in"
-          @click="zoomIn"
-        >
-          <q-tooltip>放大</q-tooltip>
-        </q-btn>
-
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="zoom_out"
-          @click="zoomOut"
-        >
-          <q-tooltip>縮小</q-tooltip>
-        </q-btn>
-
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="fit_screen"
-          @click="fitToScreen"
-        >
-          <q-tooltip>適合螢幕</q-tooltip>
-        </q-btn>
-        
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="help_outline"
-          color="grey-6"
-        >
-          <q-tooltip class="text-no-wrap">
-            時間軸拖拉：開啟後可直接拖拉時間軸<br/>
-            滾輪縮放：Ctrl + 滾輪進行縮放
-          </q-tooltip>
-        </q-btn>
-      </div>
-
-      <div class="toolbar-section">
-        <q-select
-          v-model="ganttSettings.timelineScale"
-          :options="timelineScaleOptions"
-          emit-value
-          map-options
-          dense
-          outlined
-          style="min-width: 80px"
-        />
-      </div>
-
-      <div class="toolbar-section">
-        <q-toggle
-          v-model="ganttSettings.showWeekends"
-          label="顯示週末"
-          size="sm"
-        />
-        
-        <q-toggle
-          v-model="ganttSettings.showDependencies"
-          label="依賴關係"
-          size="sm"
-        />
-        
-        <q-toggle
-          v-model="ganttSettings.showProgress"
-          label="進度條"
-          size="sm"
-        />
-        
-        <q-toggle
-          v-model="timelineDragEnabled"
-          label="時間軸拖拉"
-          size="sm"
-        />
-      </div>
-    </div>
-
     <!-- 甘特圖容器 -->
     <div ref="ganttContainer" class="gantt-container"></div>
   </div>
@@ -145,6 +19,13 @@ import type { Project, User } from '@/types'
 interface Props {
   tasks: Task[]
   projectId?: string
+  
+  // 工具列事件
+  expandAll?: boolean
+  collapseAll?: boolean
+  zoomIn?: boolean
+  zoomOut?: boolean
+  fitToScreen?: boolean
 }
 
 const props = defineProps<Props>()
@@ -155,6 +36,15 @@ const emit = defineEmits<{
   'task-update': [taskId: string, updates: Partial<Task>]
   'task-create': [taskData: Partial<Task>]
   'task-delete': [taskId: string]
+  
+  // 甘特圖設定變更事件
+  'gantt-settings-changed': [settings: {
+    timelineScale: string
+    showWeekends: boolean
+    showDependencies: boolean
+    showProgress: boolean
+    timelineDragEnabled: boolean
+  }]
 }>()
 
 const $q = useQuasar()
@@ -254,6 +144,9 @@ function initializeGantt(): void {
 
   // 載入初始資料
   void loadGanttData()
+
+  // 新增今日標記線
+  addTodayMarker()
 }
 
 // 設定事件處理器
@@ -434,6 +327,27 @@ async function loadGanttData(): Promise<void> {
   // 清空並載入新資料
   gantt.clearAll()
   gantt.parse(dhtmlxData)
+  
+  // 載入資料後重新新增今日標記線
+  addTodayMarker()
+}
+
+// 新增今日標記線
+function addTodayMarker(): void {
+  if (!ganttInstance.value) return
+
+  // 清除現有的今日標記
+  gantt.deleteMarker('today')
+  
+  // 新增今日標記線
+  const today = new Date()
+  gantt.addMarker({
+    id: 'today',
+    start_date: today,
+    css: 'today-marker',
+    text: '今日',
+    title: `今日: ${gantt.date.date_to_str('%Y年%m月%d日')(today)}`
+  })
 }
 
 // 更新時間軸
@@ -442,6 +356,9 @@ function updateTimeline(): void {
   
   gantt.config.scales = getTimelineScales(ganttSettings.value.timelineScale)
   gantt.render()
+  
+  // 重新新增今日標記線
+  addTodayMarker()
 }
 
 // 工具欄功能
@@ -683,17 +600,17 @@ watch(() => props.tasks, () => {
   }
 }, { deep: true })
 
-watch(() => ganttSettings.value.timelineScale, updateTimeline)
+watch(() => ganttSettings.value?.timelineScale, updateTimeline)
 
-watch(() => ganttSettings.value.showProgress, (showProgress) => {
-  if (ganttInstance.value) {
+watch(() => ganttSettings.value?.showProgress, (showProgress) => {
+  if (ganttInstance.value && showProgress !== undefined) {
     gantt.config.drag_progress = showProgress
     gantt.render()
   }
 })
 
-watch(() => ganttSettings.value.showDependencies, (showDeps) => {
-  if (ganttInstance.value) {
+watch(() => ganttSettings.value?.showDependencies, (showDeps) => {
+  if (ganttInstance.value && showDeps !== undefined) {
     gantt.config.drag_links = showDeps
     gantt.render()
   }
@@ -704,9 +621,62 @@ watch(timelineDragEnabled, (enabled) => {
     gantt.config.drag_timeline = enabled ? {
       useKey: false,
       ignore: '.gantt_task_line, .gantt_task_link'
-    } : false
+    } : null
     gantt.render()
   }
+})
+
+// 監聽工具列操作 props
+watch(() => props.expandAll, (value) => {
+  if (value) expandAll()
+})
+
+watch(() => props.collapseAll, (value) => {
+  if (value) collapseAll()
+})
+
+watch(() => props.zoomIn, (value) => {
+  if (value) zoomIn()
+})
+
+watch(() => props.zoomOut, (value) => {
+  if (value) zoomOut()
+})
+
+watch(() => props.fitToScreen, (value) => {
+  if (value) fitToScreen()
+})
+
+// 監聽設定變更並發出事件
+watch([
+  () => ganttSettings.value?.timelineScale,
+  () => ganttSettings.value?.showWeekends,
+  () => ganttSettings.value?.showDependencies,
+  () => ganttSettings.value?.showProgress,
+  timelineDragEnabled
+], () => {
+  if (ganttSettings.value) {
+    emit('gantt-settings-changed', {
+      timelineScale: ganttSettings.value.timelineScale,
+      showWeekends: ganttSettings.value.showWeekends,
+      showDependencies: ganttSettings.value.showDependencies,
+      showProgress: ganttSettings.value.showProgress,
+      timelineDragEnabled: timelineDragEnabled.value
+    })
+  }
+}, { deep: true })
+
+// 暴露給父組件的方法和資料
+defineExpose({
+  expandAll,
+  collapseAll,
+  zoomIn,
+  zoomOut,
+  fitToScreen,
+  addNewTask,
+  ganttSettings,
+  timelineDragEnabled,
+  timelineScaleOptions
 })
 
 // 生命週期
@@ -818,6 +788,38 @@ onBeforeUnmount(() => {
   }
 }
 
+/* 今日標記線樣式 */
+:deep(.today-marker) {
+  background-color: rgba(255, 82, 82, 0.8) !important;
+  border-left: 2px solid #ff5252 !important;
+  position: relative;
+  z-index: 10 !important;
+}
+
+:deep(.today-marker .gantt_marker_content) {
+  background: #ff5252 !important;
+  color: white !important;
+  padding: 2px 8px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  position: absolute !important;
+  top: -20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 今日標記線的垂直線 */
+:deep(.gantt_marker_area .today-marker) {
+  width: 2px !important;
+  background: linear-gradient(to bottom, 
+    rgba(255, 82, 82, 0.9) 0%, 
+    rgba(255, 82, 82, 0.3) 100%) !important;
+  border-radius: 1px !important;
+}
+
 /* 響應式調整 */
 @media (max-width: 768px) {
   .gantt-toolbar {
@@ -836,6 +838,12 @@ onBeforeUnmount(() => {
   
   :deep(.gantt_grid) {
     width: 200px !important;
+  }
+  
+  /* 在小螢幕上簡化今日標記 */
+  :deep(.today-marker .gantt_marker_content) {
+    font-size: 10px !important;
+    padding: 1px 4px !important;
   }
 }
 </style>
