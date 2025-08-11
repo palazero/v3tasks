@@ -71,9 +71,9 @@
                   <div v-if="props.projectId === 'all'" class="task-project">
                     <q-chip
                       size="xs"
-                      color="blue-grey-2"
-                      text-color="blue-grey-8"
-                      icon="folder"
+                      :color="getProjectIconColor(task.projectId) + '-2'"
+                      :text-color="getProjectIconColor(task.projectId) + '-8'"
+                      :icon="getProjectIcon(task.projectId)"
                     >
                       {{ getProjectName(task.projectId) }}
                     </q-chip>
@@ -283,9 +283,29 @@ function getProjectName(projectId: string): string {
   }
   
   // 如果不在快取中，非同步載入專案資訊
-  loadProject(projectId)
+  void loadProject(projectId)
   
   return '載入中...'
+}
+
+function getProjectIcon(projectId: string): string {
+  // 檢查快取
+  if (projectsCache.value.has(projectId)) {
+    const project = projectsCache.value.get(projectId)!
+    return project.icon || 'folder'
+  }
+  
+  return 'folder'
+}
+
+function getProjectIconColor(projectId: string): string {
+  // 檢查快取
+  if (projectsCache.value.has(projectId)) {
+    const project = projectsCache.value.get(projectId)!
+    return project.iconColor || 'blue-grey'
+  }
+  
+  return 'blue-grey'
 }
 
 async function loadProject(projectId: string): Promise<void> {
@@ -500,7 +520,7 @@ function preloadProjects(): void {
   
   projectIds.forEach(projectId => {
     if (!projectsCache.value.has(projectId)) {
-      loadProject(projectId)
+      void loadProject(projectId)
     }
   })
 }

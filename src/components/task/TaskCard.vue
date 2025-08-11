@@ -56,9 +56,13 @@
 
             <!-- 專案名稱 -->
             <div v-if="showProject" class="task-project">
-              <q-icon name="folder" size="xs" color="grey-6" />
-              <span class="text-caption text-grey-6 q-ml-xs">
-                {{ task.projectId }}
+              <q-icon 
+                :name="getProjectIcon(task.projectId)" 
+                size="xs" 
+                :color="getProjectIconColor(task.projectId)" 
+              />
+              <span class="text-caption q-ml-xs" :style="{ color: `var(--q-${getProjectIconColor(task.projectId)})` }">
+                {{ getProjectName(task.projectId) }}
               </span>
             </div>
           </div>
@@ -142,10 +146,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Task } from '@/types'
+import { computed, ref } from 'vue'
+import type { Task, Project } from '@/types'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
 import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
+import { getProjectRepository } from '@/services/repositories'
 
 // Props
 const props = defineProps<{
@@ -160,9 +165,57 @@ defineEmits<{
   'update': [updates: Partial<Task>]
 }>()
 
+// Project repository
+const projectRepo = getProjectRepository()
+const projectsCache = ref<Map<string, Project>>(new Map())
+
 // Custom fields
 const { visibleFields: visibleCustomFields } = useCustomFields(props.projectId || props.task.projectId)
 const { getCustomFieldValue } = useCustomFieldUtils()
+
+// Project methods
+async function loadProject(projectId: string): Promise<void> {
+  if (projectsCache.value.has(projectId)) return
+  
+  try {
+    const project = await projectRepo.findById(projectId)
+    if (project) {
+      projectsCache.value.set(projectId, project)
+    }
+  } catch (error) {
+    console.warn('Failed to load project:', projectId, error)
+    projectsCache.value.set(projectId, { 
+      projectId, 
+      name: '未知專案', 
+      icon: 'folder',
+      iconColor: 'grey'
+    } as Project)
+  }
+}
+
+function getProjectName(projectId: string): string {
+  if (projectsCache.value.has(projectId)) {
+    return projectsCache.value.get(projectId)!.name
+  }
+  void loadProject(projectId)
+  return '載入中...'
+}
+
+function getProjectIcon(projectId: string): string {
+  if (projectsCache.value.has(projectId)) {
+    const project = projectsCache.value.get(projectId)!
+    return project.icon || 'folder'
+  }
+  return 'folder'
+}
+
+function getProjectIconColor(projectId: string): string {
+  if (projectsCache.value.has(projectId)) {
+    const project = projectsCache.value.get(projectId)!
+    return project.iconColor || 'grey-6'
+  }
+  return 'grey-6'
+}
 
 // 顯示在卡片上的自訂欄位（最多顯示2個重要欄位）
 const displayCustomFields = computed(() => {

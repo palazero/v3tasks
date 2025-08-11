@@ -15,8 +15,8 @@
             class="project-group-header q-pa-xs bg-grey-2 rounded-borders-top cursor-pointer"
             @click="toggleProjectExpanded(projectId)"
           >
-            <div class="row items-center justify-between">
-              <div class="row items-center q-gutter-sm">
+            <div class="row items-center justify-between no-wrap">
+              <div class="row items-center q-gutter-sm no-wrap">
                 <q-btn
                   flat
                   dense
@@ -25,15 +25,15 @@
                   :icon="isProjectExpanded(projectId) ? 'expand_less' : 'expand_more'"
                   @click.stop="toggleProjectExpanded(projectId)"
                 />
-                <q-avatar size="24px" color="primary" text-color="white">
+                <q-avatar size="24px" :color="getProjectIconColor(projectId)" text-color="white">
                   <q-icon :name="getProjectIcon(projectId)" />
                 </q-avatar>
-                <span class="text-h6 text-weight-medium">
+                <span class="text-h6 text-weight-medium project-name">
                   {{ getProjectName(projectId) }}
                 </span>
 
                 <!-- 專案統計資訊 -->
-                <div class="project-stats row items-center q-gutter-xs">
+                <div class="project-stats row items-center q-gutter-xs no-wrap">
                   <q-badge
                     color="grey"
                     :label="`${getCachedProjectStats(projectId).total} 任務`"
@@ -55,7 +55,7 @@
                 </div>
               </div>
 
-              <div class="row q-gutter-xs">
+              <div class="row q-gutter-xs no-wrap">
                 <!-- 專案排序選單 -->
                 <q-btn
                   flat
@@ -136,7 +136,7 @@
         <template v-slot:body-cell-title="props">
           <q-td :props="props" class="task-title-cell">
             <div
-              class="task-title-wrapper row"
+              class="task-title-wrapper row no-wrap"
               :style="{ paddingLeft: `${(props.row.level || 0) * 20 }px` }"
             >
               <!-- 展開/收合按鈕 -->
@@ -253,13 +253,13 @@
               class="priority-select"
             >
               <template v-slot:selected-item="scope">
-                <div class="row items-center q-gutter-xs">
+                <div class="row items-center q-gutter-xs no-wrap">
                   <q-icon
                     :name="getPriorityIcon(scope.opt.value)"
                     :color="getPriorityColor(scope.opt.value)"
                     size="sm"
                   />
-                  <span>{{ scope.opt.label }}</span>
+                  <span class="priority-text">{{ scope.opt.label }}</span>
                 </div>
               </template>
             </q-select>
@@ -405,7 +405,7 @@
         <template v-slot:body-cell-title="props">
           <q-td :props="props" class="task-title-cell">
             <div
-              class="task-title-wrapper row"
+              class="task-title-wrapper row no-wrap"
               :style="{ paddingLeft: `${(props.row.level || 0) * 20 }px` }"
             >
               <!-- 展開/收合按鈕 -->
@@ -522,13 +522,13 @@
               class="priority-select"
             >
               <template v-slot:selected-item="scope">
-                <div class="row items-center q-gutter-xs">
+                <div class="row items-center q-gutter-xs no-wrap">
                   <q-icon
                     :name="getPriorityIcon(scope.opt.value)"
                     :color="getPriorityColor(scope.opt.value)"
                     size="sm"
                   />
-                  <span>{{ scope.opt.label }}</span>
+                  <span class="priority-text">{{ scope.opt.label }}</span>
                 </div>
               </template>
             </q-select>
@@ -819,6 +819,12 @@ function getProjectName(projectId: string): string {
 function getProjectIcon(projectId: string): string {
   const project = projectsCache.value.get(projectId)
   return project?.icon || 'folder'
+}
+
+// 取得專案圖示顏色
+function getProjectIconColor(projectId: string): string {
+  const project = projectsCache.value.get(projectId)
+  return project?.iconColor || 'primary'
 }
 
 // 所有可用欄位定義
@@ -1460,15 +1466,27 @@ onMounted(() => {
       .project-group-header {
         border-bottom: 1px solid #e0e0e0;
         transition: background-color 0.2s ease;
+        overflow: hidden;
 
         &:hover {
           background-color: #f5f5f5 !important;
         }
 
+        .project-name {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          flex-shrink: 0;
+          min-width: 0;
+        }
+
         .project-stats {
+          flex-shrink: 0;
+          
           .q-badge {
             font-size: 11px;
             font-weight: 500;
+            white-space: nowrap;
           }
         }
       }
@@ -1509,6 +1527,10 @@ onMounted(() => {
             height: 32px;
             line-height: 32px;
             vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 0;
           }
         }
 
@@ -1562,6 +1584,10 @@ onMounted(() => {
           height: 32px;
           line-height: 32px;
           vertical-align: middle;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 0;
         }
       }
 
@@ -1622,19 +1648,36 @@ onMounted(() => {
       .assignee-select,
       .priority-select {
         min-width: 100px;
+        white-space: nowrap;
 
         .q-field__control {
           min-height: 24px;
           height: 24px;
         }
+
+        .q-field__native {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .priority-text {
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
       }
 
       .deadline-input {
         min-width: 160px;
+        white-space: nowrap;
 
         .q-field__control {
           min-height: 24px;
           height: 24px;
+        }
+
+        .q-field__native {
+          white-space: nowrap;
         }
       }
 

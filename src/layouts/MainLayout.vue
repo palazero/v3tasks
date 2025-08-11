@@ -97,8 +97,8 @@
               @click="navigateToProject(project.projectId)"
             >
               <q-item-section avatar>
-                <q-avatar size="32px" color="primary" text-color="white">
-                  <span class="text-body1">{{ getProjectIcon(project) }}</span>
+                <q-avatar size="32px" :color="getProjectIconColor(project)" text-color="white">
+                  <q-icon :name="getProjectIcon(project)" size="20px" />
                 </q-avatar>
               </q-item-section>
 
@@ -325,6 +325,11 @@ function getProjectIcon(project: Project): string {
     return 'folder_special'
   }
   return 'folder'
+}
+
+// 取得專案圖示顏色
+function getProjectIconColor(project: Project): string {
+  return project.iconColor || 'primary'
 }
 
 // 檢查是否為專案擁有者

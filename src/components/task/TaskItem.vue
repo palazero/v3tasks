@@ -138,7 +138,7 @@
       <div class="task-meta-compact">
         <!-- Project (AllTasks view only) -->
         <span v-if="showProject && projectName" class="meta-project">
-          <q-icon name="folder" size="xs" />
+          <q-icon :name="projectIcon" :color="projectIconColor" size="xs" />
           {{ projectName }}
         </span>
         
@@ -205,6 +205,8 @@ const projectRepo = getProjectRepository()
 
 // 狀態
 const projectName = ref<string | null>(null)
+const projectIcon = ref<string>('folder')
+const projectIconColor = ref<string>('grey-6')
 
 // 計算屬性
 const isOverdue = computed(() => {
@@ -260,11 +262,13 @@ const getExpandButtonTooltip = computed(() => {
   }
 })
 
-// 載入專案名稱
+// 載入專案資訊
 if (props.showProject) {
   projectRepo.findById(props.task.projectId).then(project => {
     if (project) {
       projectName.value = project.name
+      projectIcon.value = project.icon || 'folder'
+      projectIconColor.value = project.iconColor || 'grey-6'
     }
   }).catch(console.error)
 }

@@ -4,9 +4,9 @@
     <div class="project-header row items-start justify-between q-mb-sm">
       <div class="col row full-width">
         <div class="row items-center q-gutter-sm">
-          <q-avatar size="32px" color="primary" text-color="white">
+          <q-avatar size="32px" :color="isAllTasksView ? 'primary' : projectIconColor" text-color="white">
             <q-icon v-if="isAllTasksView" name="list_alt" />
-            <span v-else class="text-h5">{{ projectIcon }}</span>
+            <q-icon v-else :name="projectIcon" size="20px" />
           </q-avatar>
 
           <div>
@@ -509,6 +509,10 @@ const projectIcon = computed(() => {
   }
   // 否則根據是否為擁有者來決定預設圖示
   return isProjectOwner.value ? 'folder_special' : 'folder'
+})
+
+const projectIconColor = computed(() => {
+  return project.value?.iconColor || 'primary'
 })
 
 const projectStats = computed(() => taskStore.taskStats)

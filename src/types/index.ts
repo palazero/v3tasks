@@ -90,6 +90,7 @@ export interface Project {
   name: string;
   description: string;
   icon?: string;
+  iconColor?: string;
   ownerId: string;
   memberIds: string[];
   createdAt: Date;

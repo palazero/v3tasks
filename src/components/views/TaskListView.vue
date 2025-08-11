@@ -22,8 +22,8 @@
                 :icon="isProjectExpanded(projectId) ? 'expand_less' : 'expand_more'"
                 @click.stop="toggleProjectExpanded(projectId)"
               />
-              <q-avatar size="24px" color="primary" text-color="white">
-                <q-icon name="folder" />
+              <q-avatar size="24px" :color="getProjectIconColor(projectId)" text-color="white">
+                <q-icon :name="getProjectIcon(projectId)" />
               </q-avatar>
               <span class="text-h6 text-weight-medium">
                 {{ getProjectName(projectId) }}
@@ -203,8 +203,8 @@ const $q = useQuasar()
 const taskStore = useTaskStore()
 const projectRepo = getProjectRepository()
 
-// 專案名稱快取（使用響應式 ref）
-const projectNamesCache = ref<Map<string, string>>(new Map())
+// 專案資訊快取（使用響應式 ref）
+const projectsCache = ref<Map<string, { name: string; icon?: string; iconColor?: string }>>(new Map())
 const projectLoadingCache = ref<Set<string>>(new Set())
 
 // 專案展開/收合狀態管理
@@ -450,32 +450,60 @@ function getCachedProjectStats(projectId: string): {
   }
 }
 
-// 響應式專案名稱獲取器
+// 響應式專案資訊獲取器
 const getProjectName = computed(() => {
   return (projectId: string): string => {
-    if (projectNamesCache.value.has(projectId)) {
-      return projectNamesCache.value.get(projectId)!
+    if (projectsCache.value.has(projectId)) {
+      return projectsCache.value.get(projectId)!.name
     }
 
     // 避免重複載入
     if (!projectLoadingCache.value.has(projectId)) {
       projectLoadingCache.value.add(projectId)
       
-      // 異步載入專案名稱
-      projectRepo.findById(projectId).then(project => {
+      // 異步載入專案資訊
+      void projectRepo.findById(projectId).then(project => {
         if (project) {
-          projectNamesCache.value.set(projectId, project.name)
+          projectsCache.value.set(projectId, {
+            name: project.name,
+            icon: project.icon || 'folder',
+            iconColor: project.iconColor || 'primary'
+          })
         } else {
-          projectNamesCache.value.set(projectId, `專案 ${projectId}`)
+          projectsCache.value.set(projectId, {
+            name: `專案 ${projectId}`,
+            icon: 'folder',
+            iconColor: 'grey'
+          })
         }
       }).catch(() => {
-        projectNamesCache.value.set(projectId, `專案 ${projectId}`)
+        projectsCache.value.set(projectId, {
+          name: `專案 ${projectId}`,
+          icon: 'folder',
+          iconColor: 'grey'
+        })
       }).finally(() => {
         projectLoadingCache.value.delete(projectId)
       })
     }
 
     return projectLoadingCache.value.has(projectId) ? '載入中...' : `專案 ${projectId}`
+  }
+})
+
+// 響應式專案圖標獲取器
+const getProjectIcon = computed(() => {
+  return (projectId: string): string => {
+    const projectInfo = projectsCache.value.get(projectId)
+    return projectInfo?.icon || 'folder'
+  }
+})
+
+// 響應式專案圖標顏色獲取器
+const getProjectIconColor = computed(() => {
+  return (projectId: string): string => {
+    const projectInfo = projectsCache.value.get(projectId)
+    return projectInfo?.iconColor || 'primary'
   }
 })
 </script>
