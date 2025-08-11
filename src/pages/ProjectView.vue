@@ -101,7 +101,6 @@
       <!-- 標準 Quasar Tabs (暫時不使用拖拉排序) -->
       <q-tabs
         :model-value="viewStore.currentViewId"
-        @update:model-value="handleViewChange"
         dense
         class="text-grey"
         active-color="primary"
@@ -114,47 +113,10 @@
           :name="view.viewId"
           :label="view.name"
           :icon="getViewIcon(view.type)"
-          @click="handleTabClick(view, $event)"
+          :ref="(el) => setTabMenuRef(view.viewId, el as HTMLElement)"
+          @click="handleTabClick(view)"
           class="view-tab"
         >
-          <!-- 標籤操作選單 -->
-          <q-menu
-            :ref="(el: { show: () => void } | null) => setTabMenuRef(view.viewId, el)"
-            anchor="bottom middle"
-            self="top middle"
-            :offset="[0, 5]"
-          >
-            <q-list dense style="min-width: 150px">
-              <q-item clickable v-close-popup @click="editView(view)">
-                <q-item-section avatar>
-                  <q-icon name="edit" />
-                </q-item-section>
-                <q-item-section>編輯視圖</q-item-section>
-              </q-item>
-
-              <q-item clickable v-close-popup @click="duplicateView(view)">
-                <q-item-section avatar>
-                  <q-icon name="content_copy" />
-                </q-item-section>
-                <q-item-section>複製視圖</q-item-section>
-              </q-item>
-
-              <q-separator v-if="view.isDeletable" />
-
-              <q-item
-                v-if="view.isDeletable"
-                clickable
-                v-close-popup
-                @click="deleteView(view)"
-                class="text-negative"
-              >
-                <q-item-section avatar>
-                  <q-icon name="delete" color="negative" />
-                </q-item-section>
-                <q-item-section>刪除視圖</q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
         </q-tab>
 
         <q-btn
@@ -328,6 +290,45 @@
       @sorts-updated="handleSortsUpdated"
     />
 
+    <!-- 標籤操作選單 -->
+    <q-menu
+      v-model="menuVisible"
+      :target="menuTarget"
+      anchor="bottom middle"
+      self="top middle"
+      :offset="[0, 5]"
+    >
+      <q-list dense style="min-width: 150px">
+        <q-item clickable v-close-popup @click="editView(selectedViewForMenu!)">
+          <q-item-section avatar>
+            <q-icon name="edit" />
+          </q-item-section>
+          <q-item-section>編輯視圖</q-item-section>
+        </q-item>
+
+        <q-item clickable v-close-popup @click="duplicateView(selectedViewForMenu!)">
+          <q-item-section avatar>
+            <q-icon name="content_copy" />
+          </q-item-section>
+          <q-item-section>複製視圖</q-item-section>
+        </q-item>
+
+        <q-separator v-if="selectedViewForMenu?.isDeletable" />
+
+        <q-item
+          v-if="selectedViewForMenu?.isDeletable"
+          clickable
+          v-close-popup
+          @click="deleteView(selectedViewForMenu!)"
+          class="text-negative"
+        >
+          <q-item-section avatar>
+            <q-icon name="delete" color="negative" />
+          </q-item-section>
+          <q-item-section>刪除視圖</q-item-section>
+        </q-item>
+      </q-list>
+    </q-menu>
   </q-page>
 </template>
 
@@ -335,7 +336,6 @@
 import { ref, computed, onMounted, watch, defineAsyncComponent, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-// import { VueDraggable } from 'vue-draggable-plus'
 import type { Task, View, ViewType, FilterConfig, SortConfig, Project, User } from '@/types'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
@@ -391,24 +391,13 @@ const selectedTask = ref<Task | undefined>(undefined)
 const selectedView = ref<View | undefined>(undefined)
 
 // 選單 refs 管理
-const tabMenuRefs = ref<Record<string, { show: () => void } | null>>({})
+const tabMenuRefs = ref<Record<string, HTMLElement | null>>({})
+const menuVisible = ref(false)
+const menuTarget = ref<HTMLElement | null>(null)
+const selectedViewForMenu = ref<View | null>(null)
 
 // 判斷是否為 AllTasks 模式
 const isAllTasksView = computed(() => props.projectId === 'all')
-
-// 可拖拉的視圖列表（暫時註釋，未使用）
-// const draggableViews = computed({
-//   get: () => viewStore.sortedViews,
-//   set: (newViews: View[]) => {
-//     // 當拖拉重新排序時，直接更新
-//     void handleTabsReorderImmediate(newViews)
-//   }
-// })
-
-// 切換到指定視圖（暫時註釋，未使用）
-// function switchToView(view: View): void {
-//   viewStore.switchView(view.viewId)
-// }
 
 // 計算屬性
 const currentFilters = computed(() => taskStore.currentFilters)
@@ -541,82 +530,22 @@ function goToSettings(): void {
 }
 
 // 設定標籤選單 ref
-function setTabMenuRef(viewId: string, el: { show: () => void } | null): void {
-  if (el) {
-    tabMenuRefs.value[viewId] = el
-  }
+function setTabMenuRef(viewId: string, el: HTMLElement | null): void {
+  if (el) tabMenuRefs.value[viewId] = el.$el
 }
-
-// 處理視圖變化（來自 q-tabs v-model）
-function handleViewChange(viewId: string | null): void {
-  if (viewId) {
-    viewStore.switchView(viewId)
-  }
-}
-
-// 記錄上次點擊的狀態
-const lastClickedViewId = ref<string | null>(null)
-const clickStartTime = ref<number>(0)
 
 // Tab 點擊事件處理
-function handleTabClick(view: View, event: Event): void {
-  // 如果是點擊已選中的 tab，則顯示選單
-  const isCurrentlySelected = view.viewId === viewStore.currentViewId
-  const now = Date.now()
-
-  if (isCurrentlySelected) {
-    // 檢查是否是重複點擊
-    const timeSinceLastClick = now - clickStartTime.value
-    const isSameTabAsLastClick = lastClickedViewId.value === view.viewId
-
-    if (isSameTabAsLastClick && timeSinceLastClick > 100) {
-      // 阻止切換並顯示選單
-      event.preventDefault()
-      event.stopPropagation()
-
-      setTimeout(() => {
-        const menuRef = tabMenuRefs.value[view.viewId]
-        if (menuRef) {
-          menuRef.show()
-        }
-      }, 10)
-    }
-  } else {
-    // 切換到新的 tab
+function handleTabClick(view: View): void {
+  const lastViewId = viewStore.getLastViewId(props.projectId)
+  if (lastViewId !== view.viewId) {
+    menuTarget.value = null
+    menuVisible.value = false
+    selectedViewForMenu.value = null
     viewStore.switchView(view.viewId)
-  }
-
-  // 記錄點擊狀態
-  lastClickedViewId.value = view.viewId
-  clickStartTime.value = now
-}
-
-// Tab 拖拉排序處理（即時更新）（暫時註釋，未使用）
-async function _handleTabsReorderImmediate(newViews: View[]): Promise<void> {
-  try {
-    // 建立新的排序資料
-    const reorderData = newViews.map((view, index) => ({
-      viewId: view.viewId,
-      order: index
-    }))
-
-    // 更新視圖順序
-    const success = await viewStore.reorderViews(reorderData)
-
-    if (success) {
-      $q.notify({
-        type: 'positive',
-        message: '視圖順序已更新',
-        position: 'top'
-      })
-    }
-  } catch (error) {
-    console.error('Failed to reorder tabs:', error)
-    $q.notify({
-      type: 'negative',
-      message: '更新視圖順序時發生錯誤',
-      position: 'top'
-    })
+  } else {
+    menuTarget.value = tabMenuRefs.value[view.viewId]
+    selectedViewForMenu.value = view
+    menuVisible.value = !menuVisible.value
   }
 }
 

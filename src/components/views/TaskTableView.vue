@@ -26,7 +26,7 @@
                   @click.stop="toggleProjectExpanded(projectId)"
                 />
                 <q-avatar size="24px" color="primary" text-color="white">
-                  <q-icon name="folder" />
+                  <q-icon :name="getProjectIcon(projectId)" />
                 </q-avatar>
                 <span class="text-h6 text-weight-medium">
                   {{ getProjectName(projectId) }}
@@ -136,8 +136,8 @@
         <template v-slot:body-cell-title="props">
           <q-td :props="props" class="task-title-cell">
             <div
-              class="task-title-wrapper"
-              :style="{ paddingLeft: `${(props.row.level || 0) * 24}px` }"
+              class="task-title-wrapper row"
+              :style="{ paddingLeft: `${(props.row.level || 0) * 20 }px` }"
             >
               <!-- 展開/收合按鈕 -->
               <q-btn
@@ -145,17 +145,19 @@
                 :icon="props.row.isExpanded ? 'expand_more' : 'chevron_right'"
                 flat
                 dense
-                size="sm"
+                round
+                size="xs"
                 @click="toggleExpanded(props.row)"
                 class="expand-btn"
               />
-              <div v-else class="expand-btn-spacer" />
+              <div v-else class="table-expand-btn-spacer"> </div>
 
               <!-- 任務標題（行內編輯） -->
               <div
                 v-if="!isEditing(props.row.taskId, 'title')"
                 class="task-title-display cursor-pointer"
                 @click="startEdit(props.row.taskId, 'title', props.row.title)"
+                :title="props.row.title"
               >
                 {{ props.row.title }}
               </div>
@@ -226,7 +228,7 @@
               class="assignee-select"
             >
               <template v-slot:selected-item="scope">
-                <div class="row items-center q-gutter-xs">
+                <div class="row items-center q-gutter-xs no-wrap">
                   <q-avatar size="20px" color="primary" text-color="white">
                     {{ getUserInitials(scope.opt.value) }}
                   </q-avatar>
@@ -346,13 +348,14 @@
 
         <!-- 操作欄 -->
         <template v-slot:body-cell-actions="props">
-          <q-td :props="props">
-            <div class="row q-gutter-xs">
+          <q-td :props="props" class="actions-cell">
+            <div class="row q-gutter-xs no-wrap actions-container">
               <q-btn
                 flat
                 dense
+                round
                 icon="add"
-                size="sm"
+                size="xs"
                 color="primary"
                 @click="addSubtask(props.row)"
               >
@@ -361,8 +364,9 @@
               <q-btn
                 flat
                 dense
+                round
                 icon="edit"
-                size="sm"
+                size="xs"
                 color="orange"
                 @click="editTask(props.row)"
               >
@@ -371,8 +375,9 @@
               <q-btn
                 flat
                 dense
+                round
                 icon="delete"
-                size="sm"
+                size="xs"
                 color="negative"
                 @click="deleteTask(props.row)"
               >
@@ -386,23 +391,279 @@
         </div>
       </template>
 
-      <!-- 一般表格顯示（非專案分組模式）- 暫時使用簡化版本 -->
-      <div v-else class="non-grouped-notice q-pa-lg text-center">
-        <q-icon name="info" size="2em" color="grey-6" />
-        <div class="text-h6 q-mt-md text-grey-6">
-          Table View 專案分組模式
-        </div>
-        <div class="text-body2 text-grey-6 q-mt-sm">
-          Table View 目前僅支援「所有任務」頁面的專案分組顯示
-        </div>
-      </div>
+      <!-- 一般表格顯示（非專案分組模式）-->
+      <q-table
+        v-else
+        :rows="filteredTasks"
+        :columns="tableColumns"
+        row-key="taskId"
+        flat
+        :pagination="{ rowsPerPage: 0 }"
+        hide-pagination
+        class="task-table full-height"
+      >
+        <!-- 任務標題欄（支援樹狀結構） -->
+        <template v-slot:body-cell-title="props">
+          <q-td :props="props" class="task-title-cell">
+            <div
+              class="task-title-wrapper row"
+              :style="{ paddingLeft: `${(props.row.level || 0) * 20 }px` }"
+            >
+              <!-- 展開/收合按鈕 -->
+              <q-btn
+                v-if="hasChildren(props.row)"
+                :icon="props.row.isExpanded ? 'expand_more' : 'chevron_right'"
+                flat
+                dense
+                round
+                size="xs"
+                @click="toggleExpanded(props.row)"
+                class="expand-btn"
+              />
+              <div v-else class="expand-btn-spacer"> </div>
+
+              <!-- 任務標題（行內編輯） -->
+              <div
+                v-if="!isEditing(props.row.taskId, 'title')"
+                class="task-title-display cursor-pointer"
+                @click="startEdit(props.row.taskId, 'title', props.row.title)"
+                :title="props.row.title"
+              >
+                {{ props.row.title }}
+              </div>
+              <q-input
+                v-else
+                v-model="editingValue"
+                dense
+                autofocus
+                @blur="saveEdit(props.row.taskId, 'title')"
+                @keyup.enter="saveEdit(props.row.taskId, 'title')"
+                @keyup.esc="cancelEdit"
+                class="task-title-input"
+              />
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 狀態欄 -->
+        <template v-slot:body-cell-status="props">
+          <q-td :props="props">
+            <div class="row items-center q-gutter-xs no-wrap">
+              <!-- 快速切換按鈕 -->
+              <q-btn
+                flat
+                dense
+                round
+                size="sm"
+                :icon="getStatusIcon(props.row.statusId)"
+                :color="getStatusColor(props.row.statusId)"
+                @click="cycleStatus(props.row)"
+                class="status-btn"
+              >
+                <q-tooltip>{{ getStatusLabel(props.row.statusId) }} (點擊切換)</q-tooltip>
+              </q-btn>
+
+              <!-- 下拉選單（備選） -->
+              <q-select
+                :model-value="props.row.statusId"
+                :options="statusOptions"
+                emit-value
+                map-options
+                dense
+                borderless
+                @update:model-value="updateTask(props.row.taskId, { statusId: $event })"
+                class="status-select"
+                style="min-width: 80px;"
+              >
+                <template v-slot:selected>
+                  <span class="text-caption">{{ getStatusLabel(props.row.statusId) }}</span>
+                </template>
+              </q-select>
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 指派人員欄 -->
+        <template v-slot:body-cell-assignee="props">
+          <q-td :props="props">
+            <q-select
+              :model-value="props.row.assigneeId"
+              :options="assigneeOptions"
+              emit-value
+              map-options
+              dense
+              outlined
+              clearable
+              @update:model-value="updateTask(props.row.taskId, { assigneeId: $event })"
+              class="assignee-select"
+            >
+              <template v-slot:selected-item="scope">
+                <div class="row items-center q-gutter-xs no-wrap">
+                  <q-avatar size="20px" color="primary" text-color="white">
+                    {{ getUserInitials(scope.opt.value) }}
+                  </q-avatar>
+                  <span>{{ scope.opt.label }}</span>
+                </div>
+              </template>
+            </q-select>
+          </q-td>
+        </template>
+
+        <!-- 優先級欄 -->
+        <template v-slot:body-cell-priority="props">
+          <q-td :props="props">
+            <q-select
+              :model-value="props.row.priorityId"
+              :options="priorityOptions"
+              emit-value
+              map-options
+              dense
+              outlined
+              @update:model-value="updateTask(props.row.taskId, { priorityId: $event })"
+              class="priority-select"
+            >
+              <template v-slot:selected-item="scope">
+                <div class="row items-center q-gutter-xs">
+                  <q-icon
+                    :name="getPriorityIcon(scope.opt.value)"
+                    :color="getPriorityColor(scope.opt.value)"
+                    size="sm"
+                  />
+                  <span>{{ scope.opt.label }}</span>
+                </div>
+              </template>
+            </q-select>
+          </q-td>
+        </template>
+
+        <!-- 截止日期欄 -->
+        <template v-slot:body-cell-deadline="props">
+          <q-td :props="props">
+            <q-input
+              :model-value="formatDateForInput(props.row.endDateTime)"
+              type="datetime-local"
+              dense
+              outlined
+              @update:model-value="updateTaskDate(props.row.taskId, $event)"
+              class="deadline-input"
+            />
+          </q-td>
+        </template>
+
+        <!-- 進度欄 -->
+        <template v-slot:body-cell-progress="props">
+          <q-td :props="props">
+            <div class="progress-cell">
+              <q-slider
+                :model-value="props.row.progress || 0"
+                :min="0"
+                :max="100"
+                :step="10"
+                label
+                label-always
+                @update:model-value="$event != null && updateTask(props.row.taskId, { progress: $event })"
+                class="progress-slider"
+              />
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 建立者欄 -->
+        <template v-slot:body-cell-creator="props">
+          <q-td :props="props">
+            <div class="row items-center justify-center q-gutter-xs">
+              <q-avatar size="24px" color="primary" text-color="white">
+                {{ getUserInitials(props.row.creatorId) }}
+              </q-avatar>
+              <span class="text-caption">{{ getUserName(props.row.creatorId) }}</span>
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 建立時間欄 -->
+        <template v-slot:body-cell-createdAt="props">
+          <q-td :props="props">
+            <div class="text-caption">
+              {{ formatDateTime(props.row.createdAt) }}
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 更新時間欄 -->
+        <template v-slot:body-cell-updatedAt="props">
+          <q-td :props="props">
+            <div class="text-caption">
+              {{ formatDateTime(props.row.updatedAt) }}
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 自訂欄位欄 -->
+        <template
+          v-for="field in visibleCustomFields"
+          :key="`custom_${field.fieldId}`"
+          #[`body-cell-custom_${field.fieldId}`]="props"
+        >
+          <q-td :props="props">
+            <CustomFieldRenderer
+              :field="field"
+              :value="getCustomFieldValue(props.row.customFields, field.fieldId)"
+              :readonly="true"
+              :show-label="false"
+              :show-help="false"
+              dense
+            />
+          </q-td>
+        </template>
+
+        <!-- 操作欄 -->
+        <template v-slot:body-cell-actions="props">
+          <q-td :props="props" class="actions-cell">
+            <div class="row q-gutter-xs no-wrap actions-container">
+              <q-btn
+                flat
+                dense
+                round
+                icon="add"
+                size="xs"
+                color="primary"
+                @click="addSubtask(props.row)"
+              >
+                <q-tooltip>新增子任務</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                dense
+                round
+                icon="edit"
+                size="xs"
+                color="orange"
+                @click="editTask(props.row)"
+              >
+                <q-tooltip>編輯任務</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                dense
+                round
+                icon="delete"
+                size="xs"
+                color="negative"
+                @click="deleteTask(props.row)"
+              >
+                <q-tooltip>刪除任務</q-tooltip>
+              </q-btn>
+            </div>
+          </q-td>
+        </template>
+      </q-table>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { Task, View, ViewConfiguration, FilterCondition } from '@/types'
+import { computed, ref, onMounted, watch } from 'vue'
+import type { Task, View, ViewConfiguration, FilterCondition, Project } from '@/types'
 import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
@@ -440,8 +701,8 @@ const searchQuery = ref('')
 const editingCell = ref<{ taskId: string; field: string } | null>(null)
 const editingValue = ref('')
 
-// 專案名稱快取
-const projectNamesCache = new Map<string, string>()
+// 專案資料快取（響應式）
+const projectsCache = ref<Map<string, Project>>(new Map())
 
 // 專案展開/收合狀態管理
 const PROJECT_EXPAND_KEY = 'projectExpandState_table'
@@ -528,19 +789,38 @@ function getProjectStats(tasks: Task[]): {
   }
 }
 
+// 載入專案資料
+async function loadProjectData(projectId: string): Promise<void> {
+  if (!projectsCache.value.has(projectId)) {
+    try {
+      const project = await projectRepo.findById(projectId)
+      if (project) {
+        projectsCache.value.set(projectId, project)
+        // 觸發響應式更新
+        projectsCache.value = new Map(projectsCache.value)
+      }
+    } catch (error) {
+      console.error('Failed to load project:', error)
+    }
+  }
+}
+
 // 取得專案名稱
 function getProjectName(projectId: string): string {
-  if (projectNamesCache.has(projectId)) {
-    return projectNamesCache.get(projectId)!
+  const project = projectsCache.value.get(projectId)
+  if (project) {
+    return project.name
   }
-
-  projectRepo.findById(projectId).then(project => {
-    if (project) {
-      projectNamesCache.set(projectId, project.name)
-    }
-  }).catch(console.error)
-
+  
+  // 非同步載入專案資料
+  loadProjectData(projectId)
   return '載入中...'
+}
+
+// 取得專案圖示
+function getProjectIcon(projectId: string): string {
+  const project = projectsCache.value.get(projectId)
+  return project?.icon || 'folder'
 }
 
 // 所有可用欄位定義
@@ -829,7 +1109,7 @@ function getFilteredProjectTasks(projectTasks: Task[]): Task[] {
 }
 
 // 篩選後的任務（扁平化顯示，但保留層級信息）
-const _filteredTasks = computed(() => {
+const filteredTasks = computed(() => {
   const flattenWithLevel = (tasks: Task[], level = 0): Task[] => {
     const result: Task[] = []
 
@@ -1133,6 +1413,29 @@ function editTask(task: Task): void {
 function deleteTask(task: Task): void {
   emit('delete-task', task)
 }
+
+// 預載入所有專案資料
+async function preloadProjectData(): Promise<void> {
+  if (props.projectId === 'all' && props.view.config.groupBy === 'projectId') {
+    const projectIds = new Set(props.tasks.map(task => task.projectId))
+    
+    const loadPromises = Array.from(projectIds).map(projectId => 
+      loadProjectData(projectId)
+    )
+    
+    await Promise.all(loadPromises)
+  }
+}
+
+// 監聽任務變化，載入新專案資料
+watch(() => props.tasks, () => {
+  preloadProjectData()
+}, { immediate: true })
+
+// 組件載入時預載入資料
+onMounted(() => {
+  preloadProjectData()
+})
 </script>
 
 <style scoped lang="scss">
@@ -1175,11 +1478,11 @@ function deleteTask(task: Task): void {
       .project-task-table {
         background-color: white;
 
-        :deep(.q-table__top) {
+        .q-table__top {
           padding: 0;
         }
 
-        :deep(thead) {
+        thead {
           th {
             position: sticky;
             top: 0;
@@ -1189,8 +1492,9 @@ function deleteTask(task: Task): void {
           }
         }
 
-        :deep(tbody) {
+        tbody {
           tr {
+            height: 32px;
             border-bottom: 1px solid $grey-3;
 
             &:hover {
@@ -1203,8 +1507,22 @@ function deleteTask(task: Task): void {
           }
 
           td {
-            padding: 8px 12px;
+            padding: 0 6px;
+            height: 32px;
+            line-height: 32px;
             vertical-align: middle;
+          }
+        }
+
+        // 任務標題欄樣式
+        .task-title-cell {
+          .task-title-wrapper {
+            .table-expand-btn-spacer {
+              width: 20px !important;
+              min-width: 20px !important;
+              flex-shrink: 0 !important;
+              display: inline-block;
+            }
           }
         }
       }
@@ -1213,11 +1531,11 @@ function deleteTask(task: Task): void {
     .task-table {
       background-color: white;
 
-      :deep(.q-table__top) {
+      .q-table__top {
         padding: 0;
       }
 
-      :deep(thead) {
+      thead {
         th {
           position: sticky;
           top: 0;
@@ -1227,35 +1545,63 @@ function deleteTask(task: Task): void {
         }
       }
 
-      :deep(tbody) {
+      tbody {
         tr {
+          height: 32px;
+          border-bottom: 1px solid $grey-3;
+
           &:hover {
             background-color: $grey-1;
           }
 
-          td {
-            padding: 8px 12px;
-            border-bottom: 1px solid $grey-3;
+          &:last-child {
+            border-bottom: none;
           }
+        }
+
+        td {
+          padding: 0 6px;
+          height: 32px;
+          line-height: 32px;
+          vertical-align: middle;
         }
       }
 
       .task-title-cell {
+        overflow: hidden;
+
         .task-title-wrapper {
           display: flex;
           align-items: center;
+          height: 32px;
+          white-space: nowrap;
+          overflow: hidden;
 
           .expand-btn {
-            min-width: 24px;
+            min-width: 18px;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            margin-right: 2px;
+            flex-shrink: 0;
           }
 
+          .table-expand-btn-spacer,
           .expand-btn-spacer {
-            width: 24px;
+            width: 20px !important;
+            min-width: 20px !important;
+            flex-shrink: 0 !important;
+            display: inline-block;
           }
 
           .task-title-display {
             flex: 1;
-            padding: 4px 8px;
+            min-width: 0;
+            padding: 0 4px;
+            line-height: 32px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             border-radius: 4px;
 
             &:hover {
@@ -1265,6 +1611,11 @@ function deleteTask(task: Task): void {
 
           .task-title-input {
             flex: 1;
+            min-width: 0;
+            .q-field__control {
+              min-height: 24px;
+              height: 24px;
+            }
           }
         }
       }
@@ -1274,24 +1625,41 @@ function deleteTask(task: Task): void {
       .priority-select {
         min-width: 100px;
 
-        :deep(.q-field__control) {
-          min-height: 32px;
+        .q-field__control {
+          min-height: 24px;
+          height: 24px;
         }
       }
 
       .deadline-input {
         min-width: 160px;
 
-        :deep(.q-field__control) {
-          min-height: 32px;
+        .q-field__control {
+          min-height: 24px;
+          height: 24px;
         }
       }
 
       .progress-cell {
-        padding: 8px 16px;
+        padding: 0 16px;
 
         .progress-slider {
           width: 120px;
+        }
+      }
+
+      .actions-cell {
+        overflow: hidden;
+
+        .actions-container {
+          overflow: hidden;
+
+          .q-btn {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            flex-shrink: 0;
+          }
         }
       }
     }
