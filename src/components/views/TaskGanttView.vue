@@ -138,8 +138,8 @@ import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import type { Task } from '@/types'
 import { useDhtmlxGantt } from '@/composables/useDhtmlxGantt'
 import { useQuasar } from 'quasar'
-import { getProjectRepository } from '@/services/repositories'
-import type { Project } from '@/types'
+import { getProjectRepository, getUserRepository } from '@/services/repositories'
+import type { Project, User } from '@/types'
 
 // Props
 interface Props {
@@ -176,7 +176,9 @@ const ganttInstance = ref(false)
 const taskMap = ref<Map<string, Task>>(new Map())
 const timelineDragEnabled = ref(true)
 const projectsMap = ref<Map<string, string>>(new Map())
+const usersMap = ref<Map<string, string>>(new Map())
 const projectRepo = getProjectRepository()
+const userRepo = getUserRepository()
 
 // 初始化甘特圖
 function initializeGantt(): void {
@@ -342,6 +344,35 @@ function setupEventHandlers(): void {
   })
 }
 
+// 載入用戶資訊
+async function loadUsersInfo(): Promise<void> {
+  try {
+    // 從任務中取得唯一的用戶 ID
+    const userIds = [...new Set(props.tasks.map(task => task.assigneeId).filter(Boolean))]
+    
+    if (userIds.length === 0) {
+      return
+    }
+    
+    // 批次載入用戶資訊
+    const users = await userRepo.findByIds(userIds)
+    
+    // 更新用戶名稱映射
+    usersMap.value.clear()
+    users.forEach(user => {
+      usersMap.value.set(user.userId, user.name)
+    })
+    
+  } catch (error) {
+    console.error('Failed to load users info:', error)
+    // 如果載入失敗，使用用戶 ID 作為名稱
+    const userIds = [...new Set(props.tasks.map(task => task.assigneeId).filter(Boolean))]
+    userIds.forEach(userId => {
+      usersMap.value.set(userId, `用戶 ${userId}`)
+    })
+  }
+}
+
 // 載入專案資訊（All Projects 模式）
 async function loadProjectsInfo(): Promise<void> {
   try {
@@ -389,13 +420,16 @@ async function loadGanttData(): Promise<void> {
   // 判斷是否為 All Projects 模式
   const isAllProjects = props.projectId === 'all'
   
+  // 載入用戶資訊（所有模式都需要）
+  await loadUsersInfo()
+  
   // 如果是 All Projects 模式，載入專案資訊
   if (isAllProjects) {
     await loadProjectsInfo()
   }
 
   // 轉換資料格式
-  const dhtmlxData = convertTasksToDhtmlx(props.tasks, isAllProjects, projectsMap.value)
+  const dhtmlxData = convertTasksToDhtmlx(props.tasks, isAllProjects, projectsMap.value, usersMap.value)
   
   // 清空並載入新資料
   gantt.clearAll()

@@ -42,7 +42,7 @@ export interface GanttSettings {
 export function useDhtmlxGantt(): {
   settings: ReturnType<typeof ref<GanttSettings>>
   timelineScaleOptions: Array<{ label: string; value: 'day' | 'week' | 'month' }>
-  convertTasksToDhtmlx: (tasks: Task[], isAllProjects?: boolean, projectsMap?: Map<string, string>) => DhtmlxData
+  convertTasksToDhtmlx: (tasks: Task[], isAllProjects?: boolean, projectsMap?: Map<string, string>, usersMap?: Map<string, string>) => DhtmlxData
   convertDhtmlxToTask: (dhtmlxTask: DhtmlxTask, originalTask: Task) => Partial<Task>
   formatDateForDhtmlx: (date: Date) => string
   parseDhtmlxDate: (dateString: string) => Date
@@ -69,7 +69,7 @@ export function useDhtmlxGantt(): {
   /**
    * 將 Task 資料轉換為 dhtmlx-gantt 格式
    */
-  function convertTasksToDhtmlx(tasks: Task[], isAllProjects = false, projectsMap?: Map<string, string>): DhtmlxData {
+  function convertTasksToDhtmlx(tasks: Task[], isAllProjects = false, projectsMap?: Map<string, string>, usersMap?: Map<string, string>): DhtmlxData {
     const dhtmlxTasks: DhtmlxTask[] = []
     const dhtmlxLinks: DhtmlxLink[] = []
 
@@ -127,7 +127,7 @@ export function useDhtmlxGantt(): {
 
         // 轉換專案內的任務
         projectTasks.forEach(task => {
-          const taskData = convertSingleTask(task)
+          const taskData = convertSingleTask(task, usersMap)
           // 調整父節點關係：頂層任務的父節點改為專案根節點
           if (!task.parentTaskId) {
             taskData.parent = `project_${projectId}`
@@ -150,7 +150,7 @@ export function useDhtmlxGantt(): {
     } else {
       // 單一專案模式：保持原有邏輯
       tasks.forEach(task => {
-        dhtmlxTasks.push(convertSingleTask(task))
+        dhtmlxTasks.push(convertSingleTask(task, usersMap))
         
         // 轉換依賴關係
         if (task.dependencyIds && task.dependencyIds.length > 0) {
@@ -175,7 +175,7 @@ export function useDhtmlxGantt(): {
   /**
    * 轉換單個任務
    */
-  function convertSingleTask(task: Task): DhtmlxTask {
+  function convertSingleTask(task: Task, usersMap?: Map<string, string>): DhtmlxTask {
     const startDate = task.startDateTime ? new Date(task.startDateTime) : new Date()
     const endDate = task.endDateTime ? new Date(task.endDateTime) : new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000)
     
@@ -198,6 +198,9 @@ export function useDhtmlxGantt(): {
         progress = 0
     }
 
+    // 取得指派人名稱
+    const assigneeName = task.assigneeId && usersMap ? usersMap.get(task.assigneeId) : undefined
+
     return {
       id: task.taskId,
       text: task.title,
@@ -206,7 +209,7 @@ export function useDhtmlxGantt(): {
       progress: progress,
       parent: task.parentTaskId || 0,
       status: task.statusId,
-      assignee: task.assigneeId || undefined,
+      assignee: assigneeName || undefined,
       priority: task.priorityId || undefined
     }
   }
@@ -311,6 +314,25 @@ export function useDhtmlxGantt(): {
               'done': '已完成'
             }
             return statusMap[task.status as keyof typeof statusMap] || task.status
+          }
+        },
+        {
+          name: 'assignee',
+          label: '指派人',
+          width: 100,
+          align: 'center',
+          template: (task: DhtmlxTask) => {
+            if (!task.assignee) {
+              return '<span style="color: #999;">未指派</span>'
+            }
+            // 取得用戶名稱的第一個字符作為頭像
+            const initial = task.assignee.charAt(0).toUpperCase()
+            return `<div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                      <div style="width: 20px; height: 20px; border-radius: 50%; background: #1976d2; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">
+                        ${initial}
+                      </div>
+                      <span style="font-size: 12px;">${task.assignee}</span>
+                    </div>`
           }
         }
       ],
