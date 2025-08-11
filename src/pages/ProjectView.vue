@@ -1,19 +1,19 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-sm">
     <!-- 專案資訊標題區 -->
-    <div class="row items-start justify-between q-mb-md">
+    <div class="row items-start justify-between q-mb-sm">
       <div class="col row full-width">
         <div class="row items-center q-gutter-sm">
-          <q-avatar size="40px" color="primary" text-color="white">
+          <q-avatar size="32px" color="primary" text-color="white">
             <q-icon v-if="isAllTasksView" name="list_alt" />
             <span v-else class="text-h5">{{ projectIcon }}</span>
           </q-avatar>
 
           <div>
-            <h4 class="text-h4 q-my-none text-weight-light">
+            <div class="text-h5 q-my-none text-weight-medium">
               {{ isAllTasksView ? '所有任務' : (project?.name || '載入中...') }}
-            </h4>
-            <p class="text-body2 text-grey-6 q-mt-sm q-mb-none">
+            </div>
+            <p class="text-caption text-grey-6 q-mt-xs q-mb-none">
               {{ isAllTasksView ? '查看您有權限存取的所有專案任務' : (project?.description || '無描述') }}
             </p>
           </div>
@@ -23,26 +23,26 @@
             v-if="!isAllTasksView && isProjectOwner"
             color="orange"
             label="擁有者"
-            class="q-ml-md"
+            class="q-ml-sm"
           />
           <q-badge
             v-else-if="!isAllTasksView && isProjectMember"
             color="blue"
             label="成員"
-            class="q-ml-md"
+            class="q-ml-sm"
           />
         </div>
 
         <q-space />
 
         <!-- 專案成員顯示（僅專案模式顯示） -->
-        <div v-if="!isAllTasksView" class="row items-center q-gutter-sm q-mr-md">
-          <q-icon name="people" size="20px" class="text-grey-6" />
+        <div v-if="!isAllTasksView" class="row items-center q-gutter-xs q-mr-sm">
+          <q-icon name="people" size="16px" class="text-grey-6" />
           <div class="row items-center q-gutter-xs">
             <q-avatar
               v-for="member in projectMembers"
               :key="member.userId"
-              size="24px"
+              size="20px"
               class="cursor-pointer"
             >
               <img
@@ -60,25 +60,25 @@
       <q-space />
       <!-- 右側操作按鈕 -->
       <div class="col-auto">
-        <div class="row q-gutter-sm">
+        <div class="row q-gutter-xs">
           <!-- 統計卡片 -->
-          <q-card class="stat-card">
-            <q-card-section class="q-pa-sm text-center">
-              <div class="text-h6 text-weight-bold">{{ isAllTasksView ? taskStore.taskStats.total : projectStats.total }}</div>
+          <q-card class="stat-card compact">
+            <q-card-section class="q-pa-xs text-center">
+              <div class="text-subtitle1 text-weight-bold">{{ isAllTasksView ? taskStore.taskStats.total : projectStats.total }}</div>
               <div class="text-caption text-grey-6">{{ isAllTasksView ? '總任務數' : '總任務' }}</div>
             </q-card-section>
           </q-card>
 
-          <q-card class="stat-card">
-            <q-card-section class="q-pa-sm text-center">
-              <div class="text-h6 text-weight-bold text-orange">{{ isAllTasksView ? taskStore.taskStats.inProgress : projectStats.inProgress }}</div>
+          <q-card class="stat-card compact">
+            <q-card-section class="q-pa-xs text-center">
+              <div class="text-subtitle1 text-weight-bold text-orange">{{ isAllTasksView ? taskStore.taskStats.inProgress : projectStats.inProgress }}</div>
               <div class="text-caption text-grey-6">進行中</div>
             </q-card-section>
           </q-card>
 
-          <q-card v-if="isAllTasksView" class="stat-card">
-            <q-card-section class="q-pa-sm text-center">
-              <div class="text-h6 text-weight-bold text-red">{{ taskStore.taskStats.overdue }}</div>
+          <q-card v-if="isAllTasksView" class="stat-card compact">
+            <q-card-section class="q-pa-xs text-center">
+              <div class="text-subtitle1 text-weight-bold text-red">{{ taskStore.taskStats.overdue }}</div>
               <div class="text-caption text-grey-6">已逾期</div>
             </q-card-section>
           </q-card>
@@ -106,6 +106,7 @@
         active-color="primary"
         indicator-color="primary"
         align="left"
+        inline-label
       >
         <q-tab
           v-for="view in viewStore.sortedViews"
@@ -132,24 +133,25 @@
       <q-separator />
 
       <!-- 視圖工具列 -->
-      <div class="row items-center justify-between q-pa-xs bg-grey-1">
-        <div class="row items-center q-gutter-sm">
+      <div class="row items-center justify-between compact-toolbar bg-grey-1">
+        <div class="row items-center q-gutter-xs">
           <!-- 搜尋 -->
           <q-input
             v-model="searchQuery"
             placeholder="搜尋任務..."
             dense
-            outlined
-            style="min-width: 250px"
+            style="min-width: 220px"
+            class="compact-input"
             debounce="300"
           >
             <template v-slot:prepend>
-              <q-icon name="search" />
+              <q-icon name="search" size="sm" />
             </template>
             <template v-slot:append>
               <q-icon
                 v-if="searchQuery"
                 name="clear"
+                size="sm"
                 class="cursor-pointer"
                 @click="searchQuery = ''"
               />
@@ -162,8 +164,10 @@
             flat
             icon="filter_list"
             label="篩選"
+            size="sm"
             :color="hasActiveFilters ? 'primary' : 'grey'"
             @click="showFilterDialog = true"
+            class="compact-btn"
           >
             <q-badge
               v-if="activeFiltersCount > 0"
@@ -180,18 +184,22 @@
             flat
             icon="sort"
             label="排序"
+            size="sm"
             :color="hasActiveSorts ? 'primary' : 'grey'"
             @click="showSortDialog = true"
+            class="compact-btn"
           />
         </div>
 
         <!-- 右側操作 -->
-        <div class="row items-center q-gutter-sm">
+        <div class="row items-center q-gutter-xs">
           <q-btn
             color="primary"
             icon="add"
             label="新增任務"
+            size="sm"
             @click="showCreateTaskDialog = true"
+            class="compact-btn"
           />
         </div>
       </div>
@@ -217,6 +225,8 @@
             :project-id="projectId"
             @task-click="handleTaskClick"
             @task-update="handleTaskUpdate"
+            @task-create="handleTaskCreate"
+            @task-delete="handleTaskDelete"
           />
         </q-tab-panel>
       </q-tab-panels>
@@ -640,6 +650,32 @@ function handleTaskUpdated(task: Task): void {
   })
 }
 
+// 處理甘特圖任務建立
+function handleTaskCreate(taskData: Partial<Task>): void {
+  // 設定預設值
+  const newTaskData = {
+    ...taskData,
+    projectId: taskData.projectId || props.projectId,
+    statusId: taskData.statusId || 'todo',
+    priorityId: taskData.priorityId || 'medium'
+  }
+
+  selectedTask.value = newTaskData as Task
+  showCreateTaskDialog.value = true
+}
+
+// 處理甘特圖任務刪除
+async function handleTaskDelete(taskId: string): Promise<void> {
+  const success = await taskStore.deleteTask(taskId)
+  if (success) {
+    $q.notify({
+      type: 'positive',
+      message: '任務已刪除',
+      position: 'top'
+    })
+  }
+}
+
 // 處理視圖建立
 async function handleViewCreated(view: View): Promise<void> {
   try {
@@ -724,8 +760,44 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+// 統計卡片緊湊樣式
 .stat-card {
-  min-width: 80px;
+  min-width: 70px;
+
+  &.compact {
+    .q-card__section {
+      padding: 6px 8px !important;
+    }
+  }
+}
+
+// 緊湊工具列
+.compact-toolbar {
+  min-height: 40px;
+  padding: 0 8px;
+}
+
+// 緊湊輸入框
+.compact-input :deep(.q-field__control) {
+  min-height: 28px;
+  max-height: 28px;
+}
+
+.compact-input :deep(.q-field__native) {
+  min-height: 28px;
+  max-height: 28px;
+}
+
+.compact-input :deep(.q-field__marginal) {
+  min-height: 28px;
+  max-height: 28px;
+}
+
+// 緊湊按鈕
+.compact-btn {
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
 }
 
 .q-tab-panel {
@@ -738,6 +810,17 @@ onMounted(async () => {
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.04);
+  }
+}
+
+// 頭像和圖示尺寸調整
+:deep(.q-avatar) {
+  &.cursor-pointer {
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: scale(1.1);
+    }
   }
 }
 </style>
