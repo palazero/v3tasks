@@ -4,12 +4,11 @@
  */
 
 import { getDatabase } from './db/database';
-import type { CustomField, CustomFieldGroup, FieldType } from '@/types';
+import type { CustomField, FieldType } from '@/types';
 import { nanoid } from 'nanoid';
 
 export class CustomFieldService {
   private readonly fieldsTableName = 'customFields';
-  private readonly groupsTableName = 'customFieldGroups';
 
   /**
    * 清理資料，移除不可序列化的屬性
@@ -138,65 +137,6 @@ export class CustomFieldService {
 
   // ============= 自訂欄位群組 CRUD =============
 
-  /**
-   * 建立自訂欄位群組
-   */
-  async createCustomFieldGroup(
-    group: Omit<CustomFieldGroup, 'groupId' | 'createdAt' | 'updatedAt'>,
-  ): Promise<string> {
-    const db = getDatabase();
-
-    const newGroup: CustomFieldGroup = {
-      ...group,
-      groupId: nanoid(12),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await db.customFieldGroups.add(this.sanitizeData(newGroup));
-    return newGroup.groupId;
-  }
-
-  /**
-   * 取得專案的所有自訂欄位群組
-   */
-  async getProjectCustomFieldGroups(projectId: string): Promise<CustomFieldGroup[]> {
-    const db = getDatabase();
-
-    return await db.customFieldGroups.where('projectId').equals(projectId).sortBy('displayOrder');
-  }
-
-  /**
-   * 更新自訂欄位群組
-   */
-  async updateCustomFieldGroup(groupId: string, updates: Partial<CustomFieldGroup>): Promise<void> {
-    const db = getDatabase();
-
-    await db.customFieldGroups
-      .where('groupId')
-      .equals(groupId)
-      .modify({
-        ...updates,
-        updatedAt: new Date(),
-      });
-  }
-
-  /**
-   * 刪除自訂欄位群組
-   */
-  async deleteCustomFieldGroup(groupId: string): Promise<void> {
-    const db = getDatabase();
-
-    // 將群組內的欄位移至預設群組
-    await db.customFields
-      .where('groupId')
-      .equals(groupId)
-      .modify((field) => {
-        delete field.groupId;
-      });
-
-    await db.customFieldGroups.where('groupId').equals(groupId).delete();
-  }
 
   // ============= 欄位驗證 =============
 
@@ -389,14 +329,12 @@ export class CustomFieldService {
    */
   async exportProjectCustomFields(projectId: string): Promise<string> {
     const fields = await this.getProjectCustomFields(projectId);
-    const groups = await this.getProjectCustomFieldGroups(projectId);
 
     const exportData = {
       version: '1.0',
       exportedAt: new Date().toISOString(),
       projectId,
       fields,
-      groups,
     };
 
     return JSON.stringify(exportData, null, 2);
@@ -408,7 +346,7 @@ export class CustomFieldService {
   async importProjectCustomFields(
     projectId: string,
     data: string,
-  ): Promise<{ fieldsCount: number; groupsCount: number }> {
+  ): Promise<{ fieldsCount: number }> {
     try {
       const importData = JSON.parse(data);
 
@@ -417,18 +355,6 @@ export class CustomFieldService {
       }
 
       let fieldsCount = 0;
-      let groupsCount = 0;
-
-      // 匯入群組
-      if (importData.groups && Array.isArray(importData.groups)) {
-        for (const group of importData.groups) {
-          await this.createCustomFieldGroup({
-            ...group,
-            projectId,
-          });
-          groupsCount++;
-        }
-      }
 
       // 匯入欄位
       for (const field of importData.fields) {
@@ -439,7 +365,7 @@ export class CustomFieldService {
         fieldsCount++;
       }
 
-      return { fieldsCount, groupsCount };
+      return { fieldsCount };
     } catch (error) {
       throw new Error('匯入自訂欄位失敗：' + (error as Error).message);
     }
@@ -451,27 +377,6 @@ export class CustomFieldService {
    * 初始化專案預設自訂欄位
    */
   async initializeDefaultFields(projectId: string, createdBy: string): Promise<void> {
-    // 建立預設群組
-    const basicGroupId = await this.createCustomFieldGroup({
-      projectId,
-      name: '基本資訊',
-      description: '任務的基本擴充資訊',
-      displayOrder: 1000,
-      isCollapsible: false,
-      isCollapsed: false,
-      createdBy,
-    });
-
-    const trackingGroupId = await this.createCustomFieldGroup({
-      projectId,
-      name: '追蹤資訊',
-      description: '任務追蹤與統計資訊',
-      displayOrder: 2000,
-      isCollapsible: true,
-      isCollapsed: false,
-      createdBy,
-    });
-
     // 建立預設欄位
     const defaultFields = [
       {
@@ -482,7 +387,6 @@ export class CustomFieldService {
         isSystem: true,
         displayOrder: 1000,
         isVisible: true,
-        groupId: basicGroupId,
       },
       {
         name: '專案版本',
@@ -497,7 +401,6 @@ export class CustomFieldService {
         ],
         displayOrder: 2000,
         isVisible: true,
-        groupId: basicGroupId,
       },
       {
         name: '預估時數',
@@ -508,7 +411,6 @@ export class CustomFieldService {
         validation: { min: 0, max: 999 },
         displayOrder: 3000,
         isVisible: true,
-        groupId: trackingGroupId,
       },
       {
         name: '實際時數',
@@ -519,7 +421,6 @@ export class CustomFieldService {
         validation: { min: 0, max: 999 },
         displayOrder: 4000,
         isVisible: true,
-        groupId: trackingGroupId,
       },
       {
         name: '緊急程度',
@@ -535,7 +436,6 @@ export class CustomFieldService {
         ],
         displayOrder: 5000,
         isVisible: false,
-        groupId: basicGroupId,
       },
     ];
 

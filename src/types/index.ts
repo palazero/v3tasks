@@ -564,23 +564,6 @@ export interface CustomField {
   validation?: FieldValidation;
   displayOrder: number;
   isVisible: boolean;
-  groupId?: string;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * 自訂欄位群組
- */
-export interface CustomFieldGroup {
-  groupId: string;
-  projectId: string;
-  name: string;
-  description?: string;
-  displayOrder: number;
-  isCollapsible: boolean;
-  isCollapsed: boolean;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

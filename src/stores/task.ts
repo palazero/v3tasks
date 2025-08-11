@@ -70,7 +70,11 @@ export const useTaskStore = defineStore('task', () => {
         }
       }
 
-      tasks.value = allTasks;
+      // 確保所有任務都有正確的 customFields 數組
+      tasks.value = allTasks.map(task => ({
+        ...task,
+        customFields: task.customFields || []
+      }));
     } catch (err) {
       error.value = err instanceof Error ? err.message : '載入任務失敗';
       console.error('Failed to load all user tasks:', err);
@@ -86,7 +90,11 @@ export const useTaskStore = defineStore('task', () => {
 
     try {
       const projectTasks = await taskRepo.findByProject(projectId);
-      tasks.value = projectTasks;
+      // 確保所有任務都有正確的 customFields 數組
+      tasks.value = projectTasks.map(task => ({
+        ...task,
+        customFields: task.customFields || []
+      }));
     } catch (err) {
       error.value = err instanceof Error ? err.message : '載入專案任務失敗';
       console.error('Failed to load project tasks:', err);
@@ -304,7 +312,11 @@ export const useTaskStore = defineStore('task', () => {
       return getter(task);
     }
 
-    // 檢查自訂欄位
+    // 檢查自訂欄位 - 添加防護檢查
+    if (!task.customFields || !Array.isArray(task.customFields)) {
+      return null;
+    }
+    
     const customField = task.customFields.find((cf) => cf.fieldId === fieldId);
     return (customField?.value as string | number | Date | null) || null;
   }

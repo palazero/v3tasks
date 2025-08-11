@@ -4,7 +4,7 @@
  */
 
 import { ref, computed, watch } from 'vue';
-import type { CustomField, CustomFieldGroup, CustomFieldValue, FieldType } from '@/types';
+import type { CustomField, CustomFieldValue, FieldType } from '@/types';
 import { customFieldService } from '@/services/customFieldService';
 import { useCurrentUser } from './useCurrentUser';
 
@@ -13,38 +13,8 @@ export function useCustomFields(projectId: string) {
 
   // 狀態
   const customFields = ref<CustomField[]>([]);
-  const customFieldGroups = ref<CustomFieldGroup[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
-
-  // 計算屬性
-  const groupedFields = computed(() => {
-    const grouped: Record<string, CustomField[]> = {};
-
-    // 先建立群組
-    customFieldGroups.value.forEach((group) => {
-      grouped[group.groupId] = [];
-    });
-
-    // 沒有群組的欄位
-    grouped['ungrouped'] = [];
-
-    // 分配欄位到群組
-    customFields.value.forEach((field) => {
-      const groupId = field.groupId || 'ungrouped';
-      if (!grouped[groupId]) {
-        grouped[groupId] = [];
-      }
-      grouped[groupId].push(field);
-    });
-
-    // 排序每個群組內的欄位
-    Object.keys(grouped).forEach((groupId) => {
-      grouped[groupId]?.sort((a, b) => a.displayOrder - b.displayOrder);
-    });
-
-    return grouped;
-  });
 
   const visibleFields = computed(() => {
     return customFields.value.filter((field) => field.isVisible);
@@ -84,13 +54,8 @@ export function useCustomFields(projectId: string) {
       isLoading.value = true;
       error.value = null;
 
-      const [fields, groups] = await Promise.all([
-        customFieldService.getProjectCustomFields(projectId),
-        customFieldService.getProjectCustomFieldGroups(projectId),
-      ]);
-
+      const fields = await customFieldService.getProjectCustomFields(projectId);
       customFields.value = fields;
-      customFieldGroups.value = groups;
     } catch (err) {
       error.value = '載入自訂欄位失敗';
       console.error('Failed to load custom fields:', err);
@@ -168,65 +133,6 @@ export function useCustomFields(projectId: string) {
     }
   }
 
-  /**
-   * 建立自訂欄位群組
-   */
-  async function createCustomFieldGroup(
-    group: Omit<
-      CustomFieldGroup,
-      'groupId' | 'createdAt' | 'updatedAt' | 'projectId' | 'createdBy'
-    >,
-  ): Promise<string> {
-    if (!currentUser.value) {
-      throw new Error('需要登入才能建立群組');
-    }
-
-    try {
-      const groupId = await customFieldService.createCustomFieldGroup({
-        ...group,
-        projectId,
-        createdBy: currentUser.value.userId,
-      });
-
-      await loadCustomFields(); // 重新載入
-      return groupId;
-    } catch (err) {
-      error.value = '建立欄位群組失敗';
-      console.error('Failed to create custom field group:', err);
-      throw err;
-    }
-  }
-
-  /**
-   * 更新自訂欄位群組
-   */
-  async function updateCustomFieldGroup(
-    groupId: string,
-    updates: Partial<CustomFieldGroup>,
-  ): Promise<void> {
-    try {
-      await customFieldService.updateCustomFieldGroup(groupId, updates);
-      await loadCustomFields(); // 重新載入
-    } catch (err) {
-      error.value = '更新欄位群組失敗';
-      console.error('Failed to update custom field group:', err);
-      throw err;
-    }
-  }
-
-  /**
-   * 刪除自訂欄位群組
-   */
-  async function deleteCustomFieldGroup(groupId: string): Promise<void> {
-    try {
-      await customFieldService.deleteCustomFieldGroup(groupId);
-      await loadCustomFields(); // 重新載入
-    } catch (err) {
-      error.value = '刪除欄位群組失敗';
-      console.error('Failed to delete custom field group:', err);
-      throw err;
-    }
-  }
 
   /**
    * 重新排序自訂欄位
@@ -432,12 +338,10 @@ export function useCustomFields(projectId: string) {
     // 狀態
     fields: customFields,
     customFields, // 向後相容性
-    customFieldGroups,
     isLoading,
     error,
 
     // 計算屬性
-    groupedFields,
     visibleFields,
     requiredFields,
     fieldsByType,
@@ -448,11 +352,6 @@ export function useCustomFields(projectId: string) {
     updateCustomField,
     deleteCustomField,
     duplicateCustomField,
-
-    // 群組 CRUD
-    createCustomFieldGroup,
-    updateCustomFieldGroup,
-    deleteCustomFieldGroup,
 
     // 批次操作
     reorderCustomFields,

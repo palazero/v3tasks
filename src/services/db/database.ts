@@ -10,7 +10,6 @@ import type {
   Task,
   View,
   CustomField,
-  CustomFieldGroup,
   ViewConfiguration,
   ViewPreset,
 } from '@/types';
@@ -25,7 +24,6 @@ export class AppDatabase extends Dexie {
   tasks!: Table<Task>;
   views!: Table<View>;
   customFields!: Table<CustomField>;
-  customFieldGroups!: Table<CustomFieldGroup>;
   viewConfigurations!: Table<ViewConfiguration>;
   viewPresets!: Table<ViewPreset>;
 
@@ -50,10 +48,7 @@ export class AppDatabase extends Dexie {
 
       // 自訂欄位表
       customFields:
-        'fieldId, projectId, type, displayOrder, isRequired, isSystem, isVisible, groupId, [projectId+displayOrder]',
-
-      // 自訂欄位群組表
-      customFieldGroups: 'groupId, projectId, name, displayOrder, [projectId+displayOrder]',
+        'fieldId, projectId, type, displayOrder, isRequired, isSystem, isVisible, [projectId+displayOrder]',
 
       // 視圖配置表
       viewConfigurations: 'configId, userId, projectId, viewType, [userId+projectId+viewType]',
@@ -89,7 +84,6 @@ export class AppDatabase extends Dexie {
     this.tasks = this.table('tasks');
     this.views = this.table('views');
     this.customFields = this.table('customFields');
-    this.customFieldGroups = this.table('customFieldGroups');
     this.viewConfigurations = this.table('viewConfigurations');
     this.viewPresets = this.table('viewPresets');
   }
@@ -106,7 +100,6 @@ export class AppDatabase extends Dexie {
         this.tasks,
         this.views,
         this.customFields,
-        this.customFieldGroups,
         this.viewConfigurations,
         this.viewPresets,
       ],
@@ -117,7 +110,6 @@ export class AppDatabase extends Dexie {
           this.tasks.clear(),
           this.views.clear(),
           this.customFields.clear(),
-          this.customFieldGroups.clear(),
           this.viewConfigurations.clear(),
           this.viewPresets.clear(),
         ]);
@@ -142,7 +134,6 @@ export class AppDatabase extends Dexie {
     tasks: number;
     views: number;
     customFields: number;
-    customFieldGroups: number;
     viewConfigurations: number;
     viewPresets: number;
   }> {
@@ -152,7 +143,6 @@ export class AppDatabase extends Dexie {
       tasks,
       views,
       customFields,
-      customFieldGroups,
       viewConfigurations,
       viewPresets,
     ] = await Promise.all([
@@ -161,7 +151,6 @@ export class AppDatabase extends Dexie {
       this.tasks.count(),
       this.views.count(),
       this.customFields.count(),
-      this.customFieldGroups.count(),
       this.viewConfigurations.count(),
       this.viewPresets.count(),
     ]);
@@ -172,7 +161,6 @@ export class AppDatabase extends Dexie {
       tasks,
       views,
       customFields,
-      customFieldGroups,
       viewConfigurations,
       viewPresets,
     };

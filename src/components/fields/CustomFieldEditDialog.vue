@@ -83,45 +83,23 @@
                 </template>
               </q-input>
 
-              <div class="row q-col-gutter-sm">
-                <div class="col">
-                  <q-select
-                    v-model="form.type"
-                    :options="fieldTypeOptions"
-                    label="欄位類型"
-                    outlined
-                    dense
-                    emit-value
-                    map-options
-                    :rules="[val => !!val || '請選擇欄位類型']"
-                    @update:model-value="onTypeChange"
-                    class="compact-input"
-                    hide-bottom-space
-                  >
-                    <template v-slot:prepend>
-                      <q-icon name="category" color="grey-6" />
-                    </template>
-                  </q-select>
-                </div>
-                <div class="col">
-                  <q-select
-                    v-model="form.groupId"
-                    :options="groupOptions"
-                    label="所屬群組"
-                    outlined
-                    dense
-                    emit-value
-                    map-options
-                    clearable
-                    class="compact-input"
-                    hide-bottom-space
-                  >
-                    <template v-slot:prepend>
-                      <q-icon name="folder" color="grey-6" />
-                    </template>
-                  </q-select>
-                </div>
-              </div>
+              <q-select
+                v-model="form.type"
+                :options="fieldTypeOptions"
+                label="欄位類型"
+                outlined
+                dense
+                emit-value
+                map-options
+                :rules="[val => !!val || '請選擇欄位類型']"
+                @update:model-value="onTypeChange"
+                class="compact-input"
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="category" color="grey-6" />
+                </template>
+              </q-select>
             </div>
           </div>
 
@@ -429,7 +407,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import { useQuasar } from 'quasar'
-import type { CustomField, CustomFieldGroup, FieldType, FieldOption, FieldValidation } from '@/types'
+import type { CustomField, FieldType, FieldOption, FieldValidation } from '@/types'
 import { useCustomFields } from '@/composables/useCustomFields'
 import CustomFieldRenderer from './CustomFieldRenderer.vue'
 
@@ -437,7 +415,6 @@ import CustomFieldRenderer from './CustomFieldRenderer.vue'
 const props = defineProps<{
   modelValue: boolean
   field?: CustomField | null
-  groups: CustomFieldGroup[]
   projectId?: string
 }>()
 
@@ -459,7 +436,6 @@ const form = ref({
   name: '',
   description: '',
   type: 'text' as FieldType,
-  groupId: '',
   isRequired: false,
   isVisible: true,
   options: [] as FieldOption[],
@@ -479,14 +455,6 @@ const fieldTypeOptions = [
   { label: '核取方塊', value: 'checkbox' }
 ]
 
-// 群組選項
-const groupOptions = computed(() => [
-  { label: '無群組', value: '' },
-  ...props.groups.map(group => ({
-    label: group.name,
-    value: group.groupId
-  }))
-])
 
 // 顏色選項
 const colorOptions = [
@@ -519,7 +487,6 @@ const previewField = computed((): CustomField => ({
   validation: form.value.validation,
   displayOrder: form.value.displayOrder,
   isVisible: form.value.isVisible,
-  groupId: form.value.groupId || '',
   createdBy: '',
   createdAt: new Date(),
   updatedAt: new Date()
@@ -533,7 +500,6 @@ function initializeForm(): void {
       name: props.field.name,
       description: props.field.description || '',
       type: props.field.type,
-      groupId: props.field.groupId || '',
       isRequired: props.field.isRequired,
       isVisible: props.field.isVisible,
       options: props.field.options ? [...props.field.options] : [],
@@ -547,7 +513,6 @@ function initializeForm(): void {
       name: '',
       description: '',
       type: 'text' as FieldType,
-      groupId: '',
       isRequired: false,
       isVisible: true,
       options: [],
@@ -651,7 +616,6 @@ async function onSubmit(): Promise<void> {
       name: form.value.name.trim(),
       description: form.value.description?.trim() || '',
       type: form.value.type,
-      groupId: form.value.groupId || '',
       isRequired: form.value.isRequired,
       isVisible: form.value.isVisible,
       options: needsOptions.value ? form.value.options : [],
