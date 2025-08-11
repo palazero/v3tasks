@@ -15,7 +15,7 @@
       @end="onDragEnd"
       @change="onTaskChange"
     >
-      <template v-for="task in flattenedTasks" :key="task.taskId">
+      <template v-for="(task, index) in flattenedTasks" :key="task.taskId">
         <!-- Task Item -->
         <TaskItem
           :task="task"
@@ -35,6 +35,14 @@
           @toggle-selection="handleToggleSelection(task.taskId, $event)"
         />
 
+        <!-- Quick Add for expanded tasks (參考 mpi-app TaskList 邏輯) -->
+        <QuickAddTask
+          v-if="shouldShowQuickAddAfterTask(task, index)"
+          :parent-id="task.taskId"
+          :level="(task.level || 0) + 1"
+          :project-id="projectId"
+          @task-added="$emit('task-added', $event)"
+        />
       </template>
     </VueDraggable>
 
@@ -206,6 +214,46 @@ function hasChildren(taskId: string): boolean {
 function getChildrenCount(taskId: string): number {
   const task = findTaskInTree(localTaskList.value, taskId)
   return task?.children?.length || 0
+}
+
+// 判斷是否在任務後顯示 QuickAdd
+function shouldShowQuickAddAfterTask(task: Task, index: number): boolean {
+  const currentLevel = task.level || 0
+  const nextTask = flattenedTasks.value[index + 1]
+  
+  // 找到當前任務的父任務（層級比當前任務少1的任務）
+  let parentTask: Task | null = null
+  for (let i = index - 1; i >= 0; i--) {
+    const prevTask = flattenedTasks.value[i]
+    if ((prevTask.level || 0) === currentLevel - 1) {
+      parentTask = prevTask
+      break
+    }
+  }
+  
+  // 沒有父任務的話，不顯示 QuickAdd
+  if (!parentTask) {
+    return false
+  }
+  
+  const parentExpanded = parentTask.isExpanded !== false
+  const parentHasChildren = hasChildren(parentTask.taskId)
+  
+  // 父任務必須展開且有子任務
+  if (!parentExpanded || !parentHasChildren) {
+    return false
+  }
+  
+  // 檢查是否是該父任務的最後一個子任務
+  if (!nextTask) {
+    return true
+  }
+  
+  const nextLevel = nextTask.level || 0
+  
+  // 如果下一個任務的層級小於當前層級，表示當前父任務的子任務組結束
+  // 這時應該顯示 QuickAdd 讓用戶可以為父任務添加新的子任務
+  return nextLevel < currentLevel
 }
 
 

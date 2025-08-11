@@ -162,6 +162,22 @@ stores/
   - [x] 代碼品質改善 - ESLint 錯誤清零、未使用函數清理、響應式優化
   - [x] 完成階段報告: `report_ui_optimization_and_fixes.md`
 
+- [x] **TaskListView 與 TaskTableView 操作功能統一** ✅ (2025-08-11)
+  - [x] 統一 TaskTableView 新增、編輯、刪除操作模式
+  - [x] 實作 TaskTableView 確認對話框與 TaskDialog 整合
+  - [x] 更新 TaskListView 事件處理，統一操作介面
+  - [x] 修正 ProjectView TaskDialog 支援 parentTaskId 和 initialData
+  - [x] 確保新增子任務時正確傳遞專案 ID 和父任務 ID
+
+- [x] **TaskListView 子階 QuickAdd 功能實作** ✅ (2025-08-11)
+  - [x] 參考 mpi-app TaskList 遞歸結構設計理念
+  - [x] 實作智能 QuickAdd 顯示邏輯 - 只在有子任務的展開任務末尾顯示
+  - [x] 建立父任務識別算法 - 反向搜尋找到正確的父任務
+  - [x] 修正層級關係判斷 - 使用 `nextLevel < currentLevel` 確定子任務組結束點
+  - [x] 整合正確的事件處理 - 確保 parentTaskId 和 projectId 正確傳遞
+  - [x] 完成調試與驗證 - 詳細日誌追蹤問題並修正
+  - [x] 完成實作報告: `report_listview_quickadd_implementation.md`
+
 ### 準備開始
 - [ ] Phase 6: 甘特圖與儀表板進階功能
 
@@ -178,6 +194,7 @@ stores/
 - `/report_project_settings_integration.md` - 專案設定系統整合報告
 - `/report_07_view_tabs_reordering_and_memory.md` - 視圖標籤排序與記憶功能報告
 - `/report_ui_optimization_and_fixes.md` - UI 優化與功能修復完整報告
+- `/report_listview_quickadd_implementation.md` - TaskListView 子階 QuickAdd 功能實作報告
 
 ### 核心元件
 - `/src/types/index.ts` - 完整類型定義 (376 行)
@@ -247,6 +264,13 @@ stores/
 - `/src/components/task/TaskItem.vue` - 重構緊湊型任務項目 (24px 高度，懸停操作)
 - `/src/components/task/TaskDialog.vue` - 美化任務編輯對話框 (漸變標題，雙欄佈局)
 - `/src/components/views/TaskListView.vue` - 優化專案分組顯示邏輯 (響應式載入)
+
+### TaskListView QuickAdd 功能增強
+- `/src/components/task/CompactTaskList.vue` - 實作子階 QuickAdd 智能顯示邏輯
+- `/src/components/views/TaskListView.vue` - 統一操作事件處理機制
+- `/src/components/views/TaskTableView.vue` - 統一操作功能與確認對話框
+- `/src/pages/ProjectView.vue` - 增強 TaskDialog 支援 parentTaskId 和 initialData
+- `/src/components/task/TaskDialog.vue` - 擴展支援父任務關聯與初始資料
 
 ## 命令提醒
 

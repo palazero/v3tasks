@@ -488,6 +488,8 @@ const props = defineProps<{
   mode: 'create' | 'edit'
   task?: Task
   projectId?: string
+  parentTaskId?: string
+  initialData?: Partial<Task>
 }>()
 
 // Emits
@@ -517,6 +519,7 @@ const tagOptions = ref<string[]>([])
 const formData = ref<Partial<Task> & {
   title: string
   projectId?: string
+  parentTaskId?: string
 }>({
   title: '',
   statusId: 'todo',
@@ -604,17 +607,30 @@ function initFormData(): void {
       descriptionText.value = extractTextFromRichText(props.task.description)
     }
   } else {
-    // 建立模式：重置表單
+    // 建立模式：使用初始資料或預設值
+    const initialData = props.initialData || {}
     formData.value = {
-      title: '',
-      projectId: props.projectId || '',
-      statusId: 'todo',
-      priorityId: 'medium',
-      progress: 0,
-      tags: [],
-      customFields: initializeTaskCustomFields()
+      title: initialData.title || '',
+      projectId: initialData.projectId || props.projectId || '',
+      parentTaskId: initialData.parentTaskId || props.parentTaskId || undefined,
+      statusId: initialData.statusId || 'todo',
+      priorityId: initialData.priorityId || 'medium',
+      progress: initialData.progress || 0,
+      tags: initialData.tags || [],
+      customFields: initialData.customFields || initializeTaskCustomFields(),
+      ...initialData // 允許其他欄位
     }
-    descriptionText.value = ''
+    
+    // 處理初始描述
+    if (initialData.description) {
+      if (typeof initialData.description === 'object') {
+        descriptionText.value = extractTextFromRichText(initialData.description)
+      } else {
+        descriptionText.value = String(initialData.description)
+      }
+    } else {
+      descriptionText.value = ''
+    }
   }
 }
 
@@ -735,10 +751,17 @@ async function handleSubmit(): Promise<void> {
   try {
     if (props.mode === 'create') {
       // 建立新任務
-      const newTask = await taskStore.createTask({
+      const taskData = {
         ...formData.value,
         projectId: formData.value.projectId || props.projectId || ''
-      })
+      }
+      
+      // 如果有父任務 ID，確保傳遞
+      if (formData.value.parentTaskId) {
+        taskData.parentTaskId = formData.value.parentTaskId
+      }
+      
+      const newTask = await taskStore.createTask(taskData)
 
       if (newTask) {
         emit('task-created', newTask)

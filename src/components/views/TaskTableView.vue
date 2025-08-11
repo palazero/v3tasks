@@ -680,10 +680,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'task-click': [task: Task]
   'task-update': [taskId: string, updates: Partial<Task>]
-  'add-task': []
-  'add-subtask': [parentTask: Task]
-  'edit-task': [task: Task]
-  'delete-task': [task: Task]
+  'task-create': [taskData: Partial<Task>]
+  'task-delete': [taskId: string]
 }>()
 
 const { buildTaskTree } = useNestedTasks()
@@ -1407,15 +1405,24 @@ function applySorting(tasks: Task[], sortBy: string, sortOrder: 'asc' | 'desc'):
 
 // 操作功能
 function addSubtask(parentTask: Task): void {
-  emit('add-subtask', parentTask)
+  // 發出新增子任務事件，確保使用正確的專案 ID
+  emit('task-create', {
+    parentTaskId: parentTask.taskId,
+    projectId: parentTask.projectId || props.projectId,
+    title: '',
+    statusId: 'todo',
+    priorityId: 'medium'
+  })
 }
 
 function editTask(task: Task): void {
-  emit('edit-task', task)
+  // 發出任務點擊事件，開啟編輯對話框
+  emit('task-click', task)
 }
 
 function deleteTask(task: Task): void {
-  emit('delete-task', task)
+  // 發出刪除事件
+  emit('task-delete', task.taskId)
 }
 
 // 預載入所有專案資料

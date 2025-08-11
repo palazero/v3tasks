@@ -8,7 +8,7 @@
         class="project-group q-mb-lg"
       >
         <!-- 專案分組標題 -->
-        <div 
+        <div
           class="project-group-header q-pa-xs bg-grey-2 rounded-borders-top cursor-pointer"
           @click="toggleProjectExpanded(projectId)"
         >
@@ -28,33 +28,33 @@
               <span class="text-h6 text-weight-medium">
                 {{ getProjectName(projectId) }}
               </span>
-              
+
               <!-- 專案統計資訊 -->
               <div class="project-stats row items-center q-gutter-xs">
                 <!-- 總任務數 -->
-                <q-badge 
-                  color="grey" 
-                  :label="`${getCachedProjectStats(projectId).total} 任務`" 
+                <q-badge
+                  color="grey"
+                  :label="`${getCachedProjectStats(projectId).total} 任務`"
                 />
-                
+
                 <!-- 進度百分比 -->
-                <q-badge 
-                  :color="getCachedProjectStats(projectId).progress === 100 ? 'positive' : 'info'" 
-                  :label="`${getCachedProjectStats(projectId).progress}%`" 
+                <q-badge
+                  :color="getCachedProjectStats(projectId).progress === 100 ? 'positive' : 'info'"
+                  :label="`${getCachedProjectStats(projectId).progress}%`"
                 />
-                
+
                 <!-- 逾期任務警告 -->
-                <q-badge 
+                <q-badge
                   v-if="getCachedProjectStats(projectId).overdue > 0"
-                  color="negative" 
-                  :label="`${getCachedProjectStats(projectId).overdue} 逾期`" 
+                  color="negative"
+                  :label="`${getCachedProjectStats(projectId).overdue} 逾期`"
                 />
-                
+
                 <!-- 進行中任務 -->
-                <q-badge 
+                <q-badge
                   v-if="getCachedProjectStats(projectId).inProgress > 0"
-                  color="warning" 
-                  :label="`${getCachedProjectStats(projectId).inProgress} 進行中`" 
+                  color="warning"
+                  :label="`${getCachedProjectStats(projectId).inProgress} 進行中`"
                 />
               </div>
             </div>
@@ -79,7 +79,7 @@
                         <q-icon v-if="projectSortBy === 'name'" name="check" />
                       </q-item-section>
                     </q-item>
-                    
+
                     <q-item clickable @click="setProjectSort('taskCount')">
                       <q-item-section>
                         <q-item-label>依任務數量</q-item-label>
@@ -88,7 +88,7 @@
                         <q-icon v-if="projectSortBy === 'taskCount'" name="check" />
                       </q-item-section>
                     </q-item>
-                    
+
                     <q-item clickable @click="setProjectSort('progress')">
                       <q-item-section>
                         <q-item-label>依進度排序</q-item-label>
@@ -97,7 +97,7 @@
                         <q-icon v-if="projectSortBy === 'progress'" name="check" />
                       </q-item-section>
                     </q-item>
-                    
+
                     <q-item clickable @click="setProjectSort('overdue')">
                       <q-item-section>
                         <q-item-label>依逾期任務</q-item-label>
@@ -124,8 +124,8 @@
         </div>
 
         <!-- 專案任務列表 -->
-        <div 
-          v-show="isProjectExpanded(projectId)" 
+        <div
+          v-show="isProjectExpanded(projectId)"
           class="project-tasks bg-white rounded-borders-bottom"
         >
           <div v-if="projectTasks.length === 0" class="empty-project-state q-pa-lg text-center">
@@ -133,7 +133,7 @@
             <div class="text-body1 text-grey-6 q-mt-md">此專案暫無任務</div>
             <div class="text-caption text-grey-5 q-mt-xs">使用快速新增功能建立第一個任務</div>
           </div>
-          
+
           <CompactTaskList
             v-else
             :tasks="projectTasks"
@@ -141,13 +141,12 @@
             :project-id="projectId"
             :selected-tasks="selectedTasks"
             @task-click="emit('task-click', $event)"
-            @task-update="handleTaskUpdate"
-            @tasks-reorder="handleTasksReorder"
             @add-subtask="handleAddSubtask"
             @edit-task="handleEditTask"
-            @duplicate-task="handleDuplicateTask"
             @delete-task="handleDeleteTask"
             @task-added="handleTaskAdded"
+            @task-update="handleTaskUpdate"
+            @tasks-reorder="handleTasksReorder"
             @toggle-selection="handleToggleSelection"
           />
         </div>
@@ -163,13 +162,12 @@
           :project-id="projectId"
           :selected-tasks="selectedTasks"
           @task-click="emit('task-click', $event)"
-          @task-update="handleTaskUpdate"
-          @tasks-reorder="handleTasksReorder"
           @add-subtask="handleAddSubtask"
           @edit-task="handleEditTask"
-          @duplicate-task="handleDuplicateTask"
           @delete-task="handleDeleteTask"
           @task-added="handleTaskAdded"
+          @task-update="handleTaskUpdate"
+          @tasks-reorder="handleTasksReorder"
           @toggle-selection="handleToggleSelection"
         />
       </div>
@@ -197,6 +195,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'task-click': [task: Task]
   'task-update': [taskId: string, updates: Partial<Task>]
+  'task-create': [taskData: Partial<Task>]
+  'task-delete': [taskId: string]
 }>()
 
 const $q = useQuasar()
@@ -282,15 +282,15 @@ function getProjectStats(tasks: Task[]): {
     if (!task.endDateTime) return false
     return new Date(task.endDateTime) < new Date() && task.statusId !== 'done'
   }).length
-  
+
   const priority = {
     high: tasks.filter(task => task.priorityId === 'high').length,
     medium: tasks.filter(task => task.priorityId === 'medium').length,
     low: tasks.filter(task => task.priorityId === 'low').length
   }
-  
+
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0
-  
+
   return {
     total,
     completed,
@@ -313,7 +313,19 @@ async function handleTasksReorder(updates: Array<{ taskId: string; updates: Part
   }
 }
 
-async function handleAddSubtask(parentTask: Task, title: string): Promise<void> {
+// 處理新增子任務（來自 CompactTaskList）
+function handleAddSubtask(parentTask: Task): void {
+  emit('task-create', {
+    parentTaskId: parentTask.taskId,
+    projectId: parentTask.projectId || props.projectId,
+    title: '',
+    statusId: 'todo',
+    priorityId: 'medium'
+  })
+}
+
+// 處理直接創建子任務（來自 QuickAddTask）
+async function handleCreateSubtask(parentTask: Task, title: string): Promise<void> {
   const newTask = await taskStore.addSubtask(parentTask, title)
   if (newTask) {
     $q.notify({
@@ -334,8 +346,8 @@ function handleTaskUpdate(data: { taskId: string; updates: Partial<Task> }): voi
 }
 
 function handleEditTask(task: Task): void {
-  // TODO: Open task edit dialog
-  console.log('Edit task:', task.title)
+  // 發出任務點擊事件，開啟編輯對話框
+  emit('task-click', task)
 }
 
 function handleDuplicateTask(task: Task): void {
@@ -344,13 +356,13 @@ function handleDuplicateTask(task: Task): void {
 }
 
 function handleDeleteTask(task: Task): void {
-  // TODO: Delete task with confirmation
-  console.log('Delete task:', task.title)
+  // 發出刪除事件
+  emit('task-delete', task.taskId)
 }
 
 function handleTaskAdded(task: Task): void {
-  // TODO: Handle new task added
-  console.log('Task added:', task.title)
+  // QuickAddTask 完成任務新增後的處理
+  // 可以在這裡加入額外的處理邏輯，如重新整理列表等
 }
 
 function handleToggleSelection(data: { taskId: string; selected: boolean }): void {
@@ -394,14 +406,14 @@ const groupedTasks = computed(() => {
 // 排序後的專案分組
 const sortedGroupedTasks = computed(() => {
   const entries = Array.from(groupedTasks.value.entries())
-  
+
   // 根據選擇的排序方式排序專案
   entries.sort(([projectIdA, _tasksA], [projectIdB, _tasksB]) => {
     const statsA = projectStatsCache.value.get(projectIdA)
     const statsB = projectStatsCache.value.get(projectIdB)
-    
+
     if (!statsA || !statsB) return 0
-    
+
     if (projectSortBy.value === 'name') {
       const nameA = getProjectName.value(projectIdA)
       const nameB = getProjectName.value(projectIdB)
@@ -413,21 +425,21 @@ const sortedGroupedTasks = computed(() => {
     } else if (projectSortBy.value === 'overdue') {
       return statsB.overdue - statsA.overdue // 降序
     }
-    
+
     return 0
   })
-  
+
   return new Map(entries)
 })
 
 // 專案統計資訊快取
 const projectStatsCache = computed(() => {
   const cache = new Map<string, ReturnType<typeof getProjectStats>>()
-  
+
   groupedTasks.value.forEach((tasks, projectId) => {
     cache.set(projectId, getProjectStats(tasks))
   })
-  
+
   return cache
 })
 
@@ -460,7 +472,7 @@ const getProjectName = computed(() => {
     // 避免重複載入
     if (!projectLoadingCache.value.has(projectId)) {
       projectLoadingCache.value.add(projectId)
-      
+
       // 異步載入專案資訊
       void projectRepo.findById(projectId).then(project => {
         if (project) {
@@ -524,7 +536,7 @@ const getProjectIconColor = computed(() => {
     .project-group-header {
       border-bottom: 1px solid #e0e0e0;
       transition: background-color 0.2s ease;
-      
+
       &:hover {
         background-color: #f5f5f5 !important;
       }
@@ -541,12 +553,12 @@ const getProjectIconColor = computed(() => {
       .task-item:last-child {
         border-bottom: none;
       }
-      
+
       .empty-project-state {
         border-top: 1px solid #f0f0f0;
         background: #fafafa;
         min-height: 100px;
-        
+
         .q-icon {
           opacity: 0.6;
         }

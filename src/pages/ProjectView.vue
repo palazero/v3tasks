@@ -288,7 +288,9 @@
     <TaskDialog
       v-model="showCreateTaskDialog"
       mode="create"
-      :project-id="projectId"
+      :project-id="createTaskData.projectId || projectId"
+      :parent-task-id="parentTaskId"
+      :initial-data="createTaskData"
       @task-created="handleTaskCreated"
     />
 
@@ -427,6 +429,8 @@ const showFilterDialog = ref(false)
 const showSortDialog = ref(false)
 const selectedTask = ref<Task | undefined>(undefined)
 const selectedView = ref<View | undefined>(undefined)
+const createTaskData = ref<Partial<Task>>({})
+const parentTaskId = ref<string | undefined>(undefined)
 
 // 選單 refs 管理
 const tabMenuRefs = ref<Record<string, HTMLElement | null>>({})
@@ -745,27 +749,48 @@ function handleTaskUpdated(task: Task): void {
 // 處理甘特圖任務建立
 function handleTaskCreate(taskData: Partial<Task>): void {
   // 設定預設值
-  const newTaskData = {
+  createTaskData.value = {
     ...taskData,
     projectId: taskData.projectId || props.projectId,
     statusId: taskData.statusId || 'todo',
     priorityId: taskData.priorityId || 'medium'
   }
-
-  selectedTask.value = newTaskData as Task
+  
+  // 設定父任務 ID（如果有）
+  parentTaskId.value = taskData.parentTaskId
+  
   showCreateTaskDialog.value = true
 }
 
 // 處理甘特圖任務刪除
 async function handleTaskDelete(taskId: string): Promise<void> {
-  const success = await taskStore.deleteTask(taskId)
-  if (success) {
-    $q.notify({
-      type: 'positive',
-      message: '任務已刪除',
-      position: 'top'
-    })
-  }
+  // 先找到任務以獲取任務標題
+  const task = taskStore.tasks.find(t => t.taskId === taskId)
+  const taskTitle = task?.title || '此任務'
+  
+  $q.dialog({
+    title: '確認刪除',
+    message: `確定要刪除任務「${taskTitle}」嗎？`,
+    cancel: true,
+    persistent: true,
+    ok: {
+      label: '刪除',
+      color: 'negative'
+    },
+    cancel: {
+      label: '取消',
+      color: 'grey'
+    }
+  }).onOk(async () => {
+    const success = await taskStore.deleteTask(taskId)
+    if (success) {
+      $q.notify({
+        type: 'positive',
+        message: '任務已刪除',
+        position: 'top'
+      })
+    }
+  })
 }
 
 // 處理視圖建立
