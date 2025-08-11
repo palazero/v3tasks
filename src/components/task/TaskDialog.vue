@@ -2,470 +2,430 @@
   <q-dialog
     v-model="dialogModel"
     persistent
-    :maximized="$q.screen.lt.md"
+    max-width="700px"
     transition-show="slide-up"
     transition-hide="slide-down"
     class="task-dialog-wrapper"
   >
-    <q-card
-      :style="$q.screen.gt.sm ? 'width: 900px; max-width: 95vw' : ''"
-      class="task-dialog elegant-card"
-    >
-      <!-- 美化標題列 -->
-      <q-card-section class="dialog-header gradient-header row items-center q-pb-md">
+    <q-card class="task-edit-dialog">
+      <!-- Enhanced Header -->
+      <q-card-section class="dialog-header">
         <div class="row items-center no-wrap">
-          <q-avatar 
-            :color="mode === 'create' ? 'positive' : 'primary'" 
-            text-color="white" 
-            size="40px"
-            class="q-mr-md header-avatar"
-          >
-            <q-icon 
-              :name="mode === 'create' ? 'add_task' : 'edit_note'" 
-              size="22px"
-            />
-          </q-avatar>
+          <q-icon
+            :name="mode === 'create' ? 'add_task' : 'edit'"
+            size="24px"
+            :color="mode === 'create' ? 'positive' : 'primary'"
+            class="q-mr-sm"
+          />
           <div>
-            <div class="text-h5 text-weight-medium text-white">
-              {{ mode === 'create' ? '建立新任務' : '編輯任務' }}
+            <div class="text-subtitle1 text-weight-medium">
+              {{ mode === 'create' ? '新增任務' : '編輯任務' }}
             </div>
-            <div v-if="mode === 'edit' && task" class="text-caption text-white opacity-80">
-              ID: {{ task.taskId }} • 建立於 {{ formatDate(task.createdAt) }}
+            <div v-if="mode === 'edit' && task" class="text-caption text-grey-6 q-mt-xs" style="font-size: 10px;">
+              任務ID: {{ task.taskId }}
             </div>
           </div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup class="close-btn" />
         </div>
-        <q-space />
-        <q-btn 
-          icon="close" 
-          flat 
-          round 
-          color="white" 
-          size="md"
-          class="close-btn"
-          v-close-popup 
-        />
       </q-card-section>
 
-      <!-- 沒有需要 separator，由 CSS 處理 -->
+      <!-- Progress Indicator -->
+      <q-linear-progress
+        v-if="isSubmitting"
+        indeterminate
+        color="primary"
+        class="loading-bar"
+      />
 
-      <!-- 美化表單內容 -->
-      <q-form @submit="handleSubmit">
-        <q-card-section style="max-height: 65vh" class="scroll form-content">
-          <div class="row q-gutter-md">
-            <!-- 主要內容區 -->
-            <div class="col-12 col-md-8 main-content">
-              <!-- 美化任務標題 -->
-              <div class="form-field">
-                <q-input
-                  v-model="formData.title"
-                  label="任務標題"
-                  filled
-                  :rules="[val => !!val || '請輸入任務標題']"
-                  class="title-input"
-                  autofocus
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="title" color="primary" />
-                  </template>
-                </q-input>
-              </div>
-
-              <!-- 美化任務描述 -->
-              <div class="form-field">
-                <div class="field-label">
-                  <q-icon name="description" color="primary" class="q-mr-xs" />
-                  任務描述
-                </div>
-                <q-input
-                  v-model="descriptionText"
-                  type="textarea"
-                  filled
-                  rows="5"
-                  placeholder="描述任務的詳細內容、目標及注意事項..."
-                  class="description-textarea"
-                  @update:model-value="(value: string | number | null) => updateDescription(String(value || ''))"
-                />
-              </div>
-
-              <!-- 美化標籤 -->
-              <div class="form-field">
-                <div class="field-label">
-                  <q-icon name="local_offer" color="orange" class="q-mr-xs" />
-                  標籤
-                </div>
-                <q-select
-                  v-model="formData.tags"
-                  filled
-                  multiple
-                  use-chips
-                  use-input
-                  hide-dropdown-icon
-                  input-debounce="0"
-                  new-value-mode="add-unique"
-                  :options="tagOptions"
-                  @filter="filterTags"
-                  placeholder="輸入標籤並按 Enter 添加"
-                  class="tags-select"
-                >
-                  <template v-slot:selected-item="scope">
-                    <q-chip
-                      removable
-                      dense
-                      color="orange-2"
-                      text-color="orange-9"
-                      :tabindex="scope.tabindex"
-                      @remove="scope.removeAtIndex(scope.index)"
-                      class="tag-chip"
-                    >
-                      {{ scope.opt }}
-                    </q-chip>
-                  </template>
-                </q-select>
-              </div>
+      <q-card-section class="dialog-content">
+        <q-form @submit="handleSubmit" class="form-container">
+          <!-- Basic Information Section -->
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="info" color="primary" size="20px" />
+              <span class="section-title">基本資訊</span>
             </div>
 
-            <!-- 自訂欄位 -->
-            <div v-if="visibleCustomFields.length > 0" class="col-12 q-mb-md">
-              <div class="custom-fields-section">
-                <q-separator class="q-mb-md" />
-                <div class="text-subtitle1 q-mb-md">自訂欄位</div>
+            <div class="section-content">
+              <!-- Task Title -->
+              <q-input
+                v-model="formData.title"
+                label="任務標題"
+                outlined
+                dense
+                :rules="[val => !!val || '請輸入任務標題']"
+                ref="titleInput"
+                class="title-input compact-input"
+                hide-bottom-space
+                autofocus
+              >
+                <template v-slot:prepend>
+                  <q-icon name="title" color="grey-6" />
+                </template>
+              </q-input>
 
-                <div class="row q-gutter-md">
-                  <div
-                    v-for="field in visibleCustomFields"
-                    :key="field.fieldId"
-                    :class="field.type === 'text' && field.validation?.maxLength && field.validation.maxLength > 100 ? 'col-12' : 'col-12 col-sm-6'"
-                  >
-                    <CustomFieldRenderer
-                      :field="field"
-                      :value="getCustomFieldValue(field.fieldId)"
-                      :project-id="formData.projectId || ''"
-                      @update:value="updateCustomFieldValue(field.fieldId, $event)"
-                      @validation-error="onCustomFieldValidation(field.fieldId, $event)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+              <!-- Task Description -->
+              <q-input
+                v-model="descriptionText"
+                label="任務描述"
+                outlined
+                dense
+                type="textarea"
+                rows="2"
+                class="description-input compact-input"
+                hide-bottom-space
+                @update:model-value="(value: string | number | null) => updateDescription(String(value || ''))"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="description" color="grey-6" />
+                </template>
+              </q-input>
 
-            <!-- 屬性設定區 -->
-            <div class="col-12 col-md-4 properties-panel">
-              <!-- 專案選擇（僅建立模式顯示） -->
+              <!-- Project Selection -->
               <q-select
                 v-if="mode === 'create' && !projectId"
                 v-model="formData.projectId"
                 :options="projectOptions"
                 option-value="value"
                 option-label="label"
-                label="專案 *"
-                filled
+                label="專案"
+                outlined
+                dense
                 emit-value
                 map-options
                 :rules="[val => !!val || '請選擇專案']"
-                class="q-mb-md"
-              />
-
-              <!-- 美化狀態 -->
-              <div class="form-field">
-                <div class="field-label">
-                  <q-icon name="flag" color="blue" class="q-mr-xs" />
-                  任務狀態
-                </div>
-                <q-select
-                  v-model="formData.statusId"
-                  :options="statusOptions"
-                  option-value="value"
-                  option-label="label"
-                  filled
-                  emit-value
-                  map-options
-                  class="status-select"
-                >
-                  <template v-slot:selected>
-                    <div class="row items-center no-wrap">
-                      <q-icon :name="getStatusIcon(formData.statusId)" :color="getStatusColor(formData.statusId)" class="q-mr-sm" />
-                      <span>{{ getStatusLabel(formData.statusId) }}</span>
-                    </div>
-                  </template>
-                  <template v-slot:option="scope">
-                    <q-item v-bind="scope.itemProps">
-                      <q-item-section avatar>
-                        <q-icon :name="getStatusIcon(scope.opt.value)" :color="getStatusColor(scope.opt.value)" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label>{{ scope.opt.label }}</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
-              </div>
-
-              <!-- 美化優先級 -->
-              <div class="form-field">
-                <div class="field-label">
-                  <q-icon name="priority_high" color="red" class="q-mr-xs" />
-                  優先級
-                </div>
-                <q-select
-                  v-model="formData.priorityId"
-                  :options="priorityOptions"
-                  option-value="value"
-                  option-label="label"
-                  filled
-                  emit-value
-                  map-options
-                  class="priority-select"
-                >
-                  <template v-slot:selected>
-                    <div class="row items-center no-wrap">
-                      <q-chip 
-                        :color="getPriorityColor(formData.priorityId)" 
-                        text-color="white" 
-                        dense 
-                        class="priority-chip q-mr-sm"
-                      >
-                        {{ getPriorityLabel(formData.priorityId) }}
-                      </q-chip>
-                    </div>
-                  </template>
-                  <template v-slot:option="scope">
-                    <q-item v-bind="scope.itemProps">
-                      <q-item-section avatar>
-                        <q-icon :name="scope.opt.icon" :color="scope.opt.color" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label>{{ scope.opt.label }}</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
-              </div>
-
-              <!-- 美化指派對象 -->
-              <div class="form-field">
-                <div class="field-label">
-                  <q-icon name="person_add" color="green" class="q-mr-xs" />
-                  指派對象
-                </div>
-                <q-select
-                  v-model="formData.assigneeId"
-                  :options="assigneeOptions"
-                  option-value="value"
-                  option-label="label"
-                  filled
-                  emit-value
-                  map-options
-                  clearable
-                  class="assignee-select"
-                >
-                  <template v-slot:selected>
-                    <div v-if="formData.assigneeId" class="row items-center no-wrap">
-                      <q-avatar size="28px" class="q-mr-sm">
-                        <img
-                          v-if="getAssigneeAvatar(formData.assigneeId)"
-                          :src="getAssigneeAvatar(formData.assigneeId)"
-                          :alt="getAssigneeLabel(formData.assigneeId)"
-                        >
-                        <q-icon v-else name="person" />
-                      </q-avatar>
-                      <span>{{ getAssigneeLabel(formData.assigneeId) }}</span>
-                    </div>
-                    <span v-else class="text-grey-6">未指派</span>
-                  </template>
-                  <template v-slot:option="scope">
-                    <q-item v-bind="scope.itemProps">
-                      <q-item-section avatar>
-                        <q-avatar size="32px">
-                          <img
-                            v-if="scope.opt.avatar"
-                            :src="scope.opt.avatar"
-                            :alt="scope.opt.label"
-                          >
-                          <q-icon v-else name="person" />
-                        </q-avatar>
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label>{{ scope.opt.label }}</q-item-label>
-                        <q-item-label caption>指派給此成員</q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </template>
-                </q-select>
-              </div>
-
-              <!-- 美化時間範圍 -->
-              <div class="form-field">
-                <div class="field-label">
-                  <q-icon name="schedule" color="purple" class="q-mr-xs" />
-                  時間安排
-                </div>
-                <div class="date-range-container">
-                  <div class="row q-gutter-sm">
-                    <div class="col">
-                      <q-input
-                        v-model="startDateString"
-                        label="開始時間"
-                        filled
-                        readonly
-                        class="date-input"
-                      >
-                        <template v-slot:prepend>
-                          <q-icon name="play_arrow" color="green-6" />
-                        </template>
-                        <template v-slot:append>
-                          <q-icon name="event" class="cursor-pointer" color="purple">
-                            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                              <DateTimePicker
-                                :model-value="formData.startDateTime || null"
-                                @update:model-value="(val: Date | null) => { formData.startDateTime = val; updateStartDate(); }"
-                              />
-                            </q-popup-proxy>
-                          </q-icon>
-                        </template>
-                        <template v-slot:after>
-                          <q-btn
-                            v-if="formData.startDateTime"
-                            flat
-                            dense
-                            round
-                            icon="clear"
-                            color="grey-6"
-                            @click="formData.startDateTime = null"
-                          />
-                        </template>
-                      </q-input>
-                    </div>
-                  </div>
-                  <div class="row q-gutter-sm q-mt-sm">
-                    <div class="col">
-                      <q-input
-                        v-model="endDateString"
-                        label="結束時間"
-                        filled
-                        readonly
-                        class="date-input"
-                      >
-                        <template v-slot:prepend>
-                          <q-icon name="stop" color="red-6" />
-                        </template>
-                        <template v-slot:append>
-                          <q-icon name="event" class="cursor-pointer" color="purple">
-                            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                              <DateTimePicker
-                                :model-value="formData.endDateTime || null"
-                                @update:model-value="(val: Date | null) => { formData.endDateTime = val; updateEndDate(); }"
-                              />
-                            </q-popup-proxy>
-                          </q-icon>
-                        </template>
-                        <template v-slot:after>
-                          <q-btn
-                            v-if="formData.endDateTime"
-                            flat
-                            dense
-                            round
-                            icon="clear"
-                            color="grey-6"
-                            @click="formData.endDateTime = null"
-                          />
-                        </template>
-                      </q-input>
-                    </div>
-                  </div>
-                  <!-- 時間統計 -->
-                  <div v-if="formData.startDateTime && formData.endDateTime" class="time-stats q-mt-sm">
-                    <q-chip size="sm" color="purple-2" text-color="purple-9" icon="timelapse">
-                      預計 {{ getTimeRange() }}
-                    </q-chip>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 美化進度 -->
-              <div class="form-field">
-                <div class="field-label">
-                  <q-icon name="trending_up" color="teal" class="q-mr-xs" />
-                  任務進度
-                </div>
-                <div class="progress-container">
-                  <div class="progress-header row items-center justify-between q-mb-sm">
-                    <span class="text-subtitle2">{{ formData.progress || 0 }}% 完成</span>
-                    <q-chip 
-                      :color="getProgressColor(formData.progress || 0)" 
-                      text-color="white" 
-                      size="sm"
-                      :icon="getProgressIcon(formData.progress || 0)"
-                    >
-                      {{ getProgressStatus(formData.progress || 0) }}
-                    </q-chip>
-                  </div>
-                  <q-slider
-                    v-model="formData.progress"
-                    :min="0"
-                    :max="100"
-                    :step="5"
-                    :color="getProgressColor(formData.progress || 0)"
-                    track-color="grey-4"
-                    thumb-color="white"
-                    class="progress-slider"
-                  />
-                  <div class="row justify-between q-mt-xs text-caption text-grey-6">
-                    <span>0%</span>
-                    <span>25%</span>
-                    <span>50%</span>
-                    <span>75%</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </q-card-section>
-
-        <!-- 美化操作按鈕 -->
-        <q-card-actions class="action-bar q-pa-lg">
-          <div class="row full-width items-center justify-between">
-            <!-- 左側危險操作 -->
-            <div>
-              <q-btn
-                v-if="mode === 'edit' && task"
-                flat
-                color="negative"
-                icon="delete_outline"
-                label="刪除任務"
-                :disable="isSubmitting"
-                @click="handleDelete"
-                class="delete-btn"
+                class="compact-input"
+                hide-bottom-space
               >
-                <q-tooltip>永久刪除此任務</q-tooltip>
-              </q-btn>
-            </div>
-            
-            <!-- 右側主要操作 -->
-            <div class="row q-gutter-sm">
-              <q-btn
-                flat
-                label="取消"
-                color="grey-7"
-                icon="close"
-                v-close-popup
-                :disable="isSubmitting"
-                class="cancel-btn"
-              />
-              <q-btn
-                type="submit"
-                :color="mode === 'create' ? 'positive' : 'primary'"
-                :icon="mode === 'create' ? 'add_task' : 'save'"
-                :label="mode === 'create' ? '建立任務' : '儲存更新'"
-                :loading="isSubmitting"
-                :loading-label="mode === 'create' ? '建立中...' : '儲存中...'"
-                class="primary-btn"
-                no-caps
-              />
+                <template v-slot:prepend>
+                  <q-icon name="work" color="grey-6" />
+                </template>
+              </q-select>
+
+              <!-- Parent Task Selection -->
+              <q-select
+                v-if="formData.parentTaskId"
+                v-model="formData.parentTaskId"
+                :options="[]"
+                label="上層任務"
+                outlined
+                dense
+                clearable
+                class="compact-input"
+                hide-bottom-space
+                readonly
+              >
+                <template v-slot:prepend>
+                  <q-icon name="account_tree" color="grey-6" />
+                </template>
+              </q-select>
+
+              <!-- Tags -->
+              <q-select
+                v-model="formData.tags"
+                :options="tagOptions"
+                label="標籤"
+                outlined
+                dense
+                multiple
+                use-chips
+                use-input
+                input-debounce="0"
+                new-value-mode="add-unique"
+                @filter="filterTags"
+                class="compact-input"
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="label" color="grey-6" />
+                </template>
+              </q-select>
             </div>
           </div>
-        </q-card-actions>
-      </q-form>
+
+          <!-- Schedule Section -->
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="schedule" color="primary" size="20px" />
+              <span class="section-title">時程安排</span>
+            </div>
+
+            <div class="section-content">
+              <div class="row q-col-gutter-sm">
+                <div class="col">
+                  <q-input
+                    v-model="startDateString"
+                    label="開始時間"
+                    outlined
+                    dense
+                    readonly
+                    class="compact-input date-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="play_arrow" color="green" />
+                    </template>
+                    <template v-slot:append>
+                      <q-icon name="event" class="cursor-pointer" color="purple">
+                        <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                          <DateTimePicker
+                            :model-value="formData.startDateTime || null"
+                            @update:model-value="(val: Date | null) => { formData.startDateTime = val; updateStartDate(); }"
+                          />
+                        </q-popup-proxy>
+                      </q-icon>
+                    </template>
+                    <template v-slot:after>
+                      <q-btn
+                        v-if="formData.startDateTime"
+                        flat
+                        dense
+                        round
+                        icon="clear"
+                        color="grey-6"
+                        @click="formData.startDateTime = null"
+                      />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col">
+                  <q-input
+                    v-model="endDateString"
+                    label="結束時間"
+                    outlined
+                    dense
+                    readonly
+                    class="compact-input date-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="stop" color="red" />
+                    </template>
+                    <template v-slot:append>
+                      <q-icon name="event" class="cursor-pointer" color="purple">
+                        <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                          <DateTimePicker
+                            :model-value="formData.endDateTime || null"
+                            @update:model-value="(val: Date | null) => { formData.endDateTime = val; updateEndDate(); }"
+                          />
+                        </q-popup-proxy>
+                      </q-icon>
+                    </template>
+                    <template v-slot:after>
+                      <q-btn
+                        v-if="formData.endDateTime"
+                        flat
+                        dense
+                        round
+                        icon="clear"
+                        color="grey-6"
+                        @click="formData.endDateTime = null"
+                      />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assignment & Status Section -->
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="assignment" color="primary" size="20px" />
+              <span class="section-title">指派與狀態</span>
+            </div>
+
+            <div class="section-content">
+              <div class="row q-col-gutter-sm">
+                <div class="col-12 col-md-6">
+                  <q-select
+                    v-model="formData.assigneeId"
+                    :options="assigneeOptions"
+                    option-value="value"
+                    option-label="label"
+                    label="執行人"
+                    outlined
+                    dense
+                    clearable
+                    emit-value
+                    map-options
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="person" color="grey-6" />
+                    </template>
+                    <template v-slot:selected>
+                      <div v-if="formData.assigneeId" class="row items-center no-wrap">
+                        <q-avatar size="20px" class="q-mr-xs">
+                          <img
+                            v-if="getAssigneeAvatar(formData.assigneeId)"
+                            :src="getAssigneeAvatar(formData.assigneeId)"
+                            :alt="getAssigneeLabel(formData.assigneeId)"
+                          >
+                          <q-icon v-else name="person" size="12px" />
+                        </q-avatar>
+                        <span style="font-size: 13px;">{{ getAssigneeLabel(formData.assigneeId) }}</span>
+                      </div>
+                      <span v-else class="text-grey-6" style="font-size: 13px;">未指派</span>
+                    </template>
+                  </q-select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <q-select
+                    v-model="formData.statusId"
+                    :options="statusOptions"
+                    option-value="value"
+                    option-label="label"
+                    label="狀態"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon
+                        :name="getStatusIcon(formData.statusId)"
+                        :color="getStatusColor(formData.statusId)"
+                      />
+                    </template>
+                  </q-select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <q-select
+                    v-model="formData.priorityId"
+                    :options="priorityOptions"
+                    option-value="value"
+                    option-label="label"
+                    label="優先級"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon
+                        name="flag"
+                        :color="getPriorityColor(formData.priorityId)"
+                      />
+                    </template>
+                  </q-select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Section -->
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="trending_up" color="primary" size="20px" />
+              <span class="section-title">進度管理</span>
+            </div>
+
+            <div class="section-content">
+              <div class="progress-container">
+                <div class="progress-header row items-center justify-between q-mb-sm">
+                  <span class="text-subtitle2">{{ formData.progress || 0 }}% 完成</span>
+                  <q-chip 
+                    :color="getProgressColor(formData.progress || 0)" 
+                    text-color="white" 
+                    size="sm"
+                    :icon="getProgressIcon(formData.progress || 0)"
+                  >
+                    {{ getProgressStatus(formData.progress || 0) }}
+                  </q-chip>
+                </div>
+                <q-slider
+                  v-model="formData.progress"
+                  :min="0"
+                  :max="100"
+                  :step="5"
+                  :color="getProgressColor(formData.progress || 0)"
+                  track-color="grey-4"
+                  thumb-color="white"
+                  class="progress-slider"
+                />
+                <div class="row justify-between q-mt-xs text-caption text-grey-6">
+                  <span>0%</span>
+                  <span>25%</span>
+                  <span>50%</span>
+                  <span>75%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Fields Section -->
+          <div v-if="visibleCustomFields.length > 0" class="form-section">
+            <div class="section-header">
+              <q-icon name="tune" color="primary" size="20px" />
+              <span class="section-title">自訂欄位</span>
+            </div>
+
+            <div class="section-content">
+              <div class="row q-col-gutter-sm">
+                <div
+                  v-for="field in visibleCustomFields"
+                  :key="field.fieldId"
+                  :class="field.type === 'text' && field.validation?.maxLength && field.validation.maxLength > 100 ? 'col-12' : 'col-12 col-sm-6'"
+                >
+                  <CustomFieldRenderer
+                    :field="field"
+                    :value="getCustomFieldValue(field.fieldId)"
+                    :project-id="formData.projectId || ''"
+                    @update:value="updateCustomFieldValue(field.fieldId, $event)"
+                    @validation-error="onCustomFieldValidation(field.fieldId, $event)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </q-form>
+      </q-card-section>
+
+      <!-- Enhanced Actions -->
+      <q-card-actions class="dialog-actions">
+        <div class="actions-left">
+          <q-btn
+            flat
+            icon="delete"
+            label="刪除任務"
+            color="negative"
+            v-if="mode === 'edit' && task"
+            @click="handleDelete"
+            class="delete-btn"
+            :loading="isSubmitting"
+          />
+        </div>
+
+        <div class="actions-right">
+          <q-btn
+            flat
+            icon="close"
+            label="取消"
+            v-close-popup
+            class="cancel-btn"
+            :disable="isSubmitting"
+          />
+          <q-btn
+            unelevated
+            :icon="mode === 'create' ? 'add' : 'save'"
+            :label="mode === 'create' ? '建立任務' : '更新任務'"
+            color="primary"
+            @click="handleSubmit"
+            :loading="isSubmitting"
+            class="submit-btn"
+          />
+        </div>
+      </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
@@ -973,185 +933,120 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
-/* 對話框美化樣式 */
+<style scoped>
+/* Dialog Container */
 .task-dialog-wrapper {
-  .q-dialog__backdrop {
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-  }
+  backdrop-filter: blur(4px);
 }
 
-.elegant-card {
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+.task-edit-dialog {
+  width: 100%;
+  max-width: 700px;
+  border-radius: 8px;
   overflow: hidden;
-  
-  .q-datetime {
-    min-width: 280px;
-  }
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
-/* 漸變標題 */
-.gradient-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  }
-  
-  .header-avatar {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s ease;
-    
-    &:hover {
-      transform: scale(1.05);
-    }
-  }
-  
-  .close-btn {
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: rotate(90deg);
-    }
-  }
+/* Header Styling */
+.dialog-header {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-bottom: 1px solid #e1e5e9;
+  padding: 12px 16px;
 }
 
-/* 表單內容區美化 */
-.form-content {
+.close-btn {
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+}
+
+/* Loading Bar */
+.loading-bar {
+  height: 3px;
+}
+
+/* Content Area */
+.dialog-content {
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 8px;
   background: #fafbfc;
-  
-  .main-content {
-    padding-right: 24px;
-    
-    @media (max-width: 768px) {
-      padding-right: 0;
-    }
-  }
-  
-  .properties-panel {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-    margin-left: 16px;
-    
-    @media (max-width: 768px) {
-      margin-left: 0;
-      margin-top: 16px;
-    }
-  }
 }
 
-/* 表單欄位美化 */
-.form-field {
-  margin-bottom: 24px;
-  
-  .field-label {
-    display: flex;
-    align-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: #37474f;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
+/* Form Sections */
+.form-section {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.form-section:hover {
+  border-color: #1976d2;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 12px;
+}
+
+.section-content {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Input Enhancements */
 .title-input {
-  .q-field__control {
-    min-height: 56px;
-    border-radius: 12px;
-    
-    &:before {
-      border-width: 2px;
-    }
-  }
-  
-  .q-field__native {
-    font-size: 18px;
-    font-weight: 500;
-  }
+  font-weight: 500;
 }
 
-.description-textarea {
-  .q-field__control {
-    border-radius: 12px;
-  }
-  
-  textarea {
-    line-height: 1.6;
-  }
+.compact-input :deep(.q-field__control) {
+  min-height: 36px;
 }
 
-.tags-select {
-  .tag-chip {
-    margin: 2px;
-    border-radius: 16px;
-    font-size: 12px;
-    
-    &:hover {
-      transform: scale(1.05);
-    }
-  }
+.compact-input :deep(.q-field__label) {
+  font-size: 12px;
 }
 
-/* 狀態選擇器美化 */
-.status-select,
-.priority-select,
-.assignee-select {
-  .q-field__control {
-    border-radius: 12px;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-  }
+.compact-input :deep(.q-field__native) {
+  font-size: 13px;
+  padding: 4px 8px;
 }
 
-.priority-chip {
-  font-size: 11px;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.description-input :deep(.q-field__control) {
+  min-height: 60px;
 }
 
-/* 日期時間區域美化 */
-.date-range-container {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
-  
-  .date-input {
-    .q-field__control {
-      border-radius: 8px;
-    }
-  }
-  
-  .time-stats {
-    padding: 8px 0;
-    border-top: 1px solid #e0e0e0;
-  }
+.date-input :deep(.q-field__control) {
+  min-height: 36px;
 }
 
-/* 進度區域美化 */
+/* Progress Container */
 .progress-container {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  padding: 8px 0;
   
   .progress-header {
     margin-bottom: 12px;
@@ -1161,101 +1056,85 @@ onMounted(() => {
     margin: 12px 0;
     
     :deep(.q-slider__track) {
-      height: 8px;
-      border-radius: 4px;
+      height: 6px;
+      border-radius: 3px;
     }
     
     :deep(.q-slider__thumb) {
-      width: 20px;
-      height: 20px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      width: 16px;
+      height: 16px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
     }
   }
 }
 
-/* 操作按鈕美化 */
-.action-bar {
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-  
-  .delete-btn {
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background: rgba(244, 67, 54, 0.1);
-      transform: translateY(-1px);
-    }
-  }
-  
-  .cancel-btn {
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background: #f8f9fa;
-      border-color: #adb5bd;
-      transform: translateY(-1px);
-    }
-  }
-  
-  .primary-btn {
-    border-radius: 8px;
-    font-weight: 600;
-    padding: 12px 24px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.2s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-    }
-    
-    &:active {
-      transform: translateY(-1px);
-    }
-  }
+/* Actions Section */
+.dialog-actions {
+  background: white;
+  border-top: 1px solid #e1e5e9;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
-  .elegant-card {
-    border-radius: 0;
-    height: 100vh;
-    max-height: none !important;
-  }
-  
-  .gradient-header {
-    padding: 16px;
-  }
-  
-  .form-content {
-    padding: 16px;
-  }
-  
-  .properties-panel {
-    margin-left: 0;
-    margin-top: 16px;
-    padding: 16px;
-  }
-  
-  .action-bar {
-    padding: 16px;
-    
-    .row {
-      flex-direction: column-reverse;
-      gap: 12px;
-      
-      .row {
-        flex-direction: row;
-      }
-    }
-  }
+.actions-left {
+  flex: 1;
 }
 
-/* 動畫效果 */
-.form-field {
+.actions-right {
+  display: flex;
+  gap: 6px;
+}
+
+.delete-btn {
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background: rgba(244, 67, 54, 0.1);
+  transform: translateY(-1px);
+}
+
+.cancel-btn {
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.submit-btn {
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
+}
+
+.submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(25, 118, 210, 0.3);
+}
+
+/* Custom Scrollbar */
+.dialog-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dialog-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Animation for sections */
+.form-section {
   animation: slideInUp 0.3s ease-out;
 }
 
@@ -1270,12 +1149,72 @@ onMounted(() => {
   }
 }
 
-/* 自訂欄位區域（如果存在） */
-.custom-fields-section {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  margin: 24px 0;
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .task-edit-dialog {
+    margin: 4px;
+    max-width: calc(100vw - 8px);
+    border-radius: 6px;
+  }
+
+  .dialog-header {
+    padding: 10px 12px;
+  }
+
+  .dialog-content {
+    padding: 12px;
+    max-height: 70vh;
+  }
+
+  .form-container {
+    gap: 4px;
+  }
+
+  .section-content {
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .dialog-actions {
+    padding: 8px 12px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .actions-left,
+  .actions-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .actions-right {
+    flex-direction: row-reverse;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .dialog-header {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+  }
+
+  .dialog-content {
+    background: #2c3e50;
+  }
+
+  .form-section {
+    background: #34495e;
+    border-color: #455a64;
+  }
+
+  .section-header {
+    background: #455a64;
+    border-color: #546e7a;
+  }
+
+  .section-title {
+    color: #ecf0f1;
+  }
 }
 </style>

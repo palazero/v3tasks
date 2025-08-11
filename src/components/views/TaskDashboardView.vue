@@ -1,14 +1,14 @@
 <template>
   <div class="task-dashboard-view q-pa-md">
     <!-- 載入狀態 -->
-    <div v-if="isLoading" class="text-center q-py-xl">
+    <div v-if="isLoading" class="text-center q-py-sm">
       <q-spinner-dots size="2rem" color="primary" />
       <div class="text-grey-6 q-mt-md">載入統計資料中...</div>
     </div>
 
     <template v-else>
       <!-- 統計卡片列 -->
-      <div class="row q-col-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-md q-mb-sm">
         <div class="col-12 col-sm-6 col-md-3">
           <q-card class="stat-card">
             <q-card-section class="text-center">
@@ -51,7 +51,7 @@
       </div>
 
       <!-- 完成率進度條 -->
-      <div class="row q-col-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-md q-mb-sm">
         <div class="col-12">
           <q-card class="completion-card">
             <q-card-section>
@@ -83,7 +83,7 @@
       </div>
 
       <!-- 圖表區域 -->
-      <div class="row q-col-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-md q-mb-sm">
         <!-- 任務狀態分佈 -->
         <div class="col-12 col-md-6">
           <q-card class="chart-card">
@@ -104,29 +104,29 @@
       </div>
 
       <!-- 任務趨勢圖 -->
-      <div class="row q-col-gutter-md q-mb-xl">
+      <div class="row q-col-gutter-sm q-mb-sm">
         <div class="col-12">
-          <q-card class="chart-card">
-            <q-card-section>
-              <TaskTimelineChart :timeline="timelineData" height="300px" />
+          <q-card class="chart-card" flat bordered>
+            <q-card-section class="q-pa-sm">
+              <TaskTimelineChart :timeline="timelineData" height="240px" />
             </q-card-section>
           </q-card>
         </div>
       </div>
 
       <!-- 專案完成率 (如果有多個專案) -->
-      <div v-if="projectStats.total > 1" class="row q-col-gutter-md q-mb-xl">
+      <div v-if="projectStats.total > 1" class="row q-col-gutter-sm q-mb-sm">
         <div class="col-12">
-          <q-card class="chart-card">
-            <q-card-section>
-              <ProjectCompletionChart :statistics="projectStats" height="400px" />
+          <q-card class="chart-card" flat bordered>
+            <q-card-section class="q-pa-sm">
+              <ProjectCompletionChart :statistics="projectStats" height="300px" />
             </q-card-section>
           </q-card>
         </div>
       </div>
 
       <!-- 詳細信息卡片 -->
-      <div class="row q-col-gutter-md">
+      <div class="row q-col-gutter-sm">
         <!-- 截止日期提醒 -->
         <div class="col-12 col-md-6">
           <q-card class="info-card">
@@ -135,7 +135,7 @@
                 <q-icon name="schedule" class="q-mr-sm" />
                 截止日期提醒
               </div>
-              
+
               <div class="reminder-list">
                 <div class="reminder-item q-mb-sm">
                   <q-badge color="negative" class="q-mr-sm">
@@ -143,14 +143,14 @@
                   </q-badge>
                   <span class="text-negative">已逾期任務</span>
                 </div>
-                
+
                 <div class="reminder-item q-mb-sm">
                   <q-badge color="warning" class="q-mr-sm">
                     {{ taskStats.dueToday }}
                   </q-badge>
                   <span class="text-warning">今天到期</span>
                 </div>
-                
+
                 <div class="reminder-item">
                   <q-badge color="info" class="q-mr-sm">
                     {{ taskStats.dueThisWeek }}
@@ -170,23 +170,23 @@
                 <q-icon name="bar_chart" class="q-mr-sm" />
                 工作負載分析
               </div>
-              
+
               <div class="workload-info">
                 <div class="workload-item">
                   <div class="text-caption text-grey-6">緊急任務</div>
                   <div class="text-h6 text-red">{{ taskStats.byPriority.urgent || 0 }}</div>
                 </div>
-                
+
                 <div class="workload-item">
                   <div class="text-caption text-grey-6">高優先級</div>
                   <div class="text-h6 text-orange">{{ taskStats.byPriority.high || 0 }}</div>
                 </div>
-                
+
                 <div class="workload-item">
                   <div class="text-caption text-grey-6">中優先級</div>
                   <div class="text-h6 text-yellow-8">{{ taskStats.byPriority.medium || 0 }}</div>
                 </div>
-                
+
                 <div class="workload-item">
                   <div class="text-caption text-grey-6">低優先級</div>
                   <div class="text-h6 text-green">{{ taskStats.byPriority.low || 0 }}</div>
@@ -310,66 +310,122 @@ watch(() => props.projectId, async () => {
 
 <style scoped lang="scss">
 .task-dashboard-view {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  
+
   .stat-card {
-    height: 120px;
+    height: 80px;
     position: relative;
     overflow: hidden;
-    
+    border: 1px solid #e1e5e9;
+    background: white;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: #1976d2;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+    }
+
     .stat-number {
-      font-size: 2.5rem;
-      font-weight: bold;
+      font-size: 1.8rem;
+      font-weight: 600;
       line-height: 1;
     }
-    
+
     .stat-label {
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       color: #666;
-      margin-top: 0.25rem;
+      margin-top: 0.125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    
+
     .stat-icon {
       position: absolute;
-      right: 1rem;
+      right: 0.75rem;
       top: 50%;
       transform: translateY(-50%);
-      opacity: 0.1;
+      opacity: 0.15;
     }
   }
 
   .completion-card {
-    .q-card__section {
-      padding: 1.5rem;
+    border: 1px solid #e1e5e9;
+    background: white;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: #1976d2;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
     }
   }
 
   .chart-card {
-    .q-card__section {
-      padding: 1rem;
+    border: 1px solid #e1e5e9;
+    background: white;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: #1976d2;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
     }
   }
 
   .info-card {
+    border: 1px solid #e1e5e9;
+    background: white;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: #1976d2;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+    }
+
     .reminder-list {
       .reminder-item {
         display: flex;
         align-items: center;
-        padding: 0.25rem 0;
+        padding: 0.125rem 0;
       }
     }
 
     .workload-info {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      
+      gap: 0.75rem;
+
       .workload-item {
         text-align: center;
         padding: 0.5rem;
-        border-radius: 0.5rem;
-        background: rgba(0, 0, 0, 0.02);
+        border-radius: 6px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: #e9ecef;
+          transform: translateY(-1px);
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .task-dashboard-view {
+    .stat-card {
+      height: 70px;
+
+      .stat-number {
+        font-size: 1.5rem;
+      }
+
+      .stat-label {
+        font-size: 0.7rem;
+      }
+
+      .stat-icon {
+        right: 0.5rem;
       }
     }
   }
@@ -378,19 +434,24 @@ watch(() => props.projectId, async () => {
 @media (max-width: 600px) {
   .task-dashboard-view {
     .stat-card {
-      height: 100px;
-      
+      height: 65px;
+
       .stat-number {
-        font-size: 2rem;
+        font-size: 1.4rem;
       }
-      
+
+      .stat-label {
+        font-size: 0.65rem;
+      }
+
       .stat-icon {
-        font-size: 1.5rem;
+        right: 0.4rem;
       }
     }
 
     .workload-info {
       grid-template-columns: 1fr !important;
+      gap: 0.5rem;
     }
   }
 }
