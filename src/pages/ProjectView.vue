@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-sm">
+  <q-page class="project-view-layout">
     <!-- 專案資訊標題區 -->
-    <div class="row items-start justify-between q-mb-sm">
+    <div class="project-header row items-start justify-between q-mb-sm">
       <div class="col row full-width">
         <div class="row items-center q-gutter-sm">
           <q-avatar size="32px" color="primary" text-color="white">
@@ -97,7 +97,7 @@
     </div>
 
     <!-- 視圖 Tabs -->
-    <q-card class="full-width">
+    <q-card class="view-card-container">
       <!-- 標準 Quasar Tabs (暫時不使用拖拉排序) -->
       <q-tabs
         :model-value="viewStore.currentViewId"
@@ -140,7 +140,7 @@
             v-model="searchQuery"
             placeholder="搜尋任務..."
             dense
-            style="min-width: 220px"
+            style="min-width: 180px"
             class="compact-input"
             debounce="300"
           >
@@ -208,14 +208,13 @@
       <q-tab-panels
         v-model="viewStore.currentViewId"
         animated
-        class="bg-white"
-        style="min-height: 400px"
+        class="view-content-panels bg-white"
       >
         <q-tab-panel
           v-for="view in viewStore.views"
           :key="view.viewId"
           :name="view.viewId"
-          class="q-pa-none"
+          class="view-panel q-pa-none"
         >
           <!-- 根據視圖類型顯示不同元件 -->
           <component
@@ -760,6 +759,42 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+// 頁面整體佈局 - 直接作用在 q-page 上
+.project-view-layout {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px); // 扣除可能的 header 高度
+  min-height: unset !important; // 覆蓋 Quasar 預設的 min-height
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+// 專案標題區域 - 固定高度
+.project-header {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+// 視圖卡片容器 - 填滿剩餘空間
+.view-card-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; // 卡片容器不滾動
+}
+
+// 視圖內容面板 - 只有這個區域有滾軸
+.view-content-panels {
+  flex: 1;
+  overflow: auto; // 只有內容面板有滾軸
+  min-height: 0;
+}
+
+// 視圖面板 - 讓內容自然展開
+.view-panel {
+  padding: 0;
+}
+
 // 統計卡片緊湊樣式
 .stat-card {
   min-width: 70px;
