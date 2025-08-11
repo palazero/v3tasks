@@ -15,78 +15,6 @@
 
     <q-separator vertical />
 
-    <!-- 卡片顯示選項 -->
-    <div class="toolbar-section row q-gutter-xs">
-      <q-toggle
-        :model-value="showAssignee"
-        label="指派人"
-        size="sm"
-        @update:model-value="$emit('update:show-assignee', $event)"
-      />
-      
-      <q-toggle
-        :model-value="showDueDate"
-        label="到期日"
-        size="sm"
-        @update:model-value="$emit('update:show-due-date', $event)"
-      />
-      
-      <q-toggle
-        :model-value="showTags"
-        label="標籤"
-        size="sm"
-        @update:model-value="$emit('update:show-tags', $event)"
-      />
-      
-      <q-toggle
-        :model-value="showDescription"
-        label="描述"
-        size="sm"
-        @update:model-value="$emit('update:show-description', $event)"
-      />
-    </div>
-
-    <q-separator vertical />
-
-    <!-- 卡片大小控制 -->
-    <div class="toolbar-section row items-center q-gutter-xs">
-      <span class="text-caption text-grey-6">卡片大小:</span>
-      <q-btn-group dense>
-        <q-btn
-          flat
-          size="sm"
-          icon="compress_alt"
-          :color="cardSize === 'small' ? 'primary' : 'grey'"
-          @click="$emit('update:card-size', 'small')"
-          class="compact-btn-group"
-        >
-          <q-tooltip>小</q-tooltip>
-        </q-btn>
-        <q-btn
-          flat
-          size="sm"
-          icon="unfold_less"
-          :color="cardSize === 'medium' ? 'primary' : 'grey'"
-          @click="$emit('update:card-size', 'medium')"
-          class="compact-btn-group"
-        >
-          <q-tooltip>中</q-tooltip>
-        </q-btn>
-        <q-btn
-          flat
-          size="sm"
-          icon="unfold_more"
-          :color="cardSize === 'large' ? 'primary' : 'grey'"
-          @click="$emit('update:card-size', 'large')"
-          class="compact-btn-group"
-        >
-          <q-tooltip>大</q-tooltip>
-        </q-btn>
-      </q-btn-group>
-    </div>
-
-    <q-separator vertical />
-
     <!-- 快速操作 -->
     <div class="toolbar-section row q-gutter-xs">
       <q-btn
@@ -119,19 +47,9 @@
 <script setup lang="ts">
 // Props
 interface BoardToolbarProps {
-  showAssignee?: boolean
-  showDueDate?: boolean
-  showTags?: boolean
-  showDescription?: boolean
-  cardSize?: 'small' | 'medium' | 'large'
 }
 
 const props = withDefaults(defineProps<BoardToolbarProps>(), {
-  showAssignee: true,
-  showDueDate: true,
-  showTags: true,
-  showDescription: true,
-  cardSize: 'medium'
 })
 
 // Emits
@@ -141,7 +59,6 @@ const emit = defineEmits<{
   'update:show-due-date': [value: boolean]
   'update:show-tags': [value: boolean]
   'update:show-description': [value: boolean]
-  'update:card-size': [size: 'small' | 'medium' | 'large']
   'refresh': []
   'toggle-fullscreen': []
 }>()
@@ -179,11 +96,11 @@ const emit = defineEmits<{
 :deep(.q-btn-group) {
   .q-btn {
     border-radius: 0;
-    
+
     &:first-child {
       border-radius: 4px 0 0 4px;
     }
-    
+
     &:last-child {
       border-radius: 0 4px 4px 0;
     }

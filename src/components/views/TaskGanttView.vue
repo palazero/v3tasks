@@ -1,5 +1,14 @@
 <template>
   <div class="gantt-wrapper">
+    <!-- 欄位管理對話框 -->
+    <ColumnManager
+      v-model="showColumnManager"
+      :view-type="'gantt'"
+      :columns="currentColumnConfig"
+      :field-definitions="allFieldDefinitions"
+      @apply="handleColumnConfigUpdate"
+    />
+    
     <!-- 甘特圖容器 -->
     <div ref="ganttContainer" class="gantt-container"></div>
   </div>
@@ -9,16 +18,21 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { gantt } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
-import type { Task } from '@/types'
+import type { Task, ColumnConfig, ViewConfiguration } from '@/types'
 import { useDhtmlxGantt } from '@/composables/useDhtmlxGantt'
+import { useCustomFields } from '@/composables/useCustomFields'
 import { useQuasar } from 'quasar'
 import { getProjectRepository, getUserRepository } from '@/services/repositories'
 import type { Project, User } from '@/types'
+import ColumnManager from '@/components/common/ColumnManager.vue'
+import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
+import { getColumnConfigService } from '@/services/columnConfigService'
 
 // Props
 interface Props {
   tasks: Task[]
   projectId?: string
+  configuration?: ViewConfiguration
   
   // 工具列事件
   expandAll?: boolean
@@ -36,6 +50,7 @@ const emit = defineEmits<{
   'task-update': [taskId: string, updates: Partial<Task>]
   'task-create': [taskData: Partial<Task>]
   'task-delete': [taskId: string]
+  'configuration-update': [configuration: ViewConfiguration]
   
   // 甘特圖設定變更事件
   'gantt-settings-changed': [settings: {
@@ -69,6 +84,13 @@ const projectsMap = ref<Map<string, string>>(new Map())
 const usersMap = ref<Map<string, string>>(new Map())
 const projectRepo = getProjectRepository()
 const userRepo = getUserRepository()
+const { customFields: projectCustomFields } = useCustomFields(props.projectId || '')
+const columnConfigService = getColumnConfigService()
+
+// 欄位管理狀態
+const showColumnManager = ref(false)
+const currentColumnConfig = ref<ColumnConfig[]>([])
+const allFieldDefinitions = ref<FieldDefinition[]>([])
 
 // 初始化甘特圖
 function initializeGantt(): void {
@@ -79,8 +101,9 @@ function initializeGantt(): void {
   // 設定中文語言包
   gantt.locale = getChineseLocale()
 
-  // 基礎配置
-  const config = getGanttConfig()
+  // 基礎配置（傳入欄位配置）
+  const config = getGanttConfig(currentColumnConfig.value)
+  console.log('初始化甘特圖配置:', config)
   Object.assign(gantt.config, config)
 
   // 額外配置
@@ -593,6 +616,12 @@ function getStatusText(status?: string): string {
   return statusMap[status as keyof typeof statusMap] || status || '未知'
 }
 
+// 比較兩個陣列是否相等
+function arraysEqual<T>(a: T[], b: T[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((val, i) => val === b[i])
+}
+
 // 監聽器
 watch(() => props.tasks, () => {
   if (ganttInstance.value) {
@@ -676,11 +705,244 @@ defineExpose({
   addNewTask,
   ganttSettings,
   timelineDragEnabled,
-  timelineScaleOptions
+  timelineScaleOptions,
+  openColumnManager
 })
+
+// 初始化欄位定義
+function initializeFieldDefinitions(): void {
+  console.log('TaskGanttView 初始化欄位定義')
+  // 取得所有可用的欄位定義（系統 + 自訂）
+  allFieldDefinitions.value = getFieldsForView('gantt', projectCustomFields.value || [])
+  
+  // 初始化欄位配置
+  if (props.configuration?.visibleColumns) {
+    console.log('使用現有配置:', props.configuration.visibleColumns.map(c => ({ key: c.key, width: c.width })))
+    // 使用現有配置
+    currentColumnConfig.value = columnConfigService.mergeWithFieldDefinitions(
+      props.configuration.visibleColumns,
+      allFieldDefinitions.value
+    )
+  } else {
+    console.log('使用預設配置')
+    // 使用預設配置
+    currentColumnConfig.value = columnConfigService.getDefaultColumns(
+      'gantt',
+      projectCustomFields.value || []
+    )
+  }
+  console.log('最終欄位配置:', currentColumnConfig.value.map(c => ({ key: c.key, width: c.width })))
+}
+
+// 處理欄位配置更新
+async function handleColumnConfigUpdate(columns: ColumnConfig[]): Promise<void> {
+  console.log('Gantt 視圖更新欄位配置:', columns.map(c => ({ key: c.key, visible: c.visible, width: c.width })))
+  
+  if (!columns) {
+    console.error('handleColumnConfigUpdate: columns is undefined')
+    return
+  }
+  
+  currentColumnConfig.value = columns
+  
+  // 重新初始化甘特圖以應用新配置
+  if (ganttInstance.value) {
+    console.log('重新配置甘特圖欄位')
+    
+    try {
+      // 檢查 gantt 對象是否存在
+      if (!gantt) {
+        console.error('Gantt 對象不存在')
+        return
+      }
+      
+      // 獲取新的配置
+      const newConfig = getGanttConfig(currentColumnConfig.value)
+      console.log('新的甘特圖配置:', newConfig)
+    
+    // 比較當前配置和新配置
+    const currentColumnCount = gantt.config.columns ? gantt.config.columns.length : 0
+    const newColumnCount = newConfig.columns ? newConfig.columns.length : 0
+    
+    // 檢查是否需要完全重新初始化
+    // 對於任何欄位變更（包括寬度），都使用完全重新初始化以確保正確顯示
+    const currentColumns = gantt.config.columns || []
+    const newColumns = newConfig.columns || []
+    
+    // 比較欄位數量、名稱、寬度是否有變化
+    const columnsChanged = currentColumnCount !== newColumnCount ||
+                          !arraysEqual(
+                            currentColumns.map((c: any) => c.name || ''),
+                            newColumns.map((c: any) => c.name || '')
+                          ) ||
+                          !arraysEqual(
+                            currentColumns.map((c: any) => c.width || 0),
+                            newColumns.map((c: any) => c.width || 0)
+                          )
+    
+    const needFullReinit = columnsChanged
+    
+    if (needFullReinit) {
+      console.log('嘗試簡化的配置更新方法')
+      
+      try {
+        // 嘗試直接更新配置而不銷毀實例
+        Object.assign(gantt.config, newConfig)
+        gantt.render()
+        
+        // 如果直接更新成功，就不需要完全重新初始化
+        console.log('直接配置更新成功')
+      } catch (simpleUpdateError) {
+        console.warn('直接配置更新失敗，嘗試完全重新初始化:', simpleUpdateError)
+        
+        console.log('執行甘特圖完整重新初始化（欄位變更）')
+        // 保存當前資料和狀態
+        const currentData = gantt.serialize()
+        console.log('保存的甘特圖資料:', currentData)
+        
+        // 銷毀當前實例
+        try {
+          gantt.clearAll()
+          gantt.destructor()
+        } catch (e) {
+          console.warn('銷毀甘特圖時發生錯誤:', e)
+        }
+        ganttInstance.value = false
+        
+        // 等待一個 tick 確保 DOM 清理完成
+        await nextTick()
+        
+        // 重置 gantt 實例到初始狀態  
+        try {
+          if (typeof gantt.resetSkin === 'function') {
+            gantt.resetSkin()
+          }
+        } catch (e) {
+          console.warn('重置 gantt skin 時發生錯誤:', e)
+        }
+        
+        // 重新初始化甘特圖配置
+        if (ganttContainer.value) {
+        // 設定中文語言包
+        gantt.locale = getChineseLocale()
+        
+        // 應用新配置
+        Object.assign(gantt.config, newConfig)
+        
+        // 額外配置
+        gantt.config.open_tree_initially = true
+        gantt.config.preserve_scroll = true
+        gantt.config.touch = true
+        gantt.config.touch_drag = true
+        gantt.config.sort = true
+        
+        // 啟用拖拽功能
+        gantt.config.drag_progress = ganttSettings.value.showProgress
+        gantt.config.drag_resize = true
+        gantt.config.drag_move = true
+        gantt.config.drag_links = ganttSettings.value.showDependencies
+        
+        // 時間軸拖拉配置
+        gantt.config.drag_timeline = {
+          useKey: false,
+          ignore: '.gantt_task_line, .gantt_task_link'
+        }
+        
+        // 啟用擴展功能 (GPL 版本支援)
+        gantt.plugins({
+          tooltip: true,
+          undo: true,
+          marker: true,
+          keyboard_navigation: true,
+          inline_editors: true,
+          drag_timeline: true
+        })
+        
+        // 重新設定事件處理器
+        setupEventHandlers()
+        
+        // 初始化甘特圖
+        gantt.init(ganttContainer.value)
+        ganttInstance.value = true
+        
+        // 重新載入資料
+        if (currentData && currentData.data && currentData.data.length > 0) {
+          console.log('重新載入保存的資料:', currentData.data.length, '個任務')
+          gantt.parse(currentData)
+        } else {
+          console.warn('重新初始化時沒有可用資料，重新載入原始資料')
+          // 重新載入原始資料
+          await loadGanttData()
+        }
+        
+        addTodayMarker()
+        
+        // 強制重新計算格線寬度以確保總寬度正確更新
+        gantt.render()
+        
+        // 使用 nextTick 確保 DOM 更新完成後再執行尺寸計算
+        void nextTick(() => {
+          // 重新計算格線尺寸
+          if (typeof gantt.refreshSize === 'function') {
+            gantt.refreshSize()
+          }
+          
+          // 強制重新計算欄位寬度總和
+          if (typeof gantt.resetLayout === 'function') {
+            gantt.resetLayout()
+          }
+          
+          // 最後再渲染一次確保正確顯示
+          gantt.render()
+        })
+        }
+      }
+    } else {
+      console.log('無欄位變更，跳過重新初始化')
+    }
+    
+    } catch (error) {
+      console.error('處理欄位配置更新時發生錯誤:', error)
+    }
+  }
+  
+  // 發出配置更新事件（設置標誌避免循環）
+  isInternalUpdate = true
+  emit('configuration-update', {
+    ...props.configuration,
+    viewType: props.configuration?.viewType || 'gantt',
+    visibleColumns: columns
+  })
+  // 重置標誌
+  nextTick(() => {
+    isInternalUpdate = false
+  })
+}
+
+// 暴露方法給父元件
+function openColumnManager(): void {
+  showColumnManager.value = true
+}
+
+// 監聽自訂欄位變化
+watch(() => projectCustomFields.value, () => {
+  initializeFieldDefinitions()
+}, { deep: true })
+
+// 監聽配置變化（避免在組件內部更新時觸發）
+let isInternalUpdate = false
+watch(() => props.configuration?.visibleColumns, () => {
+  if (!isInternalUpdate) {
+    console.log('外部配置變化，重新初始化欄位定義')
+    initializeFieldDefinitions()
+  }
+}, { deep: true })
 
 // 生命週期
 onMounted(() => {
+  // 先初始化欄位定義
+  initializeFieldDefinitions()
+  
   void nextTick(() => {
     initializeGantt()
   })

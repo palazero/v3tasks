@@ -4,7 +4,7 @@
  */
 
 import { ref } from 'vue'
-import type { Task } from '@/types'
+import type { Task, ColumnConfig } from '@/types'
 
 // dhtmlx-gantt 資料格式
 export interface DhtmlxTask {
@@ -46,7 +46,7 @@ export function useDhtmlxGantt(): {
   convertDhtmlxToTask: (dhtmlxTask: DhtmlxTask, originalTask: Task) => Partial<Task>
   formatDateForDhtmlx: (date: Date) => string
   parseDhtmlxDate: (dateString: string) => Date
-  getGanttConfig: () => Record<string, unknown>
+  getGanttConfig: (columnConfig?: ColumnConfig[]) => Record<string, unknown>
   getTimelineScales: (scale: 'day' | 'week' | 'month') => Array<Record<string, unknown>>
   getChineseLocale: () => Record<string, unknown>
 } {
@@ -266,7 +266,10 @@ export function useDhtmlxGantt(): {
   /**
    * 取得甘特圖配置
    */
-  function getGanttConfig(): Record<string, unknown> {
+  function getGanttConfig(columnConfig?: ColumnConfig[]): Record<string, unknown> {
+    // 生成動態欄位配置
+    const columns = generateGanttColumns(columnConfig)
+    
     return {
       // 日期格式
       date_format: '%Y-%m-%d %H:%i',
@@ -279,8 +282,21 @@ export function useDhtmlxGantt(): {
       autofit: false,
       fit_tasks: false,
       
-      // 欄位配置
-      columns: [
+      // 動態欄位配置
+      columns,
+
+      // 時間軸配置
+      scales: getTimelineScales(settings.value.timelineScale)
+    }
+  }
+
+  /**
+   * 根據欄位配置生成甘特圖欄位定義
+   */
+  function generateGanttColumns(columnConfig?: ColumnConfig[]): Array<Record<string, unknown>> {
+    // 預設欄位配置（如果沒有提供配置）
+    if (!columnConfig) {
+      return [
         {
           name: 'text',
           label: '任務名稱',
@@ -307,39 +323,162 @@ export function useDhtmlxGantt(): {
           label: '狀態',
           width: 80,
           align: 'center',
-          template: (task: DhtmlxTask) => {
-            const statusMap = {
-              'todo': '待辦',
-              'inProgress': '進行中',
-              'done': '已完成'
-            }
-            return statusMap[task.status as keyof typeof statusMap] || task.status
-          }
+          template: generateStatusTemplate
         },
         {
           name: 'assignee',
           label: '指派人',
           width: 100,
           align: 'center',
-          template: (task: DhtmlxTask) => {
-            if (!task.assignee) {
-              return '<span style="color: #999;">未指派</span>'
-            }
-            // 取得用戶名稱的第一個字符作為頭像
-            const initial = task.assignee.charAt(0).toUpperCase()
-            return `<div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
-                      <div style="width: 20px; height: 20px; border-radius: 50%; background: #1976d2; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">
-                        ${initial}
-                      </div>
-                      <span style="font-size: 12px;">${task.assignee}</span>
-                    </div>`
-          }
+          template: generateAssigneeTemplate
         }
-      ],
-
-      // 時間軸配置
-      scales: getTimelineScales(settings.value.timelineScale)
+      ]
     }
+
+    // 根據配置生成欄位
+    const visibleColumns = columnConfig
+      .filter(col => col.visible)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+    return visibleColumns.map(col => {
+      const column: Record<string, unknown> = {
+        name: col.key,
+        label: col.label,
+        width: col.width || getDefaultColumnWidth(col.key),
+        align: getColumnAlignment(col.key)
+      }
+
+      // 任務名稱欄位特殊處理（樹狀結構）
+      if (col.key === 'title') {
+        column.name = 'text'
+        column.tree = true
+        column.editor = { type: 'text', map_to: 'text' }
+      }
+      // 日期欄位
+      else if (col.key === 'startDate') {
+        column.name = 'start_date'
+        column.editor = { type: 'date', map_to: 'start_date' }
+      }
+      else if (col.key === 'duration') {
+        column.editor = { type: 'number', map_to: 'duration' }
+      }
+      // 狀態欄位
+      else if (col.key === 'status') {
+        column.template = generateStatusTemplate
+      }
+      // 指派人欄位
+      else if (col.key === 'assignee') {
+        column.template = generateAssigneeTemplate
+      }
+      // 優先級欄位
+      else if (col.key === 'priority') {
+        column.template = generatePriorityTemplate
+      }
+      // 進度欄位
+      else if (col.key === 'progress') {
+        column.template = generateProgressTemplate
+      }
+      // 自訂欄位
+      else if (col.key.startsWith('custom_')) {
+        column.template = generateCustomFieldTemplate
+      }
+
+      return column
+    })
+  }
+
+  /**
+   * 取得預設欄位寬度
+   */
+  function getDefaultColumnWidth(fieldKey: string): number {
+    const widthMap: Record<string, number> = {
+      title: 200,
+      status: 80,
+      assignee: 100,
+      priority: 80,
+      startDate: 120,
+      deadline: 120,
+      duration: 60,
+      progress: 80,
+      tags: 120,
+      creator: 100,
+      createdAt: 120,
+      updatedAt: 120,
+      description: 150
+    }
+    return widthMap[fieldKey] || 100
+  }
+
+  /**
+   * 取得欄位對齊方式
+   */
+  function getColumnAlignment(fieldKey: string): string {
+    const centerFields = ['status', 'priority', 'duration', 'progress', 'createdAt', 'updatedAt']
+    return centerFields.includes(fieldKey) ? 'center' : 'left'
+  }
+
+  /**
+   * 生成狀態模板函數
+   */
+  function generateStatusTemplate(task: DhtmlxTask): string {
+    const statusMap = {
+      'todo': '待辦',
+      'inProgress': '進行中',
+      'done': '已完成'
+    }
+    return statusMap[task.status as keyof typeof statusMap] || task.status || ''
+  }
+
+  /**
+   * 生成指派人模板函數
+   */
+  function generateAssigneeTemplate(task: DhtmlxTask): string {
+    if (!task.assignee) {
+      return '<span style="color: #999;">未指派</span>'
+    }
+    // 取得用戶名稱的第一個字符作為頭像
+    const initial = task.assignee.charAt(0).toUpperCase()
+    return `<div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+              <div style="width: 20px; height: 20px; border-radius: 50%; background: #1976d2; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">
+                ${initial}
+              </div>
+              <span style="font-size: 12px;">${task.assignee}</span>
+            </div>`
+  }
+
+  /**
+   * 生成優先級模板函數
+   */
+  function generatePriorityTemplate(task: DhtmlxTask): string {
+    const priorityMap = {
+      'urgent': '🔴 急',
+      'high': '🟠 高',
+      'medium': '🟡 中',
+      'low': '🟢 低'
+    }
+    return priorityMap[task.priority as keyof typeof priorityMap] || task.priority || ''
+  }
+
+  /**
+   * 生成進度模板函數
+   */
+  function generateProgressTemplate(task: DhtmlxTask): string {
+    const progress = Math.round((task.progress || 0) * 100)
+    const color = progress >= 100 ? '#4caf50' : progress >= 50 ? '#ff9800' : '#2196f3'
+    return `<div style="display: flex; align-items: center; gap: 4px;">
+              <div style="width: 40px; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                <div style="width: ${progress}%; height: 100%; background: ${color}; transition: width 0.3s;"></div>
+              </div>
+              <span style="font-size: 11px; color: ${color}; font-weight: 500;">${progress}%</span>
+            </div>`
+  }
+
+  /**
+   * 生成自訂欄位模板函數
+   */
+  function generateCustomFieldTemplate(task: DhtmlxTask): string {
+    // 自訂欄位暫時顯示為簡單文字，後續可根據欄位類型擴展
+    return task.text || ''
   }
 
   /**

@@ -25,6 +25,7 @@
           :is-selected="selectedTasks.has(task.taskId)"
           :show-project="showProject"
           :children-count="getChildrenCount(task.taskId)"
+          :column-config="columnConfig"
           @click="$emit('task-click', task)"
           @toggle-expand="handleToggleExpand(task)"
           @add-subtask="handleAddSubtask(task)"
@@ -70,7 +71,7 @@
 import { ref, computed, watch } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { SortableEvent } from 'sortablejs'
-import type { Task } from '@/types'
+import type { Task, ColumnConfig } from '@/types'
 import TaskItem from './TaskItem.vue'
 import QuickAddTask from './QuickAddTask.vue'
 import { useNestedTasks } from '@/composables/useNestedTasks'
@@ -83,6 +84,7 @@ const props = defineProps<{
   parentId?: string
   level?: number
   projectId: string
+  columnConfig?: ColumnConfig[]
 }>()
 
 // Emits

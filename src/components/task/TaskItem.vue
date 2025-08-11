@@ -134,7 +134,7 @@
         </q-btn>
       </div>
 
-      <!-- Task meta info in single line -->
+      <!-- Task meta info in single line (configurable fields) -->
       <div class="task-meta-compact">
         <!-- Project (AllTasks view only) -->
         <span v-if="showProject && projectName" class="meta-project">
@@ -142,23 +142,78 @@
           {{ projectName }}
         </span>
         
+        <!-- Status -->
+        <q-chip
+          v-if="visibleFields.has('status')"
+          :color="task.statusId === 'done' ? 'positive' : task.statusId === 'inProgress' ? 'primary' : 'grey'"
+          text-color="white"
+          size="xs"
+          dense
+          class="status-chip-compact"
+        >
+          {{ task.statusId === 'todo' ? '待辦' : task.statusId === 'inProgress' ? '進行中' : task.statusId === 'done' ? '完成' : '已取消' }}
+        </q-chip>
+
+        <!-- Priority -->
+        <q-chip
+          v-if="visibleFields.has('priority')"
+          :color="task.priorityId === 'urgent' ? 'red' : task.priorityId === 'high' ? 'orange' : task.priorityId === 'medium' ? 'blue' : 'grey'"
+          text-color="white"
+          size="xs"
+          dense
+          class="priority-chip-compact"
+        >
+          <q-icon :name="task.priorityId === 'urgent' ? 'keyboard_double_arrow_up' : task.priorityId === 'high' ? 'keyboard_arrow_up' : task.priorityId === 'medium' ? 'remove' : 'keyboard_arrow_down'" size="xs" />
+          {{ priorityText }}
+        </q-chip>
+        
         <!-- Assignee -->
-        <span v-if="assigneeInfo" class="meta-assignee">
+        <span v-if="visibleFields.has('assignee') && assigneeInfo" class="meta-assignee">
           <q-icon name="person" size="xs" />
           {{ assigneeInfo.name }}
         </span>
         
         <!-- Date -->
-        <span v-if="task.endDateTime" class="meta-date" :class="{ 'overdue': isOverdue }">
+        <span v-if="visibleFields.has('deadline') && task.endDateTime" class="meta-date" :class="{ 'overdue': isOverdue }">
           <q-icon name="schedule" size="xs" />
           {{ formatDate(task.endDateTime) }}
         </span>
         
         <!-- Progress -->
-        <span v-if="task.progress && task.progress > 0" class="meta-progress">
+        <span v-if="visibleFields.has('progress') && task.progress && task.progress > 0" class="meta-progress">
           <q-icon name="trending_up" size="xs" />
           {{ task.progress }}%
         </span>
+
+        <!-- Custom Fields -->
+        <template v-for="field in visibleCustomFields" :key="field.key">
+          <q-chip
+            v-if="getCustomFieldValue(task.customFields, field.fieldId)"
+            color="purple"
+            text-color="white"
+            size="xs"
+            dense
+            class="custom-field-chip-compact"
+            :title="field.label"
+          >
+            {{ getCustomFieldDisplayValue(task.customFields, field.fieldId) }}
+          </q-chip>
+        </template>
+
+        <!-- Tags -->
+        <template v-if="visibleFields.has('tags') && task.tags && task.tags.length > 0">
+          <q-chip
+            v-for="tag in task.tags"
+            :key="tag"
+            color="teal"
+            text-color="white"
+            size="xs"
+            dense
+            class="tag-chip-compact"
+          >
+            {{ tag }}
+          </q-chip>
+        </template>
         
         <!-- Children count -->
         <span v-if="hasChildren" class="meta-children">
@@ -172,10 +227,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { Task } from '@/types'
+import type { Task, ColumnConfig } from '@/types'
 // import { DEFAULT_PRIORITIES } from '@/types' // Currently unused
 import { useCurrentUser } from '@/composables/useCurrentUser'
+import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
+import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
 
 // Props
 const props = defineProps<{
@@ -186,6 +243,7 @@ const props = defineProps<{
   isSelected?: boolean
   showProject?: boolean
   childrenCount?: number
+  columnConfig?: ColumnConfig[]
 }>()
 
 // Emits
@@ -201,6 +259,7 @@ const emit = defineEmits<{
 }>()
 
 const { getUserDisplayName, getUserAvatar } = useCurrentUser()
+const { getCustomFieldDisplayValue, getCustomFieldValue } = useCustomFieldUtils()
 const projectRepo = getProjectRepository()
 
 // 狀態
@@ -260,6 +319,34 @@ const getExpandButtonTooltip = computed(() => {
   } else {
     return '新增子任務'
   }
+})
+
+// 欄位可見性計算
+const visibleFields = computed(() => {
+  if (!props.columnConfig) {
+    // 預設顯示的欄位
+    return new Set(['status', 'priority', 'assignee', 'deadline', 'progress'])
+  }
+  
+  // 根據配置決定顯示的欄位
+  return new Set(
+    props.columnConfig
+      .filter(col => col.visible)
+      .map(col => col.key)
+  )
+})
+
+// 可見的自訂欄位
+const visibleCustomFields = computed(() => {
+  if (!props.columnConfig) return []
+  
+  return props.columnConfig
+    .filter(col => col.visible && col.key.startsWith('custom_'))
+    .map(col => ({
+      key: col.key,
+      label: col.label,
+      fieldId: col.key.replace('custom_', '')
+    }))
 })
 
 // 載入專案資訊
@@ -582,6 +669,21 @@ function formatDate(date: Date | string): string {
   align-items: center;
   gap: 2px;
   white-space: nowrap;
+}
+
+/* Compact chip styles */
+.status-chip-compact,
+.priority-chip-compact,
+.custom-field-chip-compact,
+.tag-chip-compact {
+  font-size: 9px !important;
+  height: 14px !important;
+  padding: 0 4px !important;
+  margin: 0 2px;
+}
+
+.priority-chip-compact .q-icon {
+  margin-right: 2px;
 }
 
 .meta-project {

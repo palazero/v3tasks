@@ -138,9 +138,13 @@
         :has-active-filters="hasActiveFilters"
         :active-filters-count="activeFiltersCount"
         :has-active-sorts="hasActiveSorts"
+        :show-column-manager="supportsColumnManager"
+        :visible-columns-count="visibleColumnsCount"
+        :total-columns-count="totalColumnsCount"
         @search="handleSearch"
         @show-filter="showFilterDialog = true"
         @show-sort="showSortDialog = true"
+        @show-column-manager="handleShowColumnManager"
         @add-task="showCreateTaskDialog = true"
       >
         <!-- 視圖專屬工具 -->
@@ -228,28 +232,19 @@
           class="view-panel q-pa-none"
         >
           <!-- 根據視圖類型顯示不同元件 -->
-          <TaskGanttView
-            v-if="view.type === 'gantt'"
-            :ref="(el) => setGanttViewRef(el, view.viewId)"
+          <component
+            :is="getViewComponent(view.type)"
+            :ref="(el) => setViewComponentRef(el, view.viewId)"
             :view="view"
             :tasks="filteredTasks"
             :project-id="projectId"
+            :configuration="view.config"
             @task-click="handleTaskClick"
             @task-update="handleTaskUpdate"
             @task-create="handleTaskCreate"
             @task-delete="handleTaskDelete"
             @gantt-settings-changed="handleGanttSettingsChanged"
-          />
-          <component
-            v-else
-            :is="getViewComponent(view.type)"
-            :view="view"
-            :tasks="filteredTasks"
-            :project-id="projectId"
-            @task-click="handleTaskClick"
-            @task-update="handleTaskUpdate"
-            @task-create="handleTaskCreate"
-            @task-delete="handleTaskDelete"
+            @configuration-update="handleViewConfigurationUpdate"
           />
         </q-tab-panel>
       </q-tab-panels>
@@ -371,7 +366,7 @@
 import { ref, computed, onMounted, watch, defineAsyncComponent, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import type { Task, View, ViewType, FilterConfig, SortConfig, Project, User } from '@/types'
+import type { Task, View, ViewType, FilterConfig, SortConfig, Project, User, ViewConfiguration } from '@/types'
 import { useTaskStore } from '@/stores/task'
 import { useViewStore } from '@/stores/view'
 import { useCurrentUser } from '@/composables/useCurrentUser'
@@ -447,8 +442,9 @@ const ganttSettings = ref({
   timelineDragEnabled: false
 })
 
-// 甘特圖視圖引用
+// 視圖引用
 const ganttViewRefs = ref<Map<string, InstanceType<typeof TaskGanttView> | null>>(new Map())
+const viewComponentRefs = ref<Map<string, any>>(new Map())
 
 // 專案排序狀態
 const isGroupedByProject = ref(false)
@@ -495,6 +491,22 @@ const currentSorts = computed(() => taskStore.currentSorts)
 const hasActiveFilters = computed(() => currentFilters.value.length > 0)
 const hasActiveSorts = computed(() => currentSorts.value.length > 0)
 const activeFiltersCount = computed(() => currentFilters.value.length)
+
+// 欄位管理相關計算屬性
+const supportsColumnManager = computed(() => {
+  const viewType = viewStore.currentView?.type
+  return viewType === 'table' || viewType === 'list' || viewType === 'gantt'
+})
+
+const visibleColumnsCount = computed(() => {
+  const config = viewStore.currentView?.config?.visibleColumns
+  return config ? config.filter(col => col.visible).length : 0
+})
+
+const totalColumnsCount = computed(() => {
+  const config = viewStore.currentView?.config?.visibleColumns
+  return config ? config.length : 0
+})
 
 const isProjectOwner = computed(() => {
   return project.value ? checkIsProjectOwner(project.value.ownerId) : false
@@ -627,12 +639,19 @@ function setTabMenuRef(viewId: string, el: HTMLElement | null): void {
     tabMenuRefs.value[viewId] = el?.$el
 }
 
-// 設定甘特圖視圖 ref
-function setGanttViewRef(el: InstanceType<typeof TaskGanttView> | null, viewId: string): void {
+// 設定視圖元件 ref（統一處理所有視圖類型）
+function setViewComponentRef(el: any, viewId: string): void {
+  const currentView = viewStore.views.find(v => v.viewId === viewId)
+  
   if (el) {
-    ganttViewRefs.value.set(viewId, el)
+    if (currentView?.type === 'gantt') {
+      ganttViewRefs.value.set(viewId, el)
+    } else {
+      viewComponentRefs.value.set(viewId, el)
+    }
   } else {
     ganttViewRefs.value.delete(viewId)
+    viewComponentRefs.value.delete(viewId)
   }
 }
 
@@ -831,6 +850,35 @@ function handleViewUpdated(view: View): void {
   })
 }
 
+// 處理視圖配置更新
+async function handleViewConfigurationUpdate(configuration: ViewConfiguration): Promise<void> {
+  const currentView = viewStore.currentView
+  if (!currentView) return
+
+  try {
+    console.log('ProjectView 更新視圖配置:', configuration)
+    // 更新視圖配置
+    await viewStore.updateView(currentView.viewId, {
+      config: configuration,
+      updatedAt: new Date()
+    })
+    console.log('視圖配置更新成功')
+    
+    $q.notify({
+      type: 'positive',
+      message: '欄位設定已儲存',
+      position: 'top'
+    })
+  } catch (error) {
+    console.error('Failed to update view configuration:', error)
+    $q.notify({
+      type: 'negative',
+      message: '欄位設定儲存失敗',
+      position: 'top'
+    })
+  }
+}
+
 // 處理篩選更新
 function handleFiltersUpdated(filters: FilterConfig[]): void {
   taskStore.setFilters(filters)
@@ -844,6 +892,28 @@ function handleSortsUpdated(sorts: SortConfig[]): void {
 // 處理搜尋更新
 function handleSearch(query: string): void {
   searchQuery.value = query
+}
+
+// 欄位管理事件處理
+function handleShowColumnManager(): void {
+  const currentView = viewStore.currentView
+  if (!currentView) return
+  
+  const viewType = currentView.type
+  const currentViewId = viewStore.currentViewId
+  
+  // 根據視圖類型調用對應的欄位管理器
+  if (viewType === 'gantt') {
+    // 呼叫甘特圖視圖的欄位管理器
+    const ganttView = ganttViewRefs.value.get(currentViewId)
+    ganttView?.openColumnManager()
+  } else if (viewType === 'table' || viewType === 'list') {
+    // 呼叫表格或列表視圖的欄位管理器
+    const viewComponent = viewComponentRefs.value.get(currentViewId)
+    if (viewComponent && typeof viewComponent.openColumnManager === 'function') {
+      viewComponent.openColumnManager()
+    }
+  }
 }
 
 // 取得當前甘特圖視圖實例

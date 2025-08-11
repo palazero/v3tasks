@@ -1,5 +1,13 @@
 <template>
   <div class="task-list-view">
+    <!-- 欄位管理對話框 -->
+    <ColumnManager
+      v-model="showColumnManager"
+      :view-type="'list'"
+      :columns="currentColumnConfig"
+      :field-definitions="allFieldDefinitions"
+      @apply="handleColumnConfigUpdate"
+    />
     <!-- AllTasks 專案分組顯示 -->
     <template v-if="projectId === 'all' && view.config.groupBy === 'projectId'">
       <div
@@ -140,6 +148,7 @@
             :show-project="false"
             :project-id="projectId"
             :selected-tasks="selectedTasks"
+            :column-config="currentColumnConfig"
             @task-click="emit('task-click', $event)"
             @add-subtask="handleAddSubtask"
             @edit-task="handleEditTask"
@@ -161,6 +170,7 @@
           :show-project="projectId === 'all'"
           :project-id="projectId"
           :selected-tasks="selectedTasks"
+          :column-config="currentColumnConfig"
           @task-click="emit('task-click', $event)"
           @add-subtask="handleAddSubtask"
           @edit-task="handleEditTask"
@@ -176,19 +186,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import type { Task, View } from '@/types'
+import type { Task, View, ColumnConfig, ViewConfiguration } from '@/types'
 // import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useTaskStore } from '@/stores/task'
+import { useCustomFields } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
 import CompactTaskList from '@/components/task/CompactTaskList.vue'
+import ColumnManager from '@/components/common/ColumnManager.vue'
+import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
+import { getColumnConfigService } from '@/services/columnConfigService'
 
 // Props
 const props = defineProps<{
   view: View
   tasks: Task[]
   projectId: string
+  configuration?: ViewConfiguration
 }>()
 
 // Emits
@@ -197,11 +212,19 @@ const emit = defineEmits<{
   'task-update': [taskId: string, updates: Partial<Task>]
   'task-create': [taskData: Partial<Task>]
   'task-delete': [taskId: string]
+  'configuration-update': [configuration: ViewConfiguration]
 }>()
 
 const $q = useQuasar()
 const taskStore = useTaskStore()
 const projectRepo = getProjectRepository()
+const { customFields: projectCustomFields } = useCustomFields(props.projectId)
+const columnConfigService = getColumnConfigService()
+
+// 欄位管理狀態
+const showColumnManager = ref(false)
+const currentColumnConfig = ref<ColumnConfig[]>([])
+const allFieldDefinitions = ref<FieldDefinition[]>([])
 
 // 專案資訊快取（使用響應式 ref）
 const projectsCache = ref<Map<string, { name: string; icon?: string; iconColor?: string }>>(new Map())
@@ -517,6 +540,64 @@ const getProjectIconColor = computed(() => {
     const projectInfo = projectsCache.value.get(projectId)
     return projectInfo?.iconColor || 'primary'
   }
+})
+
+// 初始化欄位定義
+function initializeFieldDefinitions(): void {
+  // 取得所有可用的欄位定義（系統 + 自訂）
+  allFieldDefinitions.value = getFieldsForView('list', projectCustomFields.value || [])
+  
+  // 初始化欄位配置
+  if (props.configuration?.visibleColumns) {
+    // 使用現有配置
+    currentColumnConfig.value = columnConfigService.mergeWithFieldDefinitions(
+      props.configuration.visibleColumns,
+      allFieldDefinitions.value
+    )
+  } else {
+    // 使用預設配置
+    currentColumnConfig.value = columnConfigService.getDefaultColumns(
+      'list',
+      projectCustomFields.value || []
+    )
+  }
+}
+
+// 處理欄位配置更新
+function handleColumnConfigUpdate(columns: ColumnConfig[]): void {
+  currentColumnConfig.value = columns
+  
+  // 發出配置更新事件
+  emit('configuration-update', {
+    ...props.configuration,
+    viewType: props.configuration?.viewType || 'list',
+    visibleColumns: columns
+  })
+}
+
+// 暴露方法給父元件
+function openColumnManager(): void {
+  showColumnManager.value = true
+}
+
+// 監聽自訂欄位變化
+watch(() => projectCustomFields.value, () => {
+  initializeFieldDefinitions()
+}, { deep: true })
+
+// 監聽配置變化
+watch(() => props.configuration?.visibleColumns, () => {
+  initializeFieldDefinitions()
+}, { deep: true })
+
+// 組件載入時初始化
+onMounted(() => {
+  initializeFieldDefinitions()
+})
+
+// 暴露方法
+defineExpose({
+  openColumnManager
 })
 </script>
 

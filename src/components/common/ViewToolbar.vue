@@ -70,6 +70,27 @@
       <!-- 右側自訂工具插槽 -->
       <slot name="right-tools" />
 
+      <!-- 欄位管理按鈕 -->
+      <q-btn
+        v-if="showColumnManager"
+        dense
+        flat
+        icon="view_column"
+        label="欄位管理"
+        size="sm"
+        @click="$emit('show-column-manager')"
+        class="compact-btn"
+      >
+        <q-badge
+          v-if="(visibleColumnsCount || 0) > 0"
+          color="primary"
+          :label="`${visibleColumnsCount}/${totalColumnsCount}`"
+          rounded
+          floating
+        />
+        <q-tooltip>管理顯示的欄位</q-tooltip>
+      </q-btn>
+
       <!-- 新增任務按鈕 -->
       <q-btn
         v-if="showAddTask"
@@ -97,6 +118,7 @@ interface ViewToolbarProps {
   showFilter?: boolean
   showSort?: boolean
   showAddTask?: boolean
+  showColumnManager?: boolean
   
   // 搜尋相關
   search?: string
@@ -107,6 +129,10 @@ interface ViewToolbarProps {
   
   // 排序相關
   hasActiveSorts?: boolean
+  
+  // 欄位管理相關
+  visibleColumnsCount?: number
+  totalColumnsCount?: number
 }
 
 const props = withDefaults(defineProps<ViewToolbarProps>(), {
@@ -114,10 +140,13 @@ const props = withDefaults(defineProps<ViewToolbarProps>(), {
   showFilter: true,
   showSort: true,
   showAddTask: true,
+  showColumnManager: false,
   search: '',
   hasActiveFilters: false,
   activeFiltersCount: 0,
-  hasActiveSorts: false
+  hasActiveSorts: false,
+  visibleColumnsCount: 0,
+  totalColumnsCount: 0
 })
 
 // Emits
@@ -126,6 +155,7 @@ const emit = defineEmits<{
   'show-filter': []
   'show-sort': []
   'add-task': []
+  'show-column-manager': []
   'update:search': [value: string]
 }>()
 

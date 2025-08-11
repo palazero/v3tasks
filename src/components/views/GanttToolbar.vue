@@ -85,37 +85,6 @@
 
     <q-separator vertical />
 
-    <!-- 顯示選項開關 -->
-    <div class="toolbar-section row q-gutter-sm">
-      <q-toggle
-        :model-value="showWeekends"
-        label="週末"
-        size="sm"
-        @update:model-value="$emit('update:show-weekends', $event)"
-      />
-      
-      <q-toggle
-        :model-value="showDependencies"
-        label="依賴"
-        size="sm"
-        @update:model-value="$emit('update:show-dependencies', $event)"
-      />
-      
-      <q-toggle
-        :model-value="showProgress"
-        label="進度"
-        size="sm"
-        @update:model-value="$emit('update:show-progress', $event)"
-      />
-      
-      <q-toggle
-        :model-value="timelineDragEnabled"
-        label="拖拉"
-        size="sm"
-        @update:model-value="$emit('update:timeline-drag-enabled', $event)"
-      />
-    </div>
-
     <!-- 幫助按鈕 -->
     <q-btn
       flat

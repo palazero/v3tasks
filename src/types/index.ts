@@ -500,6 +500,10 @@ export interface ColumnConfig {
   visible: boolean;
   sortable?: boolean;
   resizable?: boolean;
+  order?: number;
+  required?: boolean;
+  minWidth?: number;
+  maxWidth?: number;
 }
 
 /**

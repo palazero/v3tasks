@@ -1,5 +1,13 @@
 <template>
   <div class="task-table-view">
+    <!-- 欄位管理對話框 -->
+    <ColumnManager
+      v-model="showColumnManager"
+      :view-type="'table'"
+      :columns="currentColumnConfig"
+      :field-definitions="allFieldDefinitions"
+      @apply="handleColumnConfigUpdate"
+    />
 
     <!-- 表格主體 -->
     <div class="table-container">
@@ -125,8 +133,8 @@
               :rows="getFilteredProjectTasks(projectTasks)"
               :columns="tableColumns"
               row-key="taskId"
-              flat
-              square
+              bordered
+              separator="cell"
               :pagination="{ rowsPerPage: 0 }"
               hide-pagination
               :table-style="{ minHeight: '300px' }"
@@ -200,7 +208,6 @@
                 emit-value
                 map-options
                 dense
-                borderless
                 @update:model-value="updateTask(props.row.taskId, { statusId: $event })"
                 class="status-select"
                 style="min-width: 80px;"
@@ -222,7 +229,6 @@
               emit-value
               map-options
               dense
-              outlined
               clearable
               @update:model-value="updateTask(props.row.taskId, { assigneeId: $event })"
               class="assignee-select"
@@ -248,7 +254,6 @@
               emit-value
               map-options
               dense
-              outlined
               @update:model-value="updateTask(props.row.taskId, { priorityId: $event })"
               class="priority-select"
             >
@@ -273,7 +278,6 @@
               :model-value="formatDateForInput(props.row.endDateTime)"
               type="datetime-local"
               dense
-              outlined
               @update:model-value="updateTaskDate(props.row.taskId, $event)"
               class="deadline-input"
             />
@@ -396,7 +400,8 @@
         :rows="filteredTasks"
         :columns="tableColumns"
         row-key="taskId"
-        flat
+        bordered
+        separator="cell"
         :pagination="{ rowsPerPage: 0 }"
         hide-pagination
         class="task-table full-height"
@@ -469,7 +474,6 @@
                 emit-value
                 map-options
                 dense
-                borderless
                 @update:model-value="updateTask(props.row.taskId, { statusId: $event })"
                 class="status-select"
                 style="min-width: 80px;"
@@ -491,7 +495,6 @@
               emit-value
               map-options
               dense
-              outlined
               clearable
               @update:model-value="updateTask(props.row.taskId, { assigneeId: $event })"
               class="assignee-select"
@@ -517,7 +520,6 @@
               emit-value
               map-options
               dense
-              outlined
               @update:model-value="updateTask(props.row.taskId, { priorityId: $event })"
               class="priority-select"
             >
@@ -542,7 +544,6 @@
               :model-value="formatDateForInput(props.row.endDateTime)"
               type="datetime-local"
               dense
-              outlined
               @update:model-value="updateTaskDate(props.row.taskId, $event)"
               class="deadline-input"
             />
@@ -661,12 +662,15 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, watch } from 'vue'
-import type { Task, View, ViewConfiguration, FilterCondition, Project } from '@/types'
+import type { Task, View, ViewConfiguration, FilterCondition, Project, ColumnConfig } from '@/types'
 import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
 import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
+import ColumnManager from '@/components/common/ColumnManager.vue'
+import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
+import { getColumnConfigService } from '@/services/columnConfigService'
 
 // Props
 const props = defineProps<{
@@ -682,13 +686,15 @@ const emit = defineEmits<{
   'task-update': [taskId: string, updates: Partial<Task>]
   'task-create': [taskData: Partial<Task>]
   'task-delete': [taskId: string]
+  'configuration-update': [configuration: ViewConfiguration]
 }>()
 
 const { buildTaskTree } = useNestedTasks()
 const { availableUsers } = useCurrentUser()
-const { visibleFields: visibleCustomFields } = useCustomFields(props.projectId)
+const { visibleFields: visibleCustomFields, customFields: projectCustomFields } = useCustomFields(props.projectId)
 const { getCustomFieldDisplayValue, getCustomFieldValue } = useCustomFieldUtils()
 const projectRepo = getProjectRepository()
+const columnConfigService = getColumnConfigService()
 
 // 搜尋查詢
 const searchQuery = ref('')
@@ -696,6 +702,15 @@ const searchQuery = ref('')
 // 行內編輯狀態
 const editingCell = ref<{ taskId: string; field: string } | null>(null)
 const editingValue = ref('')
+
+// 欄位管理狀態
+const showColumnManager = ref(false)
+const currentColumnConfig = ref<ColumnConfig[]>([])
+const allFieldDefinitions = ref<FieldDefinition[]>([])
+
+// 編輯選單狀態
+const editingDateMenu = ref<string | null>(null)
+const editingProgressMenu = ref<string | null>(null)
 
 // 專案資料快取（響應式）
 const projectsCache = ref<Map<string, Project>>(new Map())
@@ -825,143 +840,159 @@ function getProjectIconColor(projectId: string): string {
   return project?.iconColor || 'primary'
 }
 
-// 所有可用欄位定義
-const availableColumns = [
-  {
-    name: 'title',
-    required: true,
-    label: '任務標題',
-    align: 'left' as const,
-    field: 'title',
-    sortable: true,
-    style: 'width: 300px'
-  },
-  {
-    name: 'status',
-    label: '狀態',
-    align: 'center' as const,
-    field: 'statusId',
-    sortable: true,
-    style: 'width: 120px'
-  },
-  {
-    name: 'assignee',
-    label: '指派人員',
-    align: 'center' as const,
-    field: 'assigneeId',
-    sortable: true,
-    style: 'width: 150px'
-  },
-  {
-    name: 'priority',
-    label: '優先級',
-    align: 'center' as const,
-    field: 'priorityId',
-    sortable: true,
-    style: 'width: 120px'
-  },
-  {
-    name: 'deadline',
-    label: '截止日期',
-    align: 'center' as const,
-    field: 'endDateTime',
-    sortable: true,
-    style: 'width: 180px'
-  },
-  {
-    name: 'progress',
-    label: '進度',
-    align: 'center' as const,
-    field: 'progress',
-    sortable: true,
-    style: 'width: 150px'
-  },
-  {
-    name: 'creator',
-    label: '建立者',
-    align: 'center' as const,
-    field: 'creatorId',
-    sortable: true,
-    style: 'width: 120px'
-  },
-  {
-    name: 'createdAt',
-    label: '建立時間',
-    align: 'center' as const,
-    field: 'createdAt',
-    sortable: true,
-    style: 'width: 160px'
-  },
-  {
-    name: 'updatedAt',
-    label: '更新時間',
-    align: 'center' as const,
-    field: 'updatedAt',
-    sortable: true,
-    style: 'width: 160px'
-  },
-  {
-    name: 'actions',
-    label: '操作',
-    align: 'center' as const,
-    field: 'actions',
-    style: 'width: 150px'
-  }
-]
-
-// 表格欄位定義（根據配置篩選）
-const tableColumns = computed(() => {
-  let systemColumns = availableColumns
-
-  if (!props.configuration?.visibleColumns) {
-    // 預設顯示的欄位
-    systemColumns = availableColumns.filter(col =>
-      ['title', 'status', 'assignee', 'priority', 'deadline', 'progress', 'actions'].includes(col.name)
+// 初始化欄位定義
+function initializeFieldDefinitions(): void {
+  // 取得所有可用的欄位定義（系統 + 自訂）
+  allFieldDefinitions.value = getFieldsForView('table', projectCustomFields.value || [])
+  
+  // 初始化欄位配置
+  if (props.configuration?.visibleColumns) {
+    // 使用現有配置
+    currentColumnConfig.value = columnConfigService.mergeWithFieldDefinitions(
+      props.configuration.visibleColumns,
+      allFieldDefinitions.value
     )
   } else {
-    // 根據配置顯示欄位
-    const visibleColumnKeys = props.configuration.visibleColumns
-      .filter(col => col.visible)
-      .map(col => col.key)
-
-    systemColumns = availableColumns.filter(col =>
-      visibleColumnKeys.includes(col.name) || col.name === 'actions'
+    // 使用預設配置
+    currentColumnConfig.value = columnConfigService.getDefaultColumns(
+      'table',
+      projectCustomFields.value || []
     )
-
-    // 套用自訂寬度
-    systemColumns = systemColumns.map(col => {
-      const configCol = props.configuration?.visibleColumns?.find(c => c.key === col.name)
-      return {
-        ...col,
-        style: configCol?.width ? `width: ${configCol.width}px` : col.style
-      }
+  }
+  
+  // 加入操作欄位
+  if (!currentColumnConfig.value.find(col => col.key === 'actions')) {
+    currentColumnConfig.value.push({
+      key: 'actions',
+      label: '操作',
+      visible: true,
+      width: 150,
+      order: currentColumnConfig.value.length,
+      required: false
     })
   }
+}
 
-  // 添加自訂欄位欄
-  const customFieldColumns = visibleCustomFields.value.map(field => ({
-    name: `custom_${field.fieldId}`,
-    label: field.name,
-    align: 'left' as const,
-    field: (row: Task): string => getCustomFieldDisplayValue(row.customFields, field.fieldId),
-    sortable: true,
-    style: `width: ${field.type === 'text' ? '200' : '150'}px`
-  }))
-
-  // 找到 actions 欄位的索引
-  const actionsIndex = systemColumns.findIndex(col => col.name === 'actions')
-
-  if (actionsIndex >= 0) {
-    // 在 actions 欄位前插入自訂欄位
-    return [
-      ...systemColumns.slice(0, actionsIndex),
-      ...customFieldColumns,
-      ...systemColumns.slice(actionsIndex)
-    ]
-  } else {
-    // 如果沒有 actions 欄位，直接添加到最後
-    return [...systemColumns, ...customFieldColumns]
-  }
+// 表格欄位定義
+const tableColumns = computed(() => {
+  const visibleColumns = currentColumnConfig.value
+    .filter(col => col.visible)
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+  
+  return visibleColumns.map(col => {
+    // 系統欄位的特殊處理
+    if (col.key === 'title') {
+      return {
+        name: 'title',
+        label: col.label,
+        align: 'left' as const,
+        field: 'title',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 300px'
+      }
+    } else if (col.key === 'status') {
+      return {
+        name: 'status',
+        label: col.label,
+        align: 'center' as const,
+        field: 'statusId',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 120px'
+      }
+    } else if (col.key === 'assignee') {
+      return {
+        name: 'assignee',
+        label: col.label,
+        align: 'center' as const,
+        field: 'assigneeId',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 150px'
+      }
+    } else if (col.key === 'priority') {
+      return {
+        name: 'priority',
+        label: col.label,
+        align: 'center' as const,
+        field: 'priorityId',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 120px'
+      }
+    } else if (col.key === 'deadline') {
+      return {
+        name: 'deadline',
+        label: col.label,
+        align: 'center' as const,
+        field: 'endDateTime',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 180px'
+      }
+    } else if (col.key === 'progress') {
+      return {
+        name: 'progress',
+        label: col.label,
+        align: 'center' as const,
+        field: 'progress',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 150px'
+      }
+    } else if (col.key === 'creator') {
+      return {
+        name: 'creator',
+        label: col.label,
+        align: 'center' as const,
+        field: 'creatorId',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 120px'
+      }
+    } else if (col.key === 'createdAt') {
+      return {
+        name: 'createdAt',
+        label: col.label,
+        align: 'center' as const,
+        field: 'createdAt',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 160px'
+      }
+    } else if (col.key === 'updatedAt') {
+      return {
+        name: 'updatedAt',
+        label: col.label,
+        align: 'center' as const,
+        field: 'updatedAt',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 160px'
+      }
+    } else if (col.key === 'actions') {
+      return {
+        name: 'actions',
+        label: col.label,
+        align: 'center' as const,
+        field: 'actions',
+        style: col.width ? `width: ${col.width}px` : 'width: 150px'
+      }
+    } else if (col.key.startsWith('custom_')) {
+      // 自訂欄位
+      const fieldId = col.key.replace('custom_', '')
+      return {
+        name: col.key,
+        label: col.label,
+        align: 'left' as const,
+        field: (row: Task): string => getCustomFieldDisplayValue(row.customFields, fieldId),
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 150px'
+      }
+    }
+    
+    // 預設返回
+    return {
+      name: col.key,
+      label: col.label,
+      align: 'center' as const,
+      field: col.key,
+      sortable: true,
+      style: col.width ? `width: ${col.width}px` : 'width: 150px'
+    }
+  })
 })
 
 // 狀態選項
@@ -1272,6 +1303,29 @@ function formatDateForInput(date: Date | null | undefined): string {
   return d.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm 格式
 }
 
+// 格式化日期顯示
+function formatDate(date: Date | null | undefined): string {
+  if (!date) return '未設定'
+  const d = new Date(date)
+  return d.toLocaleDateString('zh-TW')
+}
+
+// 更新任務時間
+function updateTaskTime(taskId: string, time: Date): void {
+  // 這裡需要實現時間更新邏輯
+  console.log('Update task time:', taskId, time)
+}
+
+// 顯示日期選單
+function showDateMenu(taskId: string, _event: Event): void {
+  editingDateMenu.value = taskId
+}
+
+// 顯示進度選單
+function showProgressMenu(taskId: string, _event: Event): void {
+  editingProgressMenu.value = taskId
+}
+
 // 取得優先級圖標
 function getPriorityIcon(priority: string): string {
   const icons = {
@@ -1425,6 +1479,28 @@ function deleteTask(task: Task): void {
   emit('task-delete', task.taskId)
 }
 
+// 處理欄位配置更新
+function handleColumnConfigUpdate(columns: ColumnConfig[]): void {
+  currentColumnConfig.value = columns
+  
+  // 發出配置更新事件
+  emit('configuration-update', {
+    ...props.configuration,
+    viewType: props.configuration?.viewType || 'table',
+    visibleColumns: columns
+  })
+}
+
+// 暴露方法給父元件
+function openColumnManager(): void {
+  showColumnManager.value = true
+}
+
+// 暴露方法
+defineExpose({
+  openColumnManager
+})
+
 // 預載入所有專案資料
 async function preloadProjectData(): Promise<void> {
   if (props.projectId === 'all' && props.view.config.groupBy === 'projectId') {
@@ -1443,15 +1519,27 @@ watch(() => props.tasks, () => {
   void preloadProjectData()
 }, { immediate: true })
 
+// 監聽自訂欄位變化
+watch(() => projectCustomFields.value, () => {
+  initializeFieldDefinitions()
+}, { deep: true })
+
+// 監聽配置變化
+watch(() => props.configuration?.visibleColumns, () => {
+  initializeFieldDefinitions()
+}, { deep: true })
+
 // 組件載入時預載入資料
 onMounted(() => {
   void preloadProjectData()
+  initializeFieldDefinitions()
 })
 </script>
 
 <style scoped lang="scss">
 .task-table-view {
   background-color: $grey-1;
+
 
   .table-toolbar {
     border-bottom: 1px solid $grey-4;
@@ -1489,7 +1577,7 @@ onMounted(() => {
 
         .project-stats {
           flex-shrink: 0;
-          
+
           .q-badge {
             font-size: 11px;
             font-weight: 500;
@@ -1517,7 +1605,7 @@ onMounted(() => {
 
         tbody {
           tr {
-            height: 32px;
+            height: 30px;
             border-bottom: 1px solid $grey-3;
 
             &:hover {
@@ -1531,8 +1619,8 @@ onMounted(() => {
 
           td {
             padding: 0 6px;
-            height: 32px;
-            line-height: 32px;
+            height: 30px;
+            line-height: 30px;
             vertical-align: middle;
             white-space: nowrap;
             overflow: hidden;
@@ -1574,7 +1662,7 @@ onMounted(() => {
 
       tbody {
         tr {
-          height: 32px;
+          height: 30px;
           border-bottom: 1px solid $grey-3;
 
           &:hover {
@@ -1588,8 +1676,8 @@ onMounted(() => {
 
         td {
           padding: 0 6px;
-          height: 32px;
-          line-height: 32px;
+          height: 30px;
+          line-height: 30px;
           vertical-align: middle;
           white-space: nowrap;
           overflow: hidden;
@@ -1598,15 +1686,15 @@ onMounted(() => {
         }
       }
 
-      .task-title-cell {
-        overflow: hidden;
-
-        .task-title-wrapper {
-          display: flex;
-          align-items: center;
-          height: 32px;
-          white-space: nowrap;
+              .task-title-cell {
           overflow: hidden;
+
+          .task-title-wrapper {
+            display: flex;
+            align-items: center;
+            height: 30px;
+            white-space: nowrap;
+            overflow: hidden;
 
           .expand-btn {
             min-width: 18px;
@@ -1629,7 +1717,7 @@ onMounted(() => {
             flex: 1;
             min-width: 0;
             padding: 0 4px;
-            line-height: 32px;
+            line-height: 30px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
