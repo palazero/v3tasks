@@ -2,109 +2,167 @@
   <q-dialog
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
-    position="right"
-    :maximized="$q.screen.lt.md"
+    persistent
+    max-width="600px"
+    transition-show="slide-up"
+    transition-hide="slide-down"
+    class="field-dialog-wrapper"
   >
-    <q-card class="custom-field-edit-dialog" style="width: 500px; max-width: 90vw;">
-      <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">
-          {{ isEditing ? '編輯自訂欄位' : '新增自訂欄位' }}
+    <q-card class="custom-field-edit-dialog">
+      <!-- Enhanced Header -->
+      <q-card-section class="dialog-header">
+        <div class="row items-center no-wrap">
+          <q-icon
+            :name="isEditing ? 'edit' : 'add_box'"
+            size="24px"
+            :color="isEditing ? 'orange' : 'primary'"
+            class="q-mr-sm"
+          />
+          <div>
+            <div class="text-subtitle1 text-weight-medium">
+              {{ isEditing ? '編輯自訂欄位' : '新增自訂欄位' }}
+            </div>
+            <div v-if="isEditing && field" class="text-caption text-grey-6 q-mt-xs" style="font-size: 10px;">
+              欄位ID: {{ field.fieldId }}
+            </div>
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup class="close-btn" />
         </div>
-        <q-space />
-        <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
-      <q-separator />
+      <!-- Progress Indicator -->
+      <q-linear-progress
+        v-if="isSubmitting"
+        indeterminate
+        color="primary"
+        class="loading-bar"
+      />
 
-      <q-card-section class="q-pa-xs scroll" style="max-height: 70vh;">
-        <q-form @submit="onSubmit" class="q-gutter-md">
+      <q-card-section class="dialog-content">
+        <q-form @submit="onSubmit" class="form-container">
           <!-- 基本資訊 -->
-          <div class="section-title">基本資訊</div>
-
-          <q-input
-            v-model="form.name"
-            label="欄位名稱 *"
-            outlined
-            dense
-            :rules="[val => !!val || '請輸入欄位名稱']"
-            maxlength="50"
-            counter
-          />
-
-          <q-input
-            v-model="form.description"
-            label="描述"
-            outlined
-            dense
-            type="textarea"
-            rows="2"
-            maxlength="200"
-            counter
-          />
-
-          <div class="row q-gutter-md">
-            <div class="col">
-              <q-select
-                v-model="form.type"
-                :options="fieldTypeOptions"
-                label="欄位類型 *"
-                outlined
-                dense
-                emit-value
-                map-options
-                :rules="[val => !!val || '請選擇欄位類型']"
-                @update:model-value="onTypeChange"
-              />
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="info" color="primary" size="20px" />
+              <span class="section-title">基本資訊</span>
             </div>
-            <div class="col">
-              <q-select
-                v-model="form.groupId"
-                :options="groupOptions"
-                label="所屬群組"
+            <div class="section-content">
+
+              <q-input
+                v-model="form.name"
+                label="欄位名稱"
                 outlined
                 dense
-                emit-value
-                map-options
-                clearable
-              />
+                :rules="[val => !!val || '請輸入欄位名稱']"
+                maxlength="50"
+                counter
+                class="compact-input"
+                hide-bottom-space
+                autofocus
+              >
+                <template v-slot:prepend>
+                  <q-icon name="title" color="grey-6" />
+                </template>
+              </q-input>
+
+              <q-input
+                v-model="form.description"
+                label="描述"
+                outlined
+                dense
+                type="textarea"
+                rows="2"
+                maxlength="200"
+                counter
+                class="compact-input description-input"
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="description" color="grey-6" />
+                </template>
+              </q-input>
+
+              <div class="row q-col-gutter-sm">
+                <div class="col">
+                  <q-select
+                    v-model="form.type"
+                    :options="fieldTypeOptions"
+                    label="欄位類型"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                    :rules="[val => !!val || '請選擇欄位類型']"
+                    @update:model-value="onTypeChange"
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="category" color="grey-6" />
+                    </template>
+                  </q-select>
+                </div>
+                <div class="col">
+                  <q-select
+                    v-model="form.groupId"
+                    :options="groupOptions"
+                    label="所屬群組"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                    clearable
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="folder" color="grey-6" />
+                    </template>
+                  </q-select>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- 欄位選項 (select/multiSelect) -->
-          <div v-if="needsOptions" class="field-options-section">
-            <div class="section-title">選項設定</div>
+          <div v-if="needsOptions" class="form-section">
+            <div class="section-header">
+              <q-icon name="list" color="primary" size="20px" />
+              <span class="section-title">選項設定</span>
+            </div>
+            <div class="section-content">
 
-            <div class="options-list">
-              <VueDraggable
-                v-model="form.options"
-                :animation="200"
-                handle=".option-handle"
-                class="q-gutter-sm"
-              >
-                <template #item="{ element: option, index }">
-                  <div class="option-item q-pa-sm bg-grey-1 rounded-borders">
-                    <div class="row items-center q-gutter-sm">
-                      <q-icon
-                        name="drag_indicator"
-                        class="option-handle cursor-pointer text-grey-6"
-                      />
-
+              <div class="options-list">
+                <div 
+                  v-for="(option, index) in form.options"
+                  :key="index"
+                  class="option-item"
+                >
+                  <div class="row items-center q-col-gutter-xs">
+                    <div class="col-5">
                       <q-input
                         v-model="option.label"
                         label="顯示文字"
                         dense
                         outlined
-                        class="col"
+                        class="compact-input"
+                        hide-bottom-space
                       />
+                    </div>
 
+                    <div class="col-4">
                       <q-input
                         v-model="option.value"
                         label="值"
                         dense
                         outlined
-                        class="col"
+                        class="compact-input"
+                        hide-bottom-space
                       />
+                    </div>
 
+                    <div class="col-2">
                       <q-select
                         v-model="option.color"
                         :options="colorOptions"
@@ -114,16 +172,18 @@
                         clearable
                         emit-value
                         map-options
-                        style="width: 100px"
+                        class="compact-input"
+                        hide-bottom-space
                       >
                         <template v-slot:selected>
-                          <div v-if="option.color" class="row items-center q-gutter-xs">
+                          <div v-if="option.color" class="row items-center no-wrap">
                             <q-icon name="circle" :color="option.color" size="xs" />
-                            <span>{{ getColorLabel(option.color) }}</span>
                           </div>
                         </template>
                       </q-select>
+                    </div>
 
+                    <div class="col-1">
                       <q-btn
                         flat
                         round
@@ -132,152 +192,234 @@
                         size="sm"
                         color="negative"
                         @click="removeOption(index)"
+                        class="option-delete-btn"
                       />
                     </div>
                   </div>
-                </template>
-              </VueDraggable>
-            </div>
+                </div>
+              </div>
 
-            <q-btn
-              flat
-              icon="add"
-              label="新增選項"
-              color="primary"
-              size="sm"
-              @click="addOption"
-              class="q-mt-sm"
-            />
+              <q-btn
+                flat
+                icon="add"
+                label="新增選項"
+                color="primary"
+                size="sm"
+                @click="addOption"
+                class="add-option-btn"
+              />
+            </div>
           </div>
 
           <!-- 驗證規則 -->
-          <div class="validation-section">
-            <div class="section-title">驗證規則</div>
-
-            <!-- 文字欄位驗證 -->
-            <div v-if="form.type === 'text'" class="row q-gutter-md">
-              <q-input
-                v-model.number="form.validation.minLength"
-                label="最小長度"
-                type="number"
-                outlined
-                dense
-                min="0"
-                class="col"
-              />
-              <q-input
-                v-model.number="form.validation.maxLength"
-                label="最大長度"
-                type="number"
-                outlined
-                dense
-                min="1"
-                class="col"
-              />
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="rule" color="primary" size="20px" />
+              <span class="section-title">驗證規則</span>
             </div>
+            <div class="section-content">
 
-            <!-- 數字欄位驗證 -->
-            <div v-if="form.type === 'number'" class="row q-gutter-md">
+              <!-- 文字欄位驗證 -->
+              <div v-if="form.type === 'text'" class="row q-col-gutter-sm">
+                <div class="col">
+                  <q-input
+                    v-model.number="form.validation.minLength"
+                    label="最小長度"
+                    type="number"
+                    outlined
+                    dense
+                    min="0"
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="short_text" color="grey-6" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col">
+                  <q-input
+                    v-model.number="form.validation.maxLength"
+                    label="最大長度"
+                    type="number"
+                    outlined
+                    dense
+                    min="1"
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="subject" color="grey-6" />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+
+              <!-- 數字欄位驗證 -->
+              <div v-if="form.type === 'number'" class="row q-col-gutter-sm">
+                <div class="col">
+                  <q-input
+                    v-model.number="form.validation.min"
+                    label="最小值"
+                    type="number"
+                    outlined
+                    dense
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="trending_down" color="grey-6" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col">
+                  <q-input
+                    v-model.number="form.validation.max"
+                    label="最大值"
+                    type="number"
+                    outlined
+                    dense
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="trending_up" color="grey-6" />
+                    </template>
+                  </q-input>
+                </div>
+              </div>
+
+              <!-- 通用驗證 -->
               <q-input
-                v-model.number="form.validation.min"
-                label="最小值"
-                type="number"
+                v-model="form.validation.pattern"
+                label="正則表達式"
                 outlined
                 dense
-                class="col"
-              />
+                placeholder="例：^[A-Za-z0-9]+$"
+                class="compact-input"
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="code" color="grey-6" />
+                </template>
+              </q-input>
+
               <q-input
-                v-model.number="form.validation.max"
-                label="最大值"
-                type="number"
+                v-model="form.validation.errorMessage"
+                label="自訂錯誤訊息"
                 outlined
                 dense
-                class="col"
-              />
+                placeholder="驗證失敗時顯示的訊息"
+                class="compact-input"
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="error" color="grey-6" />
+                </template>
+              </q-input>
+
+              <q-input
+                v-model="form.validation.helpText"
+                label="說明文字"
+                outlined
+                dense
+                placeholder="協助用戶填寫的說明"
+                class="compact-input"
+                hide-bottom-space
+              >
+                <template v-slot:prepend>
+                  <q-icon name="help" color="grey-6" />
+                </template>
+              </q-input>
             </div>
-
-            <!-- 通用驗證 -->
-            <q-input
-              v-model="form.validation.pattern"
-              label="正則表達式"
-              outlined
-              dense
-              placeholder="例：^[A-Za-z0-9]+$"
-            />
-
-            <q-input
-              v-model="form.validation.errorMessage"
-              label="自訂錯誤訊息"
-              outlined
-              dense
-              placeholder="驗證失敗時顯示的訊息"
-            />
-
-            <q-input
-              v-model="form.validation.helpText"
-              label="說明文字"
-              outlined
-              dense
-              placeholder="協助用戶填寫的說明"
-            />
           </div>
 
           <!-- 預設值 -->
-          <div class="default-value-section">
-            <div class="section-title">預設值</div>
-
-            <CustomFieldRenderer
-              :field="previewField"
-              v-model:value="form.defaultValue"
-              :show-label="false"
-              :show-help="false"
-              dense
-            />
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="settings" color="primary" size="20px" />
+              <span class="section-title">預設值</span>
+            </div>
+            <div class="section-content">
+              <CustomFieldRenderer
+                :field="previewField"
+                v-model:value="form.defaultValue"
+                :show-label="false"
+                :show-help="false"
+                dense
+              />
+            </div>
           </div>
 
           <!-- 欄位設定 -->
-          <div class="field-settings-section">
-            <div class="section-title">欄位設定</div>
-
-            <div class="row q-gutter-md">
-              <q-input
-                v-model.number="form.displayOrder"
-                label="顯示順序"
-                type="number"
-                outlined
-                dense
-                min="0"
-                class="col"
-              />
-              <div class="col">
-                <q-toggle
-                  v-model="form.isRequired"
-                  label="必填欄位"
-                  color="red"
-                />
-                <q-toggle
-                  v-model="form.isVisible"
-                  label="顯示欄位"
-                  color="green"
-                  class="q-ml-md"
-                />
+          <div class="form-section">
+            <div class="section-header">
+              <q-icon name="tune" color="primary" size="20px" />
+              <span class="section-title">欄位設定</span>
+            </div>
+            <div class="section-content">
+              <div class="row q-col-gutter-sm">
+                <div class="col-6">
+                  <q-input
+                    v-model.number="form.displayOrder"
+                    label="顯示順序"
+                    type="number"
+                    outlined
+                    dense
+                    min="0"
+                    class="compact-input"
+                    hide-bottom-space
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="reorder" color="grey-6" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-6 toggle-container">
+                  <q-toggle
+                    v-model="form.isRequired"
+                    label="必填欄位"
+                    color="red"
+                    class="field-toggle"
+                  />
+                  <q-toggle
+                    v-model="form.isVisible"
+                    label="顯示欄位"
+                    color="green"
+                    class="field-toggle"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </q-form>
       </q-card-section>
 
-      <q-separator />
+      <!-- Enhanced Actions -->
+      <q-card-actions class="dialog-actions">
+        <div class="actions-left">
+          <!-- Empty for now -->
+        </div>
 
-      <q-card-actions align="right">
-        <q-btn flat label="取消" color="grey" v-close-popup />
-        <q-btn
-          unelevated
-          :label="isEditing ? '更新' : '建立'"
-          color="primary"
-          @click="onSubmit"
-          :loading="isSubmitting"
-        />
+        <div class="actions-right">
+          <q-btn
+            flat
+            icon="close"
+            label="取消"
+            v-close-popup
+            class="cancel-btn"
+            :disable="isSubmitting"
+          />
+          <q-btn
+            unelevated
+            :icon="isEditing ? 'save' : 'add'"
+            :label="isEditing ? '更新欄位' : '建立欄位'"
+            color="primary"
+            @click="onSubmit"
+            :loading="isSubmitting"
+            class="submit-btn"
+          />
+        </div>
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -554,38 +696,274 @@ onMounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style scoped>
+/* Dialog Container */
+.field-dialog-wrapper {
+  backdrop-filter: blur(4px);
+}
+
 .custom-field-edit-dialog {
-  .section-title {
-    font-weight: 600;
-    font-size: 14px;
-    color: $grey-8;
-    margin-bottom: 8px;
-    margin-top: 16px;
+  width: 100%;
+  max-width: 600px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
 
-    &:first-child {
-      margin-top: 0;
-    }
+/* Header Styling */
+.dialog-header {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-bottom: 1px solid #e1e5e9;
+  padding: 12px 16px;
+}
+
+.close-btn {
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+}
+
+/* Loading Bar */
+.loading-bar {
+  height: 3px;
+}
+
+/* Content Area */
+.dialog-content {
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 8px;
+  background: #fafbfc;
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Form Sections */
+.form-section {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.form-section:hover {
+  border-color: #1976d2;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 12px;
+}
+
+.section-content {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Input Enhancements */
+.compact-input :deep(.q-field__control) {
+  min-height: 36px;
+}
+
+.compact-input :deep(.q-field__label) {
+  font-size: 12px;
+}
+
+.compact-input :deep(.q-field__native) {
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+.description-input :deep(.q-field__control) {
+  min-height: 60px;
+}
+
+/* Options Section */
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-item {
+  background: #f8f9fa;
+  border: 1px solid #e1e5e9;
+  border-radius: 6px;
+  padding: 8px;
+  transition: all 0.2s ease;
+}
+
+.option-item:hover {
+  border-color: #1976d2;
+  background: white;
+}
+
+.option-delete-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+}
+
+.add-option-btn {
+  margin-top: 4px;
+  border-radius: 6px;
+  padding: 8px 16px;
+}
+
+/* Toggle Container */
+.toggle-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.field-toggle {
+  font-size: 12px;
+}
+
+.field-toggle :deep(.q-toggle__label) {
+  font-size: 12px;
+}
+
+/* Actions Section */
+.dialog-actions {
+  background: white;
+  border-top: 1px solid #e1e5e9;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.actions-left {
+  flex: 1;
+}
+
+.actions-right {
+  display: flex;
+  gap: 6px;
+}
+
+.cancel-btn {
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.submit-btn {
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
+}
+
+.submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(25, 118, 210, 0.3);
+}
+
+/* Custom Scrollbar */
+.dialog-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dialog-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Animation for sections */
+.form-section {
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .custom-field-edit-dialog {
+    margin: 4px;
+    max-width: calc(100vw - 8px);
+    border-radius: 6px;
   }
 
-  .option-item {
-    border: 1px solid $grey-4;
-
-    .option-handle {
-      cursor: grab;
-
-      &:active {
-        cursor: grabbing;
-      }
-    }
+  .dialog-header {
+    padding: 10px 12px;
   }
 
-  .validation-section,
-  .default-value-section,
-  .field-settings-section {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid $grey-3;
+  .dialog-content {
+    padding: 12px;
+    max-height: 70vh;
+  }
+
+  .form-container {
+    gap: 4px;
+  }
+
+  .section-content {
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .dialog-actions {
+    padding: 8px 12px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .actions-left,
+  .actions-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .actions-right {
+    flex-direction: row-reverse;
+  }
+
+  .toggle-container {
+    flex-direction: row;
+    gap: 16px;
   }
 }
 </style>

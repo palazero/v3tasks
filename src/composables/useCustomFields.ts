@@ -392,16 +392,27 @@ export function useCustomFields(projectId: string) {
    * 初始化預設欄位
    */
   async function initializeDefaultFields(): Promise<void> {
+    console.log('🔧 useCustomFields.initializeDefaultFields 被調用')
+    console.log('currentUser.value:', currentUser.value)
+    console.log('projectId:', projectId)
+    
     if (!currentUser.value) {
-      throw new Error('需要登入才能初始化欄位');
+      const errorMsg = '需要登入才能初始化欄位';
+      console.error('❌', errorMsg)
+      throw new Error(errorMsg);
     }
 
     try {
+      console.log('📞 調用 customFieldService.initializeDefaultFields')
       await customFieldService.initializeDefaultFields(projectId, currentUser.value.userId);
+      console.log('✅ customFieldService.initializeDefaultFields 完成')
+      
+      console.log('📞 重新載入欄位...')
       await loadCustomFields(); // 重新載入
+      console.log('✅ 欄位重新載入完成')
     } catch (err) {
       error.value = '初始化預設欄位失敗';
-      console.error('Failed to initialize default fields:', err);
+      console.error('❌ Failed to initialize default fields:', err);
       throw err;
     }
   }
@@ -421,6 +432,7 @@ export function useCustomFields(projectId: string) {
     // 狀態
     fields: customFields,
     customFields, // 向後相容性
+    customFieldGroups,
     isLoading,
     error,
 
@@ -476,6 +488,9 @@ export function useCustomFieldUtils(): CustomFieldUtilsInterface {
    * 從任務自訂欄位中取得特定欄位值
    */
   function getCustomFieldValue(customFields: CustomFieldValue[], fieldId: string): unknown {
+    if (!customFields || !Array.isArray(customFields)) {
+      return null;
+    }
     const field = customFields.find((f) => f.fieldId === fieldId);
     return field?.value || null;
   }
@@ -484,6 +499,9 @@ export function useCustomFieldUtils(): CustomFieldUtilsInterface {
    * 從任務自訂欄位中取得格式化顯示值
    */
   function getCustomFieldDisplayValue(customFields: CustomFieldValue[], fieldId: string): string {
+    if (!customFields || !Array.isArray(customFields)) {
+      return '-';
+    }
     const field = customFields.find((f) => f.fieldId === fieldId);
     return field?.displayValue || '-';
   }
@@ -492,6 +510,9 @@ export function useCustomFieldUtils(): CustomFieldUtilsInterface {
    * 檢查任務是否包含特定自訂欄位
    */
   function hasCustomField(customFields: CustomFieldValue[], fieldId: string): boolean {
+    if (!customFields || !Array.isArray(customFields)) {
+      return false;
+    }
     return customFields.some((f) => f.fieldId === fieldId);
   }
 
@@ -499,6 +520,9 @@ export function useCustomFieldUtils(): CustomFieldUtilsInterface {
    * 過濾空值的自訂欄位
    */
   function filterEmptyCustomFields(customFields: CustomFieldValue[]): CustomFieldValue[] {
+    if (!customFields || !Array.isArray(customFields)) {
+      return [];
+    }
     return customFields.filter((field) => {
       const value = field.value;
       return value !== null && value !== undefined && value !== '';

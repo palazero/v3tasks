@@ -51,8 +51,11 @@
         @change="onGroupReorder"
         class="field-groups-list"
       >
-        <template #item="{ element: group }">
-          <div class="field-group q-ma-md" :key="group.groupId">
+        <div 
+          v-for="group in sortedGroups" 
+          :key="group.groupId" 
+          class="field-group q-ma-md"
+        >
             <!-- 群組標題 -->
             <div class="group-header q-pa-xs bg-grey-1 rounded-borders-top">
               <div class="row items-center justify-between">
@@ -121,8 +124,11 @@
                 @change="onFieldReorder"
                 class="fields-list"
               >
-                <template #item="{ element: field }">
-                  <div class="field-item q-pa-xs border-bottom" :key="field.fieldId">
+                <div 
+                  v-for="field in (groupedFields[group.groupId] || [])" 
+                  :key="field.fieldId" 
+                  class="field-item q-pa-xs border-bottom"
+                >
                     <div class="row items-center justify-between">
                       <div class="row items-center q-gutter-md flex-1">
                         <q-icon
@@ -219,12 +225,11 @@
                       </div>
                     </div>
                   </div>
-                </template>
+                </div>
               </VueDraggable>
 
               <!-- 群組內空狀態 -->
-              <div v-if="groupedFields[group.groupId]?.length === 0" class="empty-group q-pa-lg text-center">
-                <div v-if="groupedFields[group.groupId]?.length === 0" class="empty-group q-pa-lg text-center">
+              <div v-if="(groupedFields[group.groupId] || []).length === 0" class="empty-group q-pa-lg text-center">
                 <q-icon name="text_fields" size="3em" color="grey-4" />
                 <div class="text-body2 text-grey-6 q-mt-sm">此群組暫無欄位</div>
                 <q-btn
@@ -236,9 +241,8 @@
                 />
               </div>
             </div>
-            </div>
           </div>
-        </template>
+        </div>
       </VueDraggable>
 
       <!-- 未分組欄位 -->
@@ -256,8 +260,11 @@
             @change="onFieldReorder"
             class="fields-list"
           >
-            <template #item="{ element: field }">
-              <div class="field-item q-pa-xs border-bottom" :key="field.fieldId">
+            <div 
+              v-for="field in (groupedFields.ungrouped || [])" 
+              :key="field.fieldId" 
+              class="field-item q-pa-xs border-bottom"
+            >
                 <!-- 同上面的欄位項目模板 -->
                 <div class="row items-center justify-between">
                   <div class="row items-center q-gutter-md flex-1">
@@ -351,7 +358,7 @@
                   </div>
                 </div>
               </div>
-            </template>
+            </div>
           </VueDraggable>
         </div>
       </div>
@@ -501,7 +508,7 @@ function getFieldTypeLabel(type: FieldType): string {
 
 // 群組操作
 function toggleGroupCollapse(groupId: string): void {
-  const group = customFieldGroups.value.find(g => g.groupId === groupId)
+  const group = customFieldGroups.value.find((g: CustomFieldGroup) => g.groupId === groupId)
   if (group) {
     void updateCustomFieldGroup(groupId, { isCollapsed: !group.isCollapsed })
   }

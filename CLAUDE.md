@@ -430,3 +430,4 @@ switch (value) {
 - 每完成階段,請總結完成內容到report_phase_X_<subject>.md
 - 每完成問題修復,請總結修復內容到report_fix_<seq>_<subject>.md
 - 使用npx kill-port 來關閉伺服器
+- "使用緊湊設計"

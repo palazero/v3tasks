@@ -484,7 +484,7 @@ const isListOrTableView = computed(() => {
   const viewType = viewStore.currentView?.type
   return viewType === 'list' || viewType === 'table'
 })
-const shouldShowProjectSort = computed(() => 
+const shouldShowProjectSort = computed(() =>
   isAllTasksView.value && isListOrTableView.value
 )
 
@@ -624,11 +624,7 @@ function goToSettings(): void {
 
 // 設定標籤選單 ref
 function setTabMenuRef(viewId: string, el: HTMLElement | null): void {
-  if (el && 'el' in el) {
-    tabMenuRefs.value[viewId] = (el as any).$el
-  } else {
-    tabMenuRefs.value[viewId] = el
-  }
+    tabMenuRefs.value[viewId] = el?.$el
 }
 
 // 設定甘特圖視圖 ref
@@ -755,10 +751,10 @@ function handleTaskCreate(taskData: Partial<Task>): void {
     statusId: taskData.statusId || 'todo',
     priorityId: taskData.priorityId || 'medium'
   }
-  
+
   // 設定父任務 ID（如果有）
   parentTaskId.value = taskData.parentTaskId
-  
+
   showCreateTaskDialog.value = true
 }
 
@@ -767,7 +763,7 @@ async function handleTaskDelete(taskId: string): Promise<void> {
   // 先找到任務以獲取任務標題
   const task = taskStore.tasks.find(t => t.taskId === taskId)
   const taskTitle = task?.title || '此任務'
-  
+
   $q.dialog({
     title: '確認刪除',
     message: `確定要刪除任務「${taskTitle}」嗎？`,
@@ -948,7 +944,7 @@ function handleDashboardExport(format: 'pdf' | 'excel' | 'image'): void {
     message: `正在導出 ${format.toUpperCase()} 格式的報表...`,
     position: 'top'
   })
-  
+
   // 這裡可以添加實際的導出邏輯
   setTimeout(() => {
     $q.notify({
