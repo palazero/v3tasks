@@ -128,16 +128,20 @@
           v-show="isProjectExpanded(projectId)" 
           class="project-tasks bg-white rounded-borders-bottom"
         >
-          <DraggableTaskList
+          <CompactTaskList
             :tasks="projectTasks"
             :show-project="false"
+            :project-id="projectId"
+            :selected-tasks="selectedTasks"
             @task-click="emit('task-click', $event)"
-            @task-update="(taskId: string, updates: Partial<Task>) => emit('task-update', taskId, updates)"
+            @task-update="handleTaskUpdate"
             @tasks-reorder="handleTasksReorder"
             @add-subtask="handleAddSubtask"
-            @indent-task="handleIndentTask"
-            @outdent-task="handleOutdentTask"
-            @toggle-expanded="handleToggleExpanded"
+            @edit-task="handleEditTask"
+            @duplicate-task="handleDuplicateTask"
+            @delete-task="handleDeleteTask"
+            @task-added="handleTaskAdded"
+            @toggle-selection="handleToggleSelection"
           />
         </div>
       </div>
@@ -146,16 +150,20 @@
     <!-- 一般列表顯示（不分組或專案內視圖） -->
     <template v-else>
       <div class="task-list bg-white rounded-borders">
-        <DraggableTaskList
+        <CompactTaskList
           :tasks="tasks"
           :show-project="projectId === 'all'"
+          :project-id="projectId"
+          :selected-tasks="selectedTasks"
           @task-click="emit('task-click', $event)"
-          @task-update="(taskId: string, updates: Partial<Task>) => emit('task-update', taskId, updates)"
+          @task-update="handleTaskUpdate"
           @tasks-reorder="handleTasksReorder"
           @add-subtask="handleAddSubtask"
-          @indent-task="handleIndentTask"
-          @outdent-task="handleOutdentTask"
-          @toggle-expanded="handleToggleExpanded"
+          @edit-task="handleEditTask"
+          @duplicate-task="handleDuplicateTask"
+          @delete-task="handleDeleteTask"
+          @task-added="handleTaskAdded"
+          @toggle-selection="handleToggleSelection"
         />
       </div>
     </template>
@@ -169,7 +177,7 @@ import type { Task, View } from '@/types'
 // import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useTaskStore } from '@/stores/task'
 import { getProjectRepository } from '@/services/repositories'
-import DraggableTaskList from '@/components/task/DraggableTaskList.vue'
+import CompactTaskList from '@/components/task/CompactTaskList.vue'
 
 // Props
 const props = defineProps<{
@@ -308,7 +316,7 @@ async function handleAddSubtask(parentTask: Task, title: string): Promise<void> 
   }
 }
 
-async function handleIndentTask(task: Task): Promise<void> {
+async function _handleIndentTask(task: Task): Promise<void> {
   const success = await taskStore.indentTaskAction(task)
   if (success) {
     $q.notify({
@@ -319,7 +327,7 @@ async function handleIndentTask(task: Task): Promise<void> {
   }
 }
 
-async function handleOutdentTask(task: Task): Promise<void> {
+async function _handleOutdentTask(task: Task): Promise<void> {
   const success = await taskStore.outdentTaskAction(task)
   if (success) {
     $q.notify({
@@ -330,7 +338,7 @@ async function handleOutdentTask(task: Task): Promise<void> {
   }
 }
 
-async function handleToggleExpanded(task: Task): Promise<void> {
+async function _handleToggleExpanded(task: Task): Promise<void> {
   const success = await taskStore.toggleTaskExpanded(task)
   if (!success) {
     $q.notify({
@@ -338,6 +346,41 @@ async function handleToggleExpanded(task: Task): Promise<void> {
       message: '更新任務狀態失敗',
       position: 'top'
     })
+  }
+}
+
+// 新增的處理函數
+const selectedTasks = ref<Set<string>>(new Set())
+
+function handleTaskUpdate(data: { taskId: string; updates: Partial<Task> }): void {
+  emit('task-update', data.taskId, data.updates)
+}
+
+function handleEditTask(task: Task): void {
+  // TODO: Open task edit dialog
+  console.log('Edit task:', task.title)
+}
+
+function handleDuplicateTask(task: Task): void {
+  // TODO: Duplicate task
+  console.log('Duplicate task:', task.title)
+}
+
+function handleDeleteTask(task: Task): void {
+  // TODO: Delete task with confirmation
+  console.log('Delete task:', task.title)
+}
+
+function handleTaskAdded(task: Task): void {
+  // TODO: Handle new task added
+  console.log('Task added:', task.title)
+}
+
+function handleToggleSelection(data: { taskId: string; selected: boolean }): void {
+  if (data.selected) {
+    selectedTasks.value.add(data.taskId)
+  } else {
+    selectedTasks.value.delete(data.taskId)
   }
 }
 

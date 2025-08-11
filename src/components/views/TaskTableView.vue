@@ -290,7 +290,6 @@
                 :max="100"
                 :step="10"
                 label
-                label-always
                 @update:model-value="$event != null && updateTask(props.row.taskId, { progress: $event })"
                 class="progress-slider"
               />
@@ -560,7 +559,6 @@
                 :max="100"
                 :step="10"
                 label
-                label-always
                 @update:model-value="$event != null && updateTask(props.row.taskId, { progress: $event })"
                 class="progress-slider"
               />
@@ -811,7 +809,7 @@ function getProjectName(projectId: string): string {
   if (project) {
     return project.name
   }
-  
+
   // 非同步載入專案資料
   loadProjectData(projectId)
   return '載入中...'
@@ -1418,11 +1416,11 @@ function deleteTask(task: Task): void {
 async function preloadProjectData(): Promise<void> {
   if (props.projectId === 'all' && props.view.config.groupBy === 'projectId') {
     const projectIds = new Set(props.tasks.map(task => task.projectId))
-    
-    const loadPromises = Array.from(projectIds).map(projectId => 
+
+    const loadPromises = Array.from(projectIds).map(projectId =>
       loadProjectData(projectId)
     )
-    
+
     await Promise.all(loadPromises)
   }
 }
