@@ -183,7 +183,7 @@ export class ViewRepository extends BaseRepository<View> {
   /**
    * 根據類型取得預設視圖配置
    */
-  getDefaultConfig(type: ViewType): View['config'] {
+  getDefaultConfig(type: ViewType, isAllTasks = false): View['config'] {
     const baseConfig: View['config'] = {
       filters: [],
       sorts: [],
@@ -228,7 +228,10 @@ export class ViewRepository extends BaseRepository<View> {
         };
 
       default:
-        return baseConfig;
+        return {
+          ...baseConfig,
+          ...(isAllTasks && { groupBy: 'projectId' }),
+        };
     }
   }
 }

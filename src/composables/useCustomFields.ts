@@ -3,17 +3,12 @@
  * 處理自訂欄位的狀態管理和操作
  */
 
-import { ref, computed, watch, type Ref, type ComputedRef } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { CustomField, CustomFieldGroup, CustomFieldValue, FieldType } from '@/types';
 import { customFieldService } from '@/services/customFieldService';
 import { useCurrentUser } from './useCurrentUser';
 
-export function useCustomFields(projectId: string): {
-  fields: Ref<CustomField[]>
-  visibleFields: ComputedRef<CustomField[]>
-  updateField: (fieldId: string, updates: Partial<CustomField>) => Promise<void>
-  deleteField: (fieldId: string) => Promise<void>
-} {
+export function useCustomFields(projectId: string) {
   const { currentUser } = useCurrentUser();
 
   // 狀態
@@ -424,8 +419,8 @@ export function useCustomFields(projectId: string): {
 
   return {
     // 狀態
-    customFields,
-    customFieldGroups,
+    fields: customFields,
+    customFields, // 向後相容性
     isLoading,
     error,
 

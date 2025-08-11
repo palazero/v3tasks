@@ -202,7 +202,8 @@ export async function initMockData(): Promise<void> {
     isDeletable: false,
     isPersonal: false,
     creatorId: 'admin1',
-    config: viewRepo.getDefaultConfig('list' as ViewType),
+    config: viewRepo.getDefaultConfig('list' as ViewType, true),
+    order: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -219,6 +220,7 @@ export async function initMockData(): Promise<void> {
       isPersonal: false,
       creatorId: project.ownerId,
       config: viewRepo.getDefaultConfig('dashboard' as ViewType),
+      order: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -233,6 +235,7 @@ export async function initMockData(): Promise<void> {
       isPersonal: false,
       creatorId: project.ownerId,
       config: viewRepo.getDefaultConfig('list' as ViewType),
+      order: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -247,6 +250,7 @@ export async function initMockData(): Promise<void> {
       isPersonal: false,
       creatorId: project.ownerId,
       config: viewRepo.getDefaultConfig('board' as ViewType),
+      order: 2,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

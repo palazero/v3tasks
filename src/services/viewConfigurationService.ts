@@ -45,7 +45,7 @@ export class ViewConfigurationService {
       return obj;
     };
     
-    return cleanObject(sanitized);
+    return cleanObject(sanitized) as T;
   }
 
   /**

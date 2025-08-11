@@ -98,11 +98,10 @@ export const useViewStore = defineStore('view', () => {
       isPersonal: false,
       creatorId: userStore.currentUserId,
       config: {
-        filters: [],
+        ...viewRepo.getDefaultConfig(VT.LIST, true), // isAllTasks = true
         sorts: [
           { fieldId: 'createdAt', direction: 'desc' }
         ],
-        groupBy: 'projectId', // 重要：以專案分組
         visibleFields: [
           'title',
           'statusId',

@@ -67,6 +67,18 @@
 
                 <!-- Task Meta -->
                 <div class="task-meta">
+                  <!-- Project Name (only show when in 'all' project view) -->
+                  <div v-if="props.projectId === 'all'" class="task-project">
+                    <q-chip
+                      size="xs"
+                      color="blue-grey-2"
+                      text-color="blue-grey-8"
+                      icon="folder"
+                    >
+                      {{ getProjectName(task.projectId) }}
+                    </q-chip>
+                  </div>
+                  
                   <!-- Priority Badge -->
                   <q-chip
                     :color="getPriorityColor(task.priority || 'medium')"
@@ -179,9 +191,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
-import type { Task, View, RichTextNode } from '@/types'
+import type { Task, View, RichTextNode, Project } from '@/types'
 import { useQuasar } from 'quasar'
 import { useUserStore } from '@/stores/user'
+import { getProjectRepository } from '@/services/repositories'
 
 // Props
 const props = defineProps<{
@@ -204,11 +217,13 @@ const emit = defineEmits<{
 
 const $q = useQuasar()
 const userStore = useUserStore()
+const projectRepo = getProjectRepository()
 
 // Refs
 const taskMenu = ref()
 const selectedTask = ref<Task | null>(null)
 const isDragging = ref(false)
+const projectsCache = ref<Map<string, Project>>(new Map())
 
 // Kanban columns definition with reactive task arrays
 const kanbanColumns = reactive([
@@ -259,6 +274,33 @@ function getColumnTaskCount(status: string): number {
 function getAssigneeName(assigneeId: string): string {
   const user = userStore.availableUsers.find(u => u.userId === assigneeId)
   return user?.name || '未指定'
+}
+
+function getProjectName(projectId: string): string {
+  // 檢查快取
+  if (projectsCache.value.has(projectId)) {
+    return projectsCache.value.get(projectId)!.name
+  }
+  
+  // 如果不在快取中，非同步載入專案資訊
+  loadProject(projectId)
+  
+  return '載入中...'
+}
+
+async function loadProject(projectId: string): Promise<void> {
+  if (projectsCache.value.has(projectId)) return
+  
+  try {
+    const project = await projectRepo.findById(projectId)
+    if (project) {
+      projectsCache.value.set(projectId, project)
+    }
+  } catch (error) {
+    console.warn('Failed to load project:', projectId, error)
+    // 設定錯誤專案以避免重複載入
+    projectsCache.value.set(projectId, { name: '未知專案' } as Project)
+  }
 }
 
 // Priority helpers
@@ -445,8 +487,29 @@ function onTaskMove(event: Record<string, unknown>, columnStatus: string): void 
   }
 }
 
+// Preload projects when tasks change
+function preloadProjects(): void {
+  if (props.projectId !== 'all') return
+  
+  const projectIds = new Set<string>()
+  flatTasks.value.forEach(task => {
+    if (task.projectId) {
+      projectIds.add(task.projectId)
+    }
+  })
+  
+  projectIds.forEach(projectId => {
+    if (!projectsCache.value.has(projectId)) {
+      loadProject(projectId)
+    }
+  })
+}
+
 // Watch for task changes and sync to local columns
-watch(() => props.tasks, syncTasksToColumns, { immediate: true, deep: true })
+watch(() => props.tasks, () => {
+  syncTasksToColumns()
+  preloadProjects()
+}, { immediate: true, deep: true })
 </script>
 
 <style scoped>
@@ -605,6 +668,12 @@ watch(() => props.tasks, syncTasksToColumns, { immediate: true, deep: true })
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 8px;
+}
+
+.task-project {
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
 }
 
 .task-tags {
