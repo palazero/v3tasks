@@ -128,7 +128,14 @@
           v-show="isProjectExpanded(projectId)" 
           class="project-tasks bg-white rounded-borders-bottom"
         >
+          <div v-if="projectTasks.length === 0" class="empty-project-state q-pa-lg text-center">
+            <q-icon name="task_alt" size="3em" color="grey-4" />
+            <div class="text-body1 text-grey-6 q-mt-md">此專案暫無任務</div>
+            <div class="text-caption text-grey-5 q-mt-xs">使用快速新增功能建立第一個任務</div>
+          </div>
+          
           <CompactTaskList
+            v-else
             :tasks="projectTasks"
             :show-project="false"
             :project-id="projectId"
@@ -196,8 +203,9 @@ const $q = useQuasar()
 const taskStore = useTaskStore()
 const projectRepo = getProjectRepository()
 
-// 專案名稱快取
-const projectNamesCache = new Map<string, string>()
+// 專案名稱快取（使用響應式 ref）
+const projectNamesCache = ref<Map<string, string>>(new Map())
+const projectLoadingCache = ref<Set<string>>(new Set())
 
 // 專案展開/收合狀態管理
 const PROJECT_EXPAND_KEY = 'projectExpandState'
@@ -268,11 +276,11 @@ function getProjectStats(tasks: Task[]): {
   progress: number
 } {
   const total = tasks.length
-  const completed = tasks.filter(task => task.statusId === 'completed').length
-  const inProgress = tasks.filter(task => task.statusId === 'in-progress').length
+  const completed = tasks.filter(task => task.statusId === 'done').length
+  const inProgress = tasks.filter(task => task.statusId === 'inProgress').length
   const overdue = tasks.filter(task => {
     if (!task.endDateTime) return false
-    return new Date(task.endDateTime) < new Date() && task.statusId !== 'completed'
+    return new Date(task.endDateTime) < new Date() && task.statusId !== 'done'
   }).length
   
   const priority = {
@@ -316,38 +324,7 @@ async function handleAddSubtask(parentTask: Task, title: string): Promise<void> 
   }
 }
 
-async function _handleIndentTask(task: Task): Promise<void> {
-  const success = await taskStore.indentTaskAction(task)
-  if (success) {
-    $q.notify({
-      type: 'positive',
-      message: '任務層級已調整',
-      position: 'top'
-    })
-  }
-}
-
-async function _handleOutdentTask(task: Task): Promise<void> {
-  const success = await taskStore.outdentTaskAction(task)
-  if (success) {
-    $q.notify({
-      type: 'positive',
-      message: '任務層級已調整',
-      position: 'top'
-    })
-  }
-}
-
-async function _handleToggleExpanded(task: Task): Promise<void> {
-  const success = await taskStore.toggleTaskExpanded(task)
-  if (!success) {
-    $q.notify({
-      type: 'negative',
-      message: '更新任務狀態失敗',
-      position: 'top'
-    })
-  }
-}
+// 移除了未使用的 _handleIndentTask, _handleOutdentTask, _handleToggleExpanded 函數
 
 // 新增的處理函數
 const selectedTasks = ref<Set<string>>(new Set())
@@ -426,8 +403,8 @@ const sortedGroupedTasks = computed(() => {
     if (!statsA || !statsB) return 0
     
     if (projectSortBy.value === 'name') {
-      const nameA = getProjectName(projectIdA)
-      const nameB = getProjectName(projectIdB)
+      const nameA = getProjectName.value(projectIdA)
+      const nameB = getProjectName.value(projectIdB)
       return nameA.localeCompare(nameB)
     } else if (projectSortBy.value === 'taskCount') {
       return statsB.total - statsA.total // 降序
@@ -473,21 +450,34 @@ function getCachedProjectStats(projectId: string): {
   }
 }
 
-// 取得專案名稱
-function getProjectName(projectId: string): string {
-  if (projectNamesCache.has(projectId)) {
-    return projectNamesCache.get(projectId)!
-  }
-
-  // 異步載入專案名稱
-  projectRepo.findById(projectId).then(project => {
-    if (project) {
-      projectNamesCache.set(projectId, project.name)
+// 響應式專案名稱獲取器
+const getProjectName = computed(() => {
+  return (projectId: string): string => {
+    if (projectNamesCache.value.has(projectId)) {
+      return projectNamesCache.value.get(projectId)!
     }
-  }).catch(console.error)
 
-  return '載入中...'
-}
+    // 避免重複載入
+    if (!projectLoadingCache.value.has(projectId)) {
+      projectLoadingCache.value.add(projectId)
+      
+      // 異步載入專案名稱
+      projectRepo.findById(projectId).then(project => {
+        if (project) {
+          projectNamesCache.value.set(projectId, project.name)
+        } else {
+          projectNamesCache.value.set(projectId, `專案 ${projectId}`)
+        }
+      }).catch(() => {
+        projectNamesCache.value.set(projectId, `專案 ${projectId}`)
+      }).finally(() => {
+        projectLoadingCache.value.delete(projectId)
+      })
+    }
+
+    return projectLoadingCache.value.has(projectId) ? '載入中...' : `專案 ${projectId}`
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -522,6 +512,16 @@ function getProjectName(projectId: string): string {
     .project-tasks {
       .task-item:last-child {
         border-bottom: none;
+      }
+      
+      .empty-project-state {
+        border-top: 1px solid #f0f0f0;
+        background: #fafafa;
+        min-height: 100px;
+        
+        .q-icon {
+          opacity: 0.6;
+        }
       }
     }
   }

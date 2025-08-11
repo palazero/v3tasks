@@ -38,9 +38,9 @@
       </template>
     </VueDraggable>
 
-    <!-- Root level Quick Add Task -->
+    <!-- Quick Add Task -->
     <QuickAddTask
-      v-if="!isVirtualProjectGroup && level === 0"
+      v-if="!isVirtualProjectGroup"
       :parent-id="parentId"
       :level="level || 0"
       :project-id="projectId"
@@ -48,7 +48,7 @@
     />
 
     <!-- Empty state -->
-    <div v-if="displayTasks.length === 0" class="empty-state q-pa-lg text-center">
+    <div v-if="flattenedTasks.length === 0" class="empty-state q-pa-lg text-center">
       <q-icon name="task_alt" size="3em" color="grey-5" />
       <div class="text-h6 q-mt-md text-grey-6">暫無任務</div>
       <div class="text-body2 text-grey-6 q-mt-sm">
@@ -107,6 +107,10 @@ const taskList = computed(() => {
 const flattenedTasks = computed(() => {
   const flattenWithLevel = (tasks: Task[], level = 0, parentExpanded = true): Task[] => {
     const result: Task[] = []
+    
+    if (!tasks || tasks.length === 0) {
+      return result
+    }
 
     tasks.forEach(task => {
       // Add level information to task
@@ -128,12 +132,12 @@ const flattenedTasks = computed(() => {
     return result
   }
 
-  return flattenWithLevel(localTaskList.value, props.level || 0)
+  return flattenWithLevel(localTaskList.value || [], props.level || 0)
 })
 
 const isVirtualProjectGroup = computed(() => {
-  // Hide quick add in all tasks view root OR when parentId is project-group
-  return (props.projectId === 'all' && props.level === 0 && !props.parentId) ||
+  // Only hide quick add in all tasks view root level or for virtual project groups
+  return (props.projectId === 'all' && !props.parentId) ||
          (props.parentId && props.parentId.startsWith('project-group-'))
 })
 

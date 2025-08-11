@@ -811,7 +811,7 @@ function getProjectName(projectId: string): string {
   }
 
   // 非同步載入專案資料
-  loadProjectData(projectId)
+  void loadProjectData(projectId)
   return '載入中...'
 }
 
@@ -1427,12 +1427,12 @@ async function preloadProjectData(): Promise<void> {
 
 // 監聽任務變化，載入新專案資料
 watch(() => props.tasks, () => {
-  preloadProjectData()
+  void preloadProjectData()
 }, { immediate: true })
 
 // 組件載入時預載入資料
 onMounted(() => {
-  preloadProjectData()
+  void preloadProjectData()
 })
 </script>
 

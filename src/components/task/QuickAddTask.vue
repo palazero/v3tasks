@@ -161,7 +161,7 @@ async function addTask(): Promise<void> {
 
   try {
     // Add task to store
-    await taskStore.addTask(newTask)
+    await taskStore.createTask(newTask)
     
     // Emit event
     emit('task-added', newTask)

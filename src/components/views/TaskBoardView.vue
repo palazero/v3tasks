@@ -1,63 +1,5 @@
 <template>
   <div class="kanban-view-wrapper">
-    <!-- Kanban Toolbar -->
-    <div class="kanban-toolbar">
-      <div class="toolbar-section">
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="add"
-          label="新增任務"
-          color="primary"
-          @click="addNewTask"
-        >
-          <q-tooltip>新增任務</q-tooltip>
-        </q-btn>
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="refresh"
-          label="重新整理"
-          color="blue-grey"
-          @click="refreshData"
-        >
-          <q-tooltip>重新整理資料</q-tooltip>
-        </q-btn>
-      </div>
-
-      <div class="toolbar-section">
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="settings"
-          label="看板設定"
-          color="blue-grey"
-          @click="showConfigDialog"
-        >
-          <q-tooltip>看板設定</q-tooltip>
-        </q-btn>
-        <q-btn
-          flat
-          dense
-          size="sm"
-          icon="filter_list"
-          label="篩選"
-          color="blue-grey"
-          @click="showFilterDialog"
-        >
-          <q-tooltip>篩選選項</q-tooltip>
-        </q-btn>
-      </div>
-
-      <div class="toolbar-section">
-        <div class="text-body2 text-grey-8">
-          看板檢視 ({{ totalTaskCount }} 個任務)
-        </div>
-      </div>
-    </div>
 
     <!-- Kanban Board -->
     <div class="kanban-content">
@@ -231,52 +173,6 @@
       </q-list>
     </q-menu>
 
-    <!-- Config Dialog -->
-    <q-dialog v-model="showConfig" persistent>
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">看板設定</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-checkbox
-            v-model="config.showDescription"
-            label="顯示任務描述"
-          />
-          <q-checkbox
-            v-model="config.showTags"
-            label="顯示標籤"
-          />
-          <q-checkbox
-            v-model="config.showAssignee"
-            label="顯示執行人"
-          />
-          <q-checkbox
-            v-model="config.showDueDate"
-            label="顯示到期日"
-          />
-          <q-checkbox
-            v-model="config.showSubtasks"
-            label="顯示子任務數量"
-          />
-
-          <q-separator class="q-my-md" />
-
-          <q-select
-            v-model="config.cardSize"
-            :options="cardSizeOptions"
-            label="卡片大小"
-            emit-value
-            map-options
-          />
-        </q-card-section>
-
-        <q-card-actions align="right" class="text-primary">
-          <q-btn flat label="取消" @click="cancelConfig" />
-          <q-btn flat label="儲存" @click="saveConfig" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </div>
 </template>
 
@@ -312,24 +208,7 @@ const userStore = useUserStore()
 // Refs
 const taskMenu = ref()
 const selectedTask = ref<Task | null>(null)
-const showConfig = ref(false)
 const isDragging = ref(false)
-
-// Configuration
-const config = reactive({
-  showDescription: true,
-  showTags: true,
-  showAssignee: true,
-  showDueDate: true,
-  showSubtasks: true,
-  cardSize: 'medium'
-})
-
-const cardSizeOptions = [
-  { label: '小', value: 'small' },
-  { label: '中', value: 'medium' },
-  { label: '大', value: 'large' }
-]
 
 // Kanban columns definition with reactive task arrays
 const kanbanColumns = reactive([
@@ -357,8 +236,6 @@ const kanbanColumns = reactive([
 ])
 
 // Computed properties
-const totalTaskCount = computed(() => flatTasks.value.length)
-
 const flatTasks = computed(() => flattenTasks(props.tasks))
 
 // Helper functions
@@ -459,7 +336,7 @@ function extractPlainText(richText: Task['description']): string {
   if (!richText || !richText.content) {
     return ''
   }
-  
+
   let text = ''
   function processNode(node: RichTextNode): void {
     if (node.text) {
@@ -469,7 +346,7 @@ function extractPlainText(richText: Task['description']): string {
       node.content.forEach(processNode)
     }
   }
-  
+
   richText.content.forEach(processNode)
   return text
 }
@@ -480,12 +357,12 @@ function syncTasksToColumns(): void {
   if (isDragging.value) {
     return
   }
-  
+
   // Clear all columns first
   kanbanColumns.forEach(column => {
     column.tasks.length = 0
   })
-  
+
   // Distribute tasks to appropriate columns based on status
   flatTasks.value.forEach(task => {
     const taskStatus = task.statusId || 'todo'
@@ -494,7 +371,7 @@ function syncTasksToColumns(): void {
       column.tasks.push(task)
     }
   })
-  
+
   // Sort tasks in each column by order and creation time
   kanbanColumns.forEach(column => {
     column.tasks.sort((a, b) => {
@@ -507,20 +384,8 @@ function syncTasksToColumns(): void {
 }
 
 // Event handlers
-function addNewTask(): void {
-  emit('add-task')
-}
-
 function addTaskToColumn(status: string): void {
   emit('add-task', status)
-}
-
-function refreshData(): void {
-  $q.notify({
-    message: '資料已重新整理',
-    color: 'info',
-    icon: 'refresh'
-  })
 }
 
 function editTask(taskId: string): void {
@@ -567,10 +432,10 @@ function onDragEnd(): void {
 function onTaskMove(event: Record<string, unknown>, columnStatus: string): void {
   if (event.added) {
     const task = event.added.element as Task
-    
+
     // Update the task's status to the new column
     emit('task-update', task.taskId, { statusId: columnStatus })
-    
+
     const columnTitle = kanbanColumns.find(col => col.status === columnStatus)?.title || columnStatus
     $q.notify({
       type: 'positive',
@@ -579,39 +444,6 @@ function onTaskMove(event: Record<string, unknown>, columnStatus: string): void 
     })
   }
 }
-
-// Config methods
-function showConfigDialog(): void {
-  showConfig.value = true
-}
-
-function showFilterDialog(): void {
-  // TODO: Implement filter dialog
-}
-
-function loadConfig(): void {
-  // TODO: Load from view configuration if available
-}
-
-function saveConfig(): void {
-  emit('config-change', {
-    kanbanConfig: { ...config }
-  })
-  showConfig.value = false
-  $q.notify({
-    message: '設定已儲存',
-    color: 'positive',
-    icon: 'check_circle'
-  })
-}
-
-function cancelConfig(): void {
-  loadConfig()
-  showConfig.value = false
-}
-
-// Lifecycle
-watch(() => props.view, loadConfig, { immediate: true })
 
 // Watch for task changes and sync to local columns
 watch(() => props.tasks, syncTasksToColumns, { immediate: true, deep: true })
