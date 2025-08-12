@@ -1,6 +1,6 @@
 <template>
-  <div 
-    class="task-card q-mb-sm cursor-pointer"
+  <div
+    class="task-card cursor-pointer"
     :class="{
       'task-card--completed': task.statusId === 'done',
       'task-card--overdue': isOverdue
@@ -15,10 +15,10 @@
           <div class="task-title text-subtitle2 text-weight-medium q-mb-xs">
             {{ task.title }}
           </div>
-          
+
           <!-- 任務描述預覽 -->
-          <div 
-            v-if="taskDescription" 
+          <div
+            v-if="taskDescription"
             class="task-description text-body2 text-grey-7 q-mb-sm"
           >
             {{ taskDescription }}
@@ -43,8 +43,8 @@
         <div class="col-auto">
           <div class="row items-center q-gutter-xs">
             <!-- 截止日期 -->
-            <div 
-              v-if="task.endDateTime" 
+            <div
+              v-if="task.endDateTime"
               class="task-date"
               :class="{ 'text-negative': isOverdue, 'text-warning': isNearDeadline }"
             >
@@ -56,10 +56,10 @@
 
             <!-- 專案名稱 -->
             <div v-if="showProject" class="task-project">
-              <q-icon 
-                :name="getProjectIcon(task.projectId)" 
-                size="xs" 
-                :color="getProjectIconColor(task.projectId)" 
+              <q-icon
+                :name="getProjectIcon(task.projectId)"
+                size="xs"
+                :color="getProjectIconColor(task.projectId)"
               />
               <span class="text-caption q-ml-xs" :style="{ color: `var(--q-${getProjectIconColor(task.projectId)})` }">
                 {{ getProjectName(task.projectId) }}
@@ -118,8 +118,8 @@
 
       <!-- 自訂欄位 -->
       <div v-if="displayCustomFields.length > 0" class="task-custom-fields q-mt-sm">
-        <div 
-          v-for="field in displayCustomFields" 
+        <div
+          v-for="field in displayCustomFields"
           :key="field.fieldId"
           class="custom-field-item q-mb-xs"
         >
@@ -176,7 +176,7 @@ const { getCustomFieldValue } = useCustomFieldUtils()
 // Project methods
 async function loadProject(projectId: string): Promise<void> {
   if (projectsCache.value.has(projectId)) return
-  
+
   try {
     const project = await projectRepo.findById(projectId)
     if (project) {
@@ -184,9 +184,9 @@ async function loadProject(projectId: string): Promise<void> {
     }
   } catch (error) {
     console.warn('Failed to load project:', projectId, error)
-    projectsCache.value.set(projectId, { 
-      projectId, 
-      name: '未知專案', 
+    projectsCache.value.set(projectId, {
+      projectId,
+      name: '未知專案',
       icon: 'folder',
       iconColor: 'grey'
     } as Project)
@@ -220,7 +220,7 @@ function getProjectIconColor(projectId: string): string {
 // 顯示在卡片上的自訂欄位（最多顯示2個重要欄位）
 const displayCustomFields = computed(() => {
   if (!visibleCustomFields.value) return []
-  
+
   // 優先顯示必填欄位和有值的欄位
   return visibleCustomFields.value
     .filter(field => {
@@ -240,7 +240,7 @@ const displayCustomFields = computed(() => {
 // 任務描述預覽
 const taskDescription = computed(() => {
   if (!props.task.description) return ''
-  
+
   // 簡單的富文本轉純文字
   if (typeof props.task.description === 'object') {
     try {
@@ -258,17 +258,17 @@ const taskDescription = computed(() => {
           }
         }
       }
-      
+
       if (props.task.description.content) {
         extractText(props.task.description.content)
       }
-      
+
       return text.length > 60 ? text.substring(0, 60) + '...' : text
     } catch {
       return ''
     }
   }
-  
+
   return ''
 })
 
@@ -315,9 +315,9 @@ function formatDate(date: Date | string): string {
   } else if (diffDays < -1 && diffDays >= -7) {
     return `${Math.abs(diffDays)}天前`
   } else {
-    return d.toLocaleDateString('zh-TW', { 
-      month: 'numeric', 
-      day: 'numeric' 
+    return d.toLocaleDateString('zh-TW', {
+      month: 'numeric',
+      day: 'numeric'
     })
   }
 }
@@ -354,6 +354,7 @@ function getUserInitials(userId: string): string {
   // 簡化實作，實際應該從用戶資料中取得
   return userId.substring(0, 2).toUpperCase()
 }
+
 </script>
 
 <style scoped lang="scss">
@@ -371,7 +372,7 @@ function getUserInitials(userId: string): string {
 
   &--completed {
     opacity: 0.8;
-    
+
     .task-title {
       text-decoration: line-through;
       color: #757575;
@@ -413,34 +414,34 @@ function getUserInitials(userId: string): string {
     .custom-field-compact {
       display: flex;
       align-items: center;
-      
+
       .field-label {
         font-weight: 500;
         min-width: 60px;
         flex-shrink: 0;
       }
-      
+
       .field-value {
         flex: 1;
-        
+
         .inline-field {
           :deep(.q-field__control) {
             min-height: auto;
             padding: 0;
           }
-          
+
           :deep(.q-field__native) {
             padding: 0;
             font-size: 11px;
             line-height: 1.2;
           }
-          
+
           :deep(.q-chip) {
             font-size: 10px;
             height: 16px;
             margin: 0 2px 0 0;
           }
-          
+
           :deep(.q-select__dropdown-icon) {
             display: none;
           }

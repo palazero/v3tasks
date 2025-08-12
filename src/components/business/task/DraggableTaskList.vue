@@ -21,10 +21,10 @@
         :max-level="maxLevel || 3"
         @task-click="$emit('task-click', $event)"
         @task-update="handleTaskUpdate"
-        @add-subtask="handleAddSubtask"
-        @indent-task="handleIndentTask"
-        @outdent-task="handleOutdentTask"
-        @toggle-expanded="handleToggleExpanded"
+        @subtask-add="handleSubtaskAdd"
+        @task-indent="handleIndentTask"
+        @task-outdent="handleOutdentTask"
+        @task-expand-toggle="handleToggleExpanded"
       />
     </VueDraggable>
 
@@ -59,10 +59,10 @@ const emit = defineEmits<{
   'task-click': [task: Task]
   'task-update': [taskId: string, updates: Partial<Task>]
   'tasks-reorder': [updates: Array<{ taskId: string; updates: Partial<Task> }>]
-  'add-subtask': [parentTask: Task, title: string]
-  'indent-task': [task: Task]
-  'outdent-task': [task: Task]
-  'toggle-expanded': [task: Task]
+  'subtask-add': [parentTask: Task, title: string]
+  'task-indent': [task: Task]
+  'task-outdent': [task: Task]
+  'task-expand-toggle': [task: Task]
 }>()
 
 const { buildTaskTree, flattenTaskTree, indentTask, outdentTask } = useNestedTasks()
@@ -122,10 +122,10 @@ function handleTaskUpdate(taskId: string, updates: Partial<Task>): void {
   emit('task-update', taskId, updates)
 }
 
-function handleAddSubtask(parentTask: Task): void {
+function handleSubtaskAdd(parentTask: Task): void {
   const title = prompt('請輸入子任務標題：')
   if (title) {
-    emit('add-subtask', parentTask, title)
+    emit('subtask-add', parentTask, title)
   }
 }
 
@@ -148,7 +148,7 @@ function handleOutdentTask(task: Task): void {
 }
 
 function handleToggleExpanded(task: Task): void {
-  emit('toggle-expanded', task)
+  emit('task-expand-toggle', task)
 }
 </script>
 

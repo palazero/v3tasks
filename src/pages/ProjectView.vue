@@ -145,7 +145,7 @@
         @show-filter="showFilterDialog = true"
         @show-sort="showSortDialog = true"
         @show-column-manager="handleShowColumnManager"
-        @add-task="showCreateTaskDialog = true"
+        @task-add="handleTaskAdd"
       >
         <!-- 視圖專屬工具 -->
         <template #left-tools>
@@ -243,6 +243,9 @@
             @task-update="handleTaskUpdate"
             @task-create="handleTaskCreate"
             @task-delete="handleTaskDelete"
+            @task-edit="handleTaskEdit"
+            @subtask-add="handleSubtaskAdd"
+            @task-duplicate="handleTaskDuplicate"
             @gantt-settings-changed="handleGanttSettingsChanged"
             @configuration-update="handleViewConfigurationUpdate"
           />
@@ -294,6 +297,14 @@
       mode="edit"
       :task="selectedTask as Task"
       @task-updated="handleTaskUpdated"
+    />
+
+    <TaskDialog
+      v-model="showDuplicateTaskDialog"
+      mode="duplicate"
+      :project-id="duplicateTaskData.projectId || projectId"
+      :initial-data="duplicateTaskData"
+      @task-duplicated="handleTaskDuplicated"
     />
 
     <CreateViewDialog
@@ -418,6 +429,7 @@ const error = ref<string | null>(null)
 // 對話框狀態
 const showCreateTaskDialog = ref(false)
 const showEditTaskDialog = ref(false)
+const showDuplicateTaskDialog = ref(false)
 const showCreateViewDialog = ref(false)
 const showEditViewDialog = ref(false)
 const showFilterDialog = ref(false)
@@ -425,6 +437,7 @@ const showSortDialog = ref(false)
 const selectedTask = ref<Task | undefined>(undefined)
 const selectedView = ref<View | undefined>(undefined)
 const createTaskData = ref<Partial<Task>>({})
+const duplicateTaskData = ref<Partial<Task>>({})
 const parentTaskId = ref<string | undefined>(undefined)
 
 // 選單 refs 管理
@@ -781,7 +794,84 @@ function handleTaskCreate(taskData: Partial<Task>): void {
   showCreateTaskDialog.value = true
 }
 
-// 處理甘特圖任務刪除
+// 處理新增任務（從看板或其他視圖）
+function handleTaskAdd(statusId?: string): void {
+  createTaskData.value = {
+    projectId: props.projectId,
+    statusId: statusId || 'todo',
+    priorityId: 'medium'
+  }
+  parentTaskId.value = undefined
+  showCreateTaskDialog.value = true
+}
+
+// 處理編輯任務（從右鍵選單）
+function handleTaskEdit(taskId: string): void {
+  const task = taskStore.getTask(taskId)
+  if (task) {
+    selectedTask.value = task
+    showEditTaskDialog.value = true
+  }
+}
+
+// 處理新增子任務（從右鍵選單）
+function handleSubtaskAdd(parentId: string): void {
+  const parentTask = taskStore.getTask(parentId)
+  if (parentTask) {
+    createTaskData.value = {
+      projectId: props.projectId,
+      statusId: parentTask.statusId || 'todo',
+      priorityId: 'medium'
+    }
+    parentTaskId.value = parentId
+    showCreateTaskDialog.value = true
+  }
+}
+
+// 處理複製任務（從右鍵選單）
+function handleTaskDuplicate(taskId: string): void {
+  const task = taskStore.getTask(taskId)
+  if (!task) return
+
+  // 準備複製的任務資料
+  duplicateTaskData.value = {
+    title: `${task.title} (副本)`,
+    description: task.description,
+    statusId: task.statusId,
+    priorityId: task.priorityId,
+    projectId: task.projectId,
+    assigneeId: task.assigneeId,
+    tags: [...(task.tags || [])],
+    customFields: task.customFields ? { ...task.customFields } : undefined,
+    progress: task.progress || 0,
+    // 不複製時間相關欄位，讓用戶重新設定
+    startDateTime: undefined,
+    endDateTime: undefined,
+    // 清除系統生成欄位
+    createdAt: undefined,
+    updatedAt: undefined,
+    taskId: undefined,
+    order: 0,
+    parentTaskId: task.parentTaskId // 保留父任務關係
+  }
+
+  // 開啟複製任務對話框
+  showDuplicateTaskDialog.value = true
+}
+
+// 處理任務複製確認（從對話框）
+function handleTaskDuplicated(newTask: Task): void {
+  $q.notify({
+    type: 'positive',
+    message: `任務副本「${newTask.title}」已建立`,
+    position: 'top'
+  })
+
+  // 清理狀態
+  duplicateTaskData.value = {}
+}
+
+// 處理任務刪除
 async function handleTaskDelete(taskId: string): Promise<void> {
   // 先找到任務以獲取任務標題
   const task = taskStore.tasks.find(t => t.taskId === taskId)

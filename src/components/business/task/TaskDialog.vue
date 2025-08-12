@@ -12,14 +12,14 @@
       <q-card-section class="dialog-header">
         <div class="row items-center no-wrap">
           <q-icon
-            :name="mode === 'create' ? 'add_task' : 'edit'"
+            :name="mode === 'create' ? 'add_task' : mode === 'duplicate' ? 'content_copy' : 'edit'"
             size="24px"
-            :color="mode === 'create' ? 'positive' : 'primary'"
+            :color="mode === 'create' ? 'positive' : mode === 'duplicate' ? 'warning' : 'primary'"
             class="q-mr-sm"
           />
           <div>
             <div class="text-subtitle1 text-weight-medium">
-              {{ mode === 'create' ? '新增任務' : '編輯任務' }}
+              {{ mode === 'create' ? '新增任務' : mode === 'duplicate' ? '複製任務' : '編輯任務' }}
             </div>
             <div v-if="mode === 'edit' && task" class="text-caption text-grey-6 q-mt-xs" style="font-size: 10px;">
               任務ID: {{ task.taskId }}
@@ -55,7 +55,7 @@
                 outlined
                 dense
                 :rules="[val => !!val || '請輸入任務標題']"
-                ref="titleInput"
+                ref="titleInputRef"
                 class="title-input compact-input"
                 hide-bottom-space
                 autofocus
@@ -417,8 +417,8 @@
           />
           <q-btn
             unelevated
-            :icon="mode === 'create' ? 'add' : 'save'"
-            :label="mode === 'create' ? '建立任務' : '更新任務'"
+            :icon="mode === 'create' ? 'add' : mode === 'duplicate' ? 'content_copy' : 'save'"
+            :label="mode === 'create' ? '建立任務' : mode === 'duplicate' ? '建立副本' : '更新任務'"
             color="primary"
             @click="handleSubmit"
             :loading="isSubmitting"
@@ -432,7 +432,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useQuasar, type QInput } from 'quasar'
 import type { Task, RichTextContent } from '@/types'
 import { DEFAULT_STATUSES, DEFAULT_PRIORITIES } from '@/types'
 import { useTaskStore } from '@/stores/task'
@@ -445,7 +445,7 @@ import CustomFieldRenderer from '@/components/business/shared/CustomFieldRendere
 // Props
 const props = defineProps<{
   modelValue: boolean
-  mode: 'create' | 'edit'
+  mode: 'create' | 'edit' | 'duplicate'
   task?: Task
   projectId?: string
   parentTaskId?: string
@@ -457,6 +457,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   'task-created': [task: Task]
   'task-updated': [task: Task]
+  'task-duplicated': [task: Task]
   'task-deleted': [taskId: string]
 }>()
 
@@ -474,6 +475,7 @@ const projectRepo = getProjectRepository()
 const isSubmitting = ref(false)
 const descriptionText = ref('')
 const tagOptions = ref<string[]>([])
+const titleInputRef = ref<QInput | null>(null)
 
 // 表單資料
 const formData = ref<Partial<Task> & {
@@ -709,8 +711,8 @@ async function handleSubmit(): Promise<void> {
   isSubmitting.value = true
 
   try {
-    if (props.mode === 'create') {
-      // 建立新任務
+    if (props.mode === 'create' || props.mode === 'duplicate') {
+      // 建立新任務或複製任務
       const taskData = {
         ...formData.value,
         projectId: formData.value.projectId || props.projectId || ''
@@ -724,13 +726,22 @@ async function handleSubmit(): Promise<void> {
       const newTask = await taskStore.createTask(taskData)
 
       if (newTask) {
-        emit('task-created', newTask)
+        if (props.mode === 'duplicate') {
+          emit('task-duplicated', newTask)
+          $q.notify({
+            type: 'positive',
+            message: '任務副本建立成功',
+            position: 'top'
+          })
+        } else {
+          emit('task-created', newTask)
+          $q.notify({
+            type: 'positive',
+            message: '任務建立成功',
+            position: 'top'
+          })
+        }
         dialogModel.value = false
-        $q.notify({
-          type: 'positive',
-          message: '任務建立成功',
-          position: 'top'
-        })
       }
     } else {
       // 更新現有任務
@@ -925,6 +936,22 @@ watch(() => props.modelValue, (isOpen) => {
 })
 
 // 初始化
+// 監聽對話框開啟，在複製模式下選中標題文字
+watch(() => props.modelValue, async (newValue) => {
+  if (newValue) {
+    initFormData()
+    void loadProjectOptions()
+    
+    // 在複製模式下，延遲選中標題文字方便用戶修改
+    if (props.mode === 'duplicate') {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      if (titleInputRef.value) {
+        titleInputRef.value.select()
+      }
+    }
+  }
+})
+
 onMounted(() => {
   if (props.modelValue) {
     initFormData()

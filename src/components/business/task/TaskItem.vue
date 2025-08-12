@@ -38,7 +38,7 @@
         dense
         size="xs"
         class="expand-btn-compact"
-        :class="{ 'add-subtask-btn': !hasChildren }"
+        :class="{ 'subtask-add-btn': !hasChildren }"
         @click.stop="handleExpandClick"
       >
         <q-tooltip>{{ getExpandButtonTooltip }}</q-tooltip>
@@ -108,7 +108,7 @@
           size="xs"
           icon="add"
           class="action-btn"
-          @click="$emit('add-subtask')"
+          @click="$emit('subtask-add')"
         >
           <q-tooltip>新增子任務</q-tooltip>
         </q-btn>
@@ -250,12 +250,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: []
   'toggle-expand': []
-  'add-subtask': []
+  'subtask-add': []
   edit: []
   duplicate: []
   delete: []
   'status-change': [statusId: string]
-  'toggle-selection': [selected: boolean]
+  'selection-changed': [selected: boolean]
 }>()
 
 const { getUserDisplayName, getUserAvatar } = useCurrentUser()
@@ -365,7 +365,7 @@ function handleExpandClick(): void {
   if (props.hasChildren) {
     emit('toggle-expand')
   } else {
-    emit('add-subtask')
+    emit('subtask-add')
   }
 }
 
@@ -381,7 +381,7 @@ function cycleStatus(): void {
 }
 
 function toggleSelection(selected: boolean): void {
-  emit('toggle-selection', selected)
+  emit('selection-changed', selected)
 }
 
 function formatDate(date: Date | string): string {
@@ -539,13 +539,13 @@ function formatDate(date: Date | string): string {
 }
 
 /* Add subtask button styling */
-.add-subtask-btn {
+.subtask-add-btn {
   background: rgba(76, 175, 80, 0.05);
   border: 1px solid rgba(76, 175, 80, 0.1);
   color: #4caf50;
 }
 
-.add-subtask-btn:hover {
+.subtask-add-btn:hover {
   background: rgba(76, 175, 80, 0.1);
   border-color: rgba(76, 175, 80, 0.3);
   color: #388e3c;

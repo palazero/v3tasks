@@ -13,7 +13,7 @@
       <div
         v-for="[projectId, projectTasks] in sortedGroupedTasks"
         :key="projectId"
-        class="project-group q-mb-lg"
+        class="project-group q-mb-sm"
       >
         <!-- 專案分組標題 -->
         <div
@@ -150,13 +150,14 @@
             :selected-tasks="selectedTasks"
             :column-config="currentColumnConfig"
             @task-click="emit('task-click', $event)"
-            @add-subtask="handleAddSubtask"
-            @edit-task="handleEditTask"
-            @delete-task="handleDeleteTask"
+            @subtask-add="handleSubtaskAdd"
+            @task-edit="handleTaskEdit"
+            @task-duplicate="handleDuplicateTask"
+            @task-delete="handleTaskDelete"
             @task-added="handleTaskAdded"
             @task-update="handleTaskUpdate"
             @tasks-reorder="handleTasksReorder"
-            @toggle-selection="handleToggleSelection"
+            @selection-changed="handleToggleSelection"
           />
         </div>
       </div>
@@ -172,13 +173,14 @@
           :selected-tasks="selectedTasks"
           :column-config="currentColumnConfig"
           @task-click="emit('task-click', $event)"
-          @add-subtask="handleAddSubtask"
-          @edit-task="handleEditTask"
-          @delete-task="handleDeleteTask"
+          @subtask-add="handleSubtaskAdd"
+          @task-edit="handleTaskEdit"
+          @task-duplicate="handleDuplicateTask"
+          @task-delete="handleTaskDelete"
           @task-added="handleTaskAdded"
           @task-update="handleTaskUpdate"
           @tasks-reorder="handleTasksReorder"
-          @toggle-selection="handleToggleSelection"
+          @selection-changed="handleToggleSelection"
         />
       </div>
     </template>
@@ -212,6 +214,7 @@ const emit = defineEmits<{
   'task-update': [taskId: string, updates: Partial<Task>]
   'task-create': [taskData: Partial<Task>]
   'task-delete': [taskId: string]
+  'task-duplicate': [taskId: string]
   'configuration-update': [configuration: ViewConfiguration]
 }>()
 
@@ -337,7 +340,7 @@ async function handleTasksReorder(updates: Array<{ taskId: string; updates: Part
 }
 
 // 處理新增子任務（來自 CompactTaskList）
-function handleAddSubtask(parentTask: Task): void {
+function handleSubtaskAdd(parentTask: Task): void {
   emit('task-create', {
     parentTaskId: parentTask.taskId,
     projectId: parentTask.projectId || props.projectId,
@@ -368,17 +371,17 @@ function handleTaskUpdate(data: { taskId: string; updates: Partial<Task> }): voi
   emit('task-update', data.taskId, data.updates)
 }
 
-function handleEditTask(task: Task): void {
+function handleTaskEdit(task: Task): void {
   // 發出任務點擊事件，開啟編輯對話框
   emit('task-click', task)
 }
 
 function handleDuplicateTask(task: Task): void {
-  // TODO: Duplicate task
-  console.log('Duplicate task:', task.title)
+  // 發出複製任務事件
+  emit('task-duplicate', task.taskId)
 }
 
-function handleDeleteTask(task: Task): void {
+function handleTaskDelete(task: Task): void {
   // 發出刪除事件
   emit('task-delete', task.taskId)
 }
@@ -546,7 +549,7 @@ const getProjectIconColor = computed(() => {
 function initializeFieldDefinitions(): void {
   // 取得所有可用的欄位定義（系統 + 自訂）
   allFieldDefinitions.value = getFieldsForView('list', projectCustomFields.value || [])
-  
+
   // 初始化欄位配置
   if (props.configuration?.visibleColumns) {
     // 使用現有配置
@@ -566,7 +569,7 @@ function initializeFieldDefinitions(): void {
 // 處理欄位配置更新
 function handleColumnConfigUpdate(columns: ColumnConfig[]): void {
   currentColumnConfig.value = columns
-  
+
   // 發出配置更新事件
   emit('configuration-update', {
     ...props.configuration,

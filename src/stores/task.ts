@@ -174,6 +174,25 @@ export const useTaskStore = defineStore('task', () => {
         const currentTask = tasks.value[index];
         tasks.value[index] = { ...currentTask, ...updateData } as Task;
       }
+      
+      // 遞歸更新所有層級中的任務副本
+      function updateTaskRecursively(taskList: Task[]): void {
+        taskList.forEach(task => {
+          if (task.children && task.children.length > 0) {
+            const childIndex = task.children.findIndex(child => child.taskId === taskId);
+            if (childIndex !== -1) {
+              // 創建新的子任務陣列以觸發響應式更新
+              const newChildren = [...task.children];
+              newChildren[childIndex] = { ...newChildren[childIndex], ...updateData } as Task;
+              task.children = newChildren;
+            }
+            // 遞歸檢查更深層的子任務
+            updateTaskRecursively(task.children);
+          }
+        });
+      }
+      
+      updateTaskRecursively(tasks.value);
 
       return true;
     } catch (err) {

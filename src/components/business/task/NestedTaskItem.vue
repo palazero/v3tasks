@@ -44,7 +44,7 @@
           flat
           dense
           size="sm"
-          @click="$emit('add-subtask', task)"
+          @click="$emit('subtask-add', task)"
         >
           <q-tooltip>新增子任務</q-tooltip>
         </q-btn>
@@ -55,7 +55,7 @@
           flat
           dense
           size="sm"
-          @click="$emit('indent-task', task)"
+          @click="$emit('task-indent', task)"
         >
           <q-tooltip>增加縮排</q-tooltip>
         </q-btn>
@@ -66,7 +66,7 @@
           flat
           dense
           size="sm"
-          @click="$emit('outdent-task', task)"
+          @click="$emit('task-outdent', task)"
         >
           <q-tooltip>減少縮排</q-tooltip>
         </q-btn>
@@ -84,10 +84,10 @@
         :max-level="maxLevel || 3"
         @task-click="$emit('task-click', $event)"
         @task-update="(taskId: string, updates: Partial<Task>) => $emit('task-update', taskId, updates)"
-        @add-subtask="$emit('add-subtask', $event)"
-        @indent-task="$emit('indent-task', $event)"
-        @outdent-task="$emit('outdent-task', $event)"
-        @toggle-expanded="$emit('toggle-expanded', $event)"
+        @subtask-add="$emit('subtask-add', $event)"
+        @task-indent="$emit('task-indent', $event)"
+        @task-outdent="$emit('task-outdent', $event)"
+        @task-expand-toggle="$emit('task-expand-toggle', $event)"
       />
     </div>
   </div>
@@ -110,10 +110,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   'task-click': [task: Task]
   'task-update': [taskId: string, updates: Partial<Task>]
-  'add-subtask': [parentTask: Task]
-  'indent-task': [task: Task]
-  'outdent-task': [task: Task]
-  'toggle-expanded': [task: Task]
+  'subtask-add': [parentTask: Task]
+  'task-indent': [task: Task]
+  'task-outdent': [task: Task]
+  'task-expand-toggle': [task: Task]
 }>()
 
 // 計算屬性
@@ -137,7 +137,7 @@ const canOutdent = computed(() => {
 
 // 方法
 function toggleExpanded(): void {
-  emit('toggle-expanded', props.task)
+  emit('task-expand-toggle', props.task)
 }
 </script>
 

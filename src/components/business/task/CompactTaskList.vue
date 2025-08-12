@@ -28,12 +28,12 @@
           :column-config="columnConfig"
           @click="$emit('task-click', task)"
           @toggle-expand="handleToggleExpand(task)"
-          @add-subtask="handleAddSubtask(task)"
-          @edit="$emit('edit-task', task)"
-          @duplicate="$emit('duplicate-task', task)"
-          @delete="$emit('delete-task', task)"
+          @subtask-add="handleSubtaskAdd(task)"
+          @edit="$emit('task-edit', task)"
+          @duplicate="$emit('task-duplicate', task)"
+          @delete="$emit('task-delete', task)"
           @status-change="handleStatusChange(task, $event)"
-          @toggle-selection="handleToggleSelection(task.taskId, $event)"
+          @selection-changed="handleToggleSelection(task.taskId, $event)"
         />
 
         <!-- Quick Add for expanded tasks (參考 mpi-app TaskList 邏輯) -->
@@ -92,12 +92,12 @@ const emit = defineEmits<{
   'task-click': [task: Task]
   'task-update': [data: { taskId: string; updates: Partial<Task> }]
   'tasks-reorder': [updates: Array<{ taskId: string; updates: Partial<Task> }>]
-  'add-subtask': [task: Task]
-  'edit-task': [task: Task]
-  'duplicate-task': [task: Task]
-  'delete-task': [task: Task]
+  'subtask-add': [task: Task]
+  'task-edit': [task: Task]
+  'task-duplicate': [task: Task]
+  'task-delete': [task: Task]
   'task-added': [task: Task]
-  'toggle-selection': [data: { taskId: string; selected: boolean }]
+  'selection-changed': [data: { taskId: string; selected: boolean }]
 }>()
 
 const { buildTaskTree } = useNestedTasks()
@@ -267,8 +267,8 @@ function handleToggleExpand(task: Task): void {
   })
 }
 
-function handleAddSubtask(task: Task): void {
-  emit('add-subtask', task)
+function handleSubtaskAdd(task: Task): void {
+  emit('subtask-add', task)
 }
 
 function handleStatusChange(task: Task, statusId: string): void {
@@ -279,7 +279,7 @@ function handleStatusChange(task: Task, statusId: string): void {
 }
 
 function handleToggleSelection(taskId: string, selected: boolean): void {
-  emit('toggle-selection', { taskId, selected })
+  emit('selection-changed', { taskId, selected })
 }
 </script>
 
