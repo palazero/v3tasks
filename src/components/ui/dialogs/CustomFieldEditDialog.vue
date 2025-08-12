@@ -409,7 +409,7 @@ import { VueDraggable } from 'vue-draggable-plus'
 import { useQuasar } from 'quasar'
 import type { CustomField, FieldType, FieldOption, FieldValidation } from '@/types'
 import { useCustomFields } from '@/composables/useCustomFields'
-import CustomFieldRenderer from './CustomFieldRenderer.vue'
+import CustomFieldRenderer from '@/components/business/shared/CustomFieldRenderer.vue'
 
 // Props
 const props = defineProps<{

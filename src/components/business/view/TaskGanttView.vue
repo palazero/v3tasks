@@ -1,7 +1,7 @@
 <template>
   <div class="gantt-wrapper">
     <!-- 欄位管理對話框 -->
-    <ColumnManager
+    <ViewColumnManager
       v-model="showColumnManager"
       :view-type="'gantt'"
       :columns="currentColumnConfig"
@@ -24,7 +24,7 @@ import { useCustomFields } from '@/composables/useCustomFields'
 import { useQuasar } from 'quasar'
 import { getProjectRepository, getUserRepository } from '@/services/repositories'
 import type { Project, User } from '@/types'
-import ColumnManager from '@/components/common/ColumnManager.vue'
+import ViewColumnManager from '@/components/business/view/ViewColumnManager.vue'
 import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
 import { getColumnConfigService } from '@/services/columnConfigService'
 

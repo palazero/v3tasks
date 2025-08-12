@@ -439,8 +439,8 @@ import { useTaskStore } from '@/stores/task'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCustomFields } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
-import DateTimePicker from '@/components/common/DateTimePicker.vue'
-import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
+import DateTimePicker from '@/components/ui/inputs/DateTimePicker.vue'
+import CustomFieldRenderer from '@/components/business/shared/CustomFieldRenderer.vue'
 
 // Props
 const props = defineProps<{

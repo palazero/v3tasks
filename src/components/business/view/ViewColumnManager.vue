@@ -43,22 +43,6 @@
             size="sm"
             @click="showRequiredOnly"
           />
-          <q-btn
-            flat
-            dense
-            icon="unfold_more"
-            label="展開全部"
-            size="sm"
-            @click="expandAll = true"
-          />
-          <q-btn
-            flat
-            dense
-            icon="unfold_less"
-            label="收合全部"
-            size="sm"
-            @click="expandAll = false"
-          />
           <q-separator vertical />
           <q-btn
             flat
@@ -233,8 +217,8 @@
         </q-expansion-item>
 
         <!-- 空狀態 -->
-        <div v-if="!systemColumns.length && !customColumns.length" 
-             class="empty-state text-center q-pa-lg">
+        <div v-if="!systemColumns.length && !customColumns.length"
+              class="empty-state text-center q-pa-lg">
           <q-icon name="view_column" size="48px" color="grey-5" />
           <div class="text-subtitle2 text-grey-6 q-mt-md">沒有可用的欄位</div>
         </div>
@@ -260,14 +244,14 @@ import type { ColumnConfig } from '@/types'
 import type { FieldDefinition } from '@/config/columnDefinitions'
 
 // Props
-interface ColumnManagerProps {
+interface ViewColumnManagerProps {
   modelValue: boolean
   viewType: 'table' | 'list' | 'gantt' | 'board'
   columns: ColumnConfig[]
   fieldDefinitions: FieldDefinition[]
 }
 
-const props = defineProps<ColumnManagerProps>()
+const props = defineProps<ViewColumnManagerProps>()
 
 // Emits
 const emit = defineEmits<{
@@ -283,7 +267,7 @@ const dialogVisible = computed({
 })
 
 // 是否支援寬度調整（Table 和 Gantt 視圖支援）
-const supportsWidth = computed(() => 
+const supportsWidth = computed(() =>
   props.viewType === 'table' || props.viewType === 'gantt'
 )
 
@@ -316,13 +300,13 @@ function initializeColumns(): void {
   // 分離系統欄位和自訂欄位
   const systemFields: (ColumnConfig & FieldDefinition)[] = []
   const customFields: (ColumnConfig & FieldDefinition)[] = []
-  
+
   // 建立欄位定義映射
   const fieldDefMap = new Map<string, FieldDefinition>()
   props.fieldDefinitions.forEach(def => {
     fieldDefMap.set(def.key, def)
   })
-  
+
   // 處理現有配置
   props.columns.forEach(col => {
     const fieldDef = fieldDefMap.get(col.key)
@@ -332,18 +316,18 @@ function initializeColumns(): void {
         ...col,
         width: col.width || fieldDef.defaultWidth
       }
-      
+
       if (fieldDef.type === 'system') {
         systemFields.push(mergedColumn)
       } else {
         customFields.push(mergedColumn)
       }
-      
+
       // 從映射中移除已處理的欄位
       fieldDefMap.delete(col.key)
     }
   })
-  
+
   // 添加未配置的欄位（新欄位）
   fieldDefMap.forEach(fieldDef => {
     const newColumn = {
@@ -354,18 +338,18 @@ function initializeColumns(): void {
       width: fieldDef.defaultWidth,
       order: fieldDef.type === 'system' ? systemFields.length : customFields.length
     }
-    
+
     if (fieldDef.type === 'system') {
       systemFields.push(newColumn)
     } else {
       customFields.push(newColumn)
     }
   })
-  
+
   // 排序
   systemColumns.value = systemFields.sort((a, b) => (a.order || 0) - (b.order || 0))
   customColumns.value = customFields.sort((a, b) => (a.order || 0) - (b.order || 0))
-  
+
   // 保存原始配置用於比較
   originalColumns.value = JSON.parse(JSON.stringify(props.columns))
 }
@@ -379,7 +363,7 @@ const hasChanges = computed(() => {
 // 取得所有欄位配置
 function getAllColumns(): ColumnConfig[] {
   const allColumns: ColumnConfig[] = []
-  
+
   // 處理系統欄位
   systemColumns.value.forEach((col, index) => {
     allColumns.push({
@@ -391,7 +375,7 @@ function getAllColumns(): ColumnConfig[] {
       required: col.required
     })
   })
-  
+
   // 處理自訂欄位（順序接續系統欄位）
   customColumns.value.forEach((col, index) => {
     allColumns.push({
@@ -403,7 +387,7 @@ function getAllColumns(): ColumnConfig[] {
       required: col.required
     })
   })
-  
+
   return allColumns
 }
 
@@ -414,7 +398,7 @@ function handleDragStart(index: number, group: 'system' | 'custom', event: DragE
     event.preventDefault()
     return
   }
-  
+
   draggedIndex.value = index
   draggedGroup.value = group
   if (event.dataTransfer) {
@@ -441,33 +425,33 @@ function handleDragOver(index: number, group: 'system' | 'custom', event: DragEv
 
 function handleDrop(targetIndex: number, targetGroup: 'system' | 'custom', event: DragEvent): void {
   event.preventDefault()
-  
+
   if (draggedIndex.value === null || draggedGroup.value === null) {
     return
   }
-  
+
   // 不允許跨組拖拽
   if (draggedGroup.value !== targetGroup) {
     handleDragEnd()
     return
   }
-  
+
   // 同位置不處理
   if (draggedIndex.value === targetIndex) {
     handleDragEnd()
     return
   }
-  
+
   // 移動欄位
   const columns = targetGroup === 'system' ? systemColumns.value : customColumns.value
   const [movedColumn] = columns.splice(draggedIndex.value, 1)
   columns.splice(targetIndex, 0, movedColumn)
-  
+
   // 更新順序
   columns.forEach((col, index) => {
     col.order = index
   })
-  
+
   // 重置拖拽狀態
   handleDragEnd()
 }
@@ -480,7 +464,7 @@ function updateColumnWidth(group: 'system' | 'custom', index: number, width: str
     const column = columns[index]
     const minWidth = column.minWidth || 10
     const maxWidth = column.maxWidth || 500
-    
+
     if (!isNaN(numWidth) && numWidth >= minWidth && numWidth <= maxWidth) {
       columns[index].width = numWidth
     }
@@ -566,26 +550,26 @@ watch(() => props.columns, () => {
   border-radius: 4px;
   cursor: move;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: #f5f5f5;
     border-color: #c0c0c0;
   }
-  
+
   &.dragging {
     opacity: 0.5;
     transform: scale(0.95);
   }
-  
+
   &.drag-over {
     background: #e3f2fd;
     border-color: #2196f3;
     box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
   }
-  
+
   &.disabled {
     cursor: default;
-    
+
     .drag-handle {
       opacity: 0.3;
       cursor: not-allowed;
@@ -599,11 +583,11 @@ watch(() => props.columns, () => {
   color: #757575;
   cursor: move;
   min-width: 24px;
-  
+
   &:hover {
     color: #424242;
   }
-  
+
   &.invisible {
     visibility: hidden;
   }
@@ -612,14 +596,14 @@ watch(() => props.columns, () => {
 .column-info {
   flex: 1;
   min-width: 0;
-  
+
   .column-label {
     font-weight: 500;
     line-height: 1.4;
     display: flex;
     align-items: center;
   }
-  
+
   .column-key {
     line-height: 1.2;
     margin-top: 2px;
@@ -630,19 +614,19 @@ watch(() => props.columns, () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  
+
   .width-input {
     width: 100px;
-    
+
     :deep(.q-field__control) {
       height: 32px;
     }
-    
+
     :deep(input) {
       text-align: right;
     }
   }
-  
+
   .width-placeholder {
     width: 100px;
   }

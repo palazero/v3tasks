@@ -216,10 +216,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
-import TaskStatusChart from '@/components/charts/TaskStatusChart.vue'
-import TaskPriorityChart from '@/components/charts/TaskPriorityChart.vue'
-import TaskTimelineChart from '@/components/charts/TaskTimelineChart.vue'
-import ProjectCompletionChart from '@/components/charts/ProjectCompletionChart.vue'
+import TaskStatusChart from '@/components/ui/charts/TaskStatusChart.vue'
+import TaskPriorityChart from '@/components/ui/charts/TaskPriorityChart.vue'
+import TaskTimelineChart from '@/components/ui/charts/TaskTimelineChart.vue'
+import ProjectCompletionChart from '@/components/ui/charts/ProjectCompletionChart.vue'
 import { statisticsService } from '@/services/statisticsService'
 import type { TaskStatistics, ProjectStatistics, TimelineData } from '@/services/statisticsService'
 

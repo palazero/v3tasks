@@ -320,8 +320,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import type { CustomField, FieldType } from '@/types'
 import { useCustomFields } from '@/composables/useCustomFields'
-import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
-import CustomFieldEditDialog from '@/components/fields/CustomFieldEditDialog.vue'
+import CustomFieldRenderer from '@/components/business/shared/CustomFieldRenderer.vue'
+import CustomFieldEditDialog from '@/components/ui/dialogs/CustomFieldEditDialog.vue'
 
 // Props
 const props = defineProps<{

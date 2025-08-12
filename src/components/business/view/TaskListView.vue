@@ -1,7 +1,7 @@
 <template>
   <div class="task-list-view">
     <!-- 欄位管理對話框 -->
-    <ColumnManager
+    <ViewColumnManager
       v-model="showColumnManager"
       :view-type="'list'"
       :columns="currentColumnConfig"
@@ -193,8 +193,8 @@ import type { Task, View, ColumnConfig, ViewConfiguration } from '@/types'
 import { useTaskStore } from '@/stores/task'
 import { useCustomFields } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
-import CompactTaskList from '@/components/task/CompactTaskList.vue'
-import ColumnManager from '@/components/common/ColumnManager.vue'
+import CompactTaskList from '@/components/business/task/CompactTaskList.vue'
+import ViewColumnManager from '@/components/business/view/ViewColumnManager.vue'
 import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
 import { getColumnConfigService } from '@/services/columnConfigService'
 

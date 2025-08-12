@@ -375,22 +375,22 @@ import { getProjectRepository, getUserRepository } from '@/services/repositories
 import { eventBus, EVENTS } from '@/services/eventBus'
 
 // 動態導入元件
-const TaskListView = defineAsyncComponent(() => import('@/components/views/TaskListView.vue'))
-const TaskTableView = defineAsyncComponent(() => import('@/components/views/TaskTableView.vue'))
-const TaskBoardView = defineAsyncComponent(() => import('@/components/views/TaskBoardView.vue'))
-const TaskGanttView = defineAsyncComponent(() => import('@/components/views/TaskGanttView.vue'))
-const TaskDashboardView = defineAsyncComponent(() => import('@/components/views/TaskDashboardView.vue'))
+const TaskListView = defineAsyncComponent(() => import('@/components/business/view/TaskListView.vue'))
+const TaskTableView = defineAsyncComponent(() => import('@/components/business/view/TaskTableView.vue'))
+const TaskBoardView = defineAsyncComponent(() => import('@/components/business/view/TaskBoardView.vue'))
+const TaskGanttView = defineAsyncComponent(() => import('@/components/business/view/TaskGanttView.vue'))
+const TaskDashboardView = defineAsyncComponent(() => import('@/components/business/view/TaskDashboardView.vue'))
 
-const TaskDialog = defineAsyncComponent(() => import('@/components/task/TaskDialog.vue'))
-const CreateViewDialog = defineAsyncComponent(() => import('@/components/view/CreateViewDialog.vue'))
-const EditViewDialog = defineAsyncComponent(() => import('@/components/view/EditViewDialog.vue'))
-const FilterDialog = defineAsyncComponent(() => import('@/components/common/FilterDialog.vue'))
-const SortDialog = defineAsyncComponent(() => import('@/components/common/SortDialog.vue'))
-const ViewToolbar = defineAsyncComponent(() => import('@/components/common/ViewToolbar.vue'))
-const GanttToolbar = defineAsyncComponent(() => import('@/components/views/GanttToolbar.vue'))
-const ProjectSortToolbar = defineAsyncComponent(() => import('@/components/views/ProjectSortToolbar.vue'))
-const BoardToolbar = defineAsyncComponent(() => import('@/components/views/BoardToolbar.vue'))
-const DashboardToolbar = defineAsyncComponent(() => import('@/components/views/DashboardToolbar.vue'))
+const TaskDialog = defineAsyncComponent(() => import('@/components/business/task/TaskDialog.vue'))
+const CreateViewDialog = defineAsyncComponent(() => import('@/components/business/view/ViewCreateDialog.vue'))
+const EditViewDialog = defineAsyncComponent(() => import('@/components/business/view/ViewEditDialog.vue'))
+const FilterDialog = defineAsyncComponent(() => import('@/components/ui/dialogs/FilterDialog.vue'))
+const SortDialog = defineAsyncComponent(() => import('@/components/ui/dialogs/SortDialog.vue'))
+const ViewToolbar = defineAsyncComponent(() => import('@/components/layout/ViewToolbar.vue'))
+const GanttToolbar = defineAsyncComponent(() => import('@/components/business/view/TaskGanttToolbar.vue'))
+const ProjectSortToolbar = defineAsyncComponent(() => import('@/components/business/view/ProjectSortToolbar.vue'))
+const BoardToolbar = defineAsyncComponent(() => import('@/components/business/view/TaskBoardToolbar.vue'))
+const DashboardToolbar = defineAsyncComponent(() => import('@/components/business/view/TaskDashboardToolbar.vue'))
 
 // Props
 const props = defineProps<{

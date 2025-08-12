@@ -232,7 +232,7 @@ import type { Task, ColumnConfig } from '@/types'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
-import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
+import CustomFieldRenderer from '@/components/business/shared/CustomFieldRenderer.vue'
 
 // Props
 const props = defineProps<{

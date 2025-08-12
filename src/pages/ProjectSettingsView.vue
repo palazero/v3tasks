@@ -139,12 +139,12 @@ import { usePermission } from '@/composables/usePermission'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 
 // 動態導入設定元件
-const ProjectGeneralSettings = defineAsyncComponent(() => import('@/components/settings/ProjectGeneralSettings.vue'))
-const ProjectMembersSettings = defineAsyncComponent(() => import('@/components/settings/ProjectMembersSettings.vue'))
-const ProjectCustomFieldsSettings = defineAsyncComponent(() => import('@/components/settings/ProjectCustomFieldsSettings.vue'))
-const ProjectViewsSettings = defineAsyncComponent(() => import('@/components/settings/ProjectViewsSettings.vue'))
-const ProjectPermissionsSettings = defineAsyncComponent(() => import('@/components/settings/ProjectPermissionsSettings.vue'))
-const ProjectDangerSettings = defineAsyncComponent(() => import('@/components/settings/ProjectDangerSettings.vue'))
+const ProjectGeneralSettings = defineAsyncComponent(() => import('@/components/business/project/settings/ProjectGeneralSettings.vue'))
+const ProjectMembersSettings = defineAsyncComponent(() => import('@/components/business/project/settings/ProjectMembersSettings.vue'))
+const ProjectCustomFieldsSettings = defineAsyncComponent(() => import('@/components/business/project/settings/ProjectCustomFieldsSettings.vue'))
+const ProjectViewsSettings = defineAsyncComponent(() => import('@/components/business/project/settings/ProjectViewsSettings.vue'))
+const ProjectPermissionsSettings = defineAsyncComponent(() => import('@/components/business/project/settings/ProjectPermissionsSettings.vue'))
+const ProjectDangerSettings = defineAsyncComponent(() => import('@/components/business/project/settings/ProjectDangerSettings.vue'))
 
 // Props
 const props = defineProps<{

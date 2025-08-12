@@ -149,7 +149,7 @@
 import { computed, ref } from 'vue'
 import type { Task, Project } from '@/types'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
-import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
+import CustomFieldRenderer from '@/components/business/shared/CustomFieldRenderer.vue'
 import { getProjectRepository } from '@/services/repositories'
 
 // Props

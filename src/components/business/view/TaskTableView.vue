@@ -1,7 +1,7 @@
 <template>
   <div class="task-table-view">
     <!-- 欄位管理對話框 -->
-    <ColumnManager
+    <ViewColumnManager
       v-model="showColumnManager"
       :view-type="'table'"
       :columns="currentColumnConfig"
@@ -763,8 +763,8 @@ import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
 import { getProjectRepository } from '@/services/repositories'
-import CustomFieldRenderer from '@/components/fields/CustomFieldRenderer.vue'
-import ColumnManager from '@/components/common/ColumnManager.vue'
+import CustomFieldRenderer from '@/components/business/shared/CustomFieldRenderer.vue'
+import ViewColumnManager from '@/components/business/view/ViewColumnManager.vue'
 import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
 import { getColumnConfigService } from '@/services/columnConfigService'
 

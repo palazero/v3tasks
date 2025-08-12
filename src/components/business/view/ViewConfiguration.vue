@@ -283,16 +283,16 @@ const viewTypeOptions = [
 
 // 可用欄位定義
 const availableColumns = [
-  { key: 'title', label: '任務標題', description: '任務的標題名稱', width: 300, visible: true },
-  { key: 'status', label: '狀態', description: '任務當前狀態', width: 120, visible: true },
-  { key: 'assignee', label: '指派人員', description: '負責執行任務的人員', width: 150, visible: true },
-  { key: 'priority', label: '優先級', description: '任務重要程度', width: 120, visible: true },
-  { key: 'deadline', label: '截止日期', description: '任務完成期限', width: 180, visible: true },
-  { key: 'progress', label: '進度', description: '任務完成百分比', width: 150, visible: true },
-  { key: 'creator', label: '建立者', description: '建立任務的人員', width: 120, visible: false },
-  { key: 'createdAt', label: '建立時間', description: '任務建立日期', width: 160, visible: false },
-  { key: 'updatedAt', label: '更新時間', description: '最後修改日期', width: 160, visible: false },
-  { key: 'tags', label: '標籤', description: '任務分類標籤', width: 200, visible: false },
+  { key: 'title', label: '任務標題', description: '任務的標題名稱', width: 200, visible: true },
+  { key: 'status', label: '狀態', description: '任務當前狀態', width: 80, visible: true },
+  { key: 'assignee', label: '指派人員', description: '負責執行任務的人員', width: 100, visible: true },
+  { key: 'priority', label: '優先級', description: '任務重要程度', width: 80, visible: true },
+  { key: 'deadline', label: '截止日期', description: '任務完成期限', width: 120, visible: true },
+  { key: 'progress', label: '進度', description: '任務完成百分比', width: 100, visible: true },
+  { key: 'creator', label: '建立者', description: '建立任務的人員', width: 80, visible: false },
+  { key: 'createdAt', label: '建立時間', description: '任務建立日期', width: 120, visible: false },
+  { key: 'updatedAt', label: '更新時間', description: '最後修改日期', width: 120, visible: false },
+  { key: 'tags', label: '標籤', description: '任務分類標籤', width: 120, visible: false },
   { key: 'estimatedHours', label: '預估時數', description: '完成任務預估時間', width: 120, visible: false }
 ]
 
