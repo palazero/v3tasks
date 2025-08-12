@@ -42,24 +42,26 @@
 
                 <!-- 專案統計資訊 -->
                 <div class="project-stats row items-center q-gutter-xs no-wrap">
-                  <q-badge
-                    color="grey"
-                    :label="`${getCachedProjectStats(projectId).total} 任務`"
-                  />
-                  <q-badge
-                    :color="getCachedProjectStats(projectId).progress === 100 ? 'positive' : 'info'"
-                    :label="`${getCachedProjectStats(projectId).progress}%`"
-                  />
-                  <q-badge
-                    v-if="getCachedProjectStats(projectId).overdue > 0"
-                    color="negative"
-                    :label="`${getCachedProjectStats(projectId).overdue} 逾期`"
-                  />
-                  <q-badge
-                    v-if="getCachedProjectStats(projectId).inProgress > 0"
-                    color="warning"
-                    :label="`${getCachedProjectStats(projectId).inProgress} 進行中`"
-                  />
+                  <template v-if="projectStatsCache[projectId]">
+                    <q-badge
+                      color="grey"
+                      :label="`${projectStatsCache[projectId].total} 任務`"
+                    />
+                    <q-badge
+                      :color="projectStatsCache[projectId].progress === 100 ? 'positive' : 'info'"
+                      :label="`${projectStatsCache[projectId].progress}%`"
+                    />
+                    <q-badge
+                      v-if="projectStatsCache[projectId].overdue > 0"
+                      color="negative"
+                      :label="`${projectStatsCache[projectId].overdue} 逾期`"
+                    />
+                    <q-badge
+                      v-if="projectStatsCache[projectId].inProgress > 0"
+                      color="warning"
+                      :label="`${projectStatsCache[projectId].inProgress} 進行中`"
+                    />
+                  </template>
                 </div>
               </div>
 
@@ -331,6 +333,53 @@
           </q-td>
         </template>
 
+        <!-- 標籤欄 -->
+        <template v-slot:body-cell-tags="props">
+          <q-td :props="props">
+            <div class="row items-center q-gutter-xs no-wrap">
+              <q-chip
+                v-for="(tag, index) in (props.value || [])"
+                :key="index"
+                dense
+                size="sm"
+                color="grey-3"
+                text-color="grey-8"
+              >
+                {{ tag }}
+              </q-chip>
+              <span v-if="!props.value || props.value.length === 0" class="text-grey-5">
+                無標籤
+              </span>
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 開始日期欄 -->
+        <template v-slot:body-cell-startDate="props">
+          <q-td :props="props">
+            <span v-if="props.value">
+              {{ formatDate(props.value) }}
+            </span>
+            <span v-else class="text-grey-5">-</span>
+          </q-td>
+        </template>
+
+        <!-- 工期欄 -->
+        <template v-slot:body-cell-duration="props">
+          <q-td :props="props">
+            {{ props.value }}
+          </q-td>
+        </template>
+
+        <!-- 描述欄 -->
+        <template v-slot:body-cell-description="props">
+          <q-td :props="props">
+            <div class="text-caption text-grey-7" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+              {{ props.value || '-' }}
+            </div>
+          </q-td>
+        </template>
+
         <!-- 自訂欄位欄 -->
         <template
           v-for="field in visibleCustomFields"
@@ -597,6 +646,53 @@
           </q-td>
         </template>
 
+        <!-- 標籤欄 -->
+        <template v-slot:body-cell-tags="props">
+          <q-td :props="props">
+            <div class="row items-center q-gutter-xs no-wrap">
+              <q-chip
+                v-for="(tag, index) in (props.value || [])"
+                :key="index"
+                dense
+                size="sm"
+                color="grey-3"
+                text-color="grey-8"
+              >
+                {{ tag }}
+              </q-chip>
+              <span v-if="!props.value || props.value.length === 0" class="text-grey-5">
+                無標籤
+              </span>
+            </div>
+          </q-td>
+        </template>
+
+        <!-- 開始日期欄 -->
+        <template v-slot:body-cell-startDate="props">
+          <q-td :props="props">
+            <span v-if="props.value">
+              {{ formatDate(props.value) }}
+            </span>
+            <span v-else class="text-grey-5">-</span>
+          </q-td>
+        </template>
+
+        <!-- 工期欄 -->
+        <template v-slot:body-cell-duration="props">
+          <q-td :props="props">
+            {{ props.value }}
+          </q-td>
+        </template>
+
+        <!-- 描述欄 -->
+        <template v-slot:body-cell-description="props">
+          <q-td :props="props">
+            <div class="text-caption text-grey-7" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+              {{ props.value || '-' }}
+            </div>
+          </q-td>
+        </template>
+
         <!-- 自訂欄位欄 -->
         <template
           v-for="field in visibleCustomFields"
@@ -661,8 +757,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue'
-import type { Task, View, ViewConfiguration, FilterCondition, Project, ColumnConfig } from '@/types'
+import { computed, ref, onMounted, watch, nextTick } from 'vue'
+import type { Task, View, ViewConfiguration, FilterCondition, Project, ColumnConfig, RichTextNode } from '@/types'
 import { useNestedTasks } from '@/composables/useNestedTasks'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCustomFields, useCustomFieldUtils } from '@/composables/useCustomFields'
@@ -801,18 +897,24 @@ function getProjectStats(tasks: Task[]): {
 }
 
 // 載入專案資料
+const loadingProjects = new Set<string>()
 async function loadProjectData(projectId: string): Promise<void> {
-  if (!projectsCache.value.has(projectId)) {
-    try {
-      const project = await projectRepo.findById(projectId)
-      if (project) {
-        projectsCache.value.set(projectId, project)
-        // 觸發響應式更新
-        projectsCache.value = new Map(projectsCache.value)
-      }
-    } catch (error) {
-      console.error('Failed to load project:', error)
+  // 避免重複載入
+  if (projectsCache.value.has(projectId) || loadingProjects.has(projectId)) {
+    return
+  }
+  
+  loadingProjects.add(projectId)
+  try {
+    const project = await projectRepo.findById(projectId)
+    if (project) {
+      // 使用函數式更新避免觸發不必要的響應
+      projectsCache.value = new Map([...projectsCache.value, [projectId, project]])
     }
+  } catch (error) {
+    console.error('Failed to load project:', error)
+  } finally {
+    loadingProjects.delete(projectId)
   }
 }
 
@@ -823,8 +925,10 @@ function getProjectName(projectId: string): string {
     return project.name
   }
 
-  // 非同步載入專案資料
-  void loadProjectData(projectId)
+  // 使用 nextTick 避免在渲染過程中觸發響應式更新
+  nextTick(() => {
+    void loadProjectData(projectId)
+  })
   return '載入中...'
 }
 
@@ -962,6 +1066,72 @@ const tableColumns = computed(() => {
         sortable: true,
         style: col.width ? `width: ${col.width}px` : 'width: 160px'
       }
+    } else if (col.key === 'tags') {
+      // 標籤欄位特殊處理
+      return {
+        name: 'tags',
+        label: col.label,
+        align: 'left' as const,
+        field: (row: Task) => row.tags || [],
+        sortable: false,
+        style: col.width ? `width: ${col.width}px` : 'width: 200px'
+      }
+    } else if (col.key === 'startDate') {
+      // 開始日期欄位映射
+      return {
+        name: 'startDate',
+        label: col.label,
+        align: 'center' as const,
+        field: 'startDateTime',
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 120px'
+      }
+    } else if (col.key === 'duration') {
+      // 工期欄位計算
+      return {
+        name: 'duration',
+        label: col.label,
+        align: 'center' as const,
+        field: (row: Task) => {
+          if (row.startDateTime && row.endDateTime) {
+            const start = new Date(row.startDateTime)
+            const end = new Date(row.endDateTime)
+            const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+            return days > 0 ? `${days} 天` : '0 天'
+          }
+          return '-'
+        },
+        sortable: true,
+        style: col.width ? `width: ${col.width}px` : 'width: 80px'
+      }
+    } else if (col.key === 'description') {
+      // 描述欄位文字提取
+      return {
+        name: 'description',
+        label: col.label,
+        align: 'left' as const,
+        field: (row: Task) => {
+          if (!row.description) return ''
+          // 提取純文字內容
+          const extractText = (nodes: RichTextNode[]): string => {
+            let text = ''
+            for (const node of nodes || []) {
+              if (node.text) {
+                text += node.text
+              }
+              if (node.content) {
+                text += extractText(node.content)
+              }
+            }
+            return text
+          }
+          const fullText = extractText(row.description.content || [])
+          // 限制長度
+          return fullText.length > 100 ? fullText.substring(0, 100) + '...' : fullText
+        },
+        sortable: false,
+        style: col.width ? `width: ${col.width}px` : 'width: 300px'
+      }
     } else if (col.key === 'actions') {
       return {
         name: 'actions',
@@ -983,13 +1153,13 @@ const tableColumns = computed(() => {
       }
     }
     
-    // 預設返回
+    // 預設返回 - 應該不會到這裡，但保留作為安全網
     return {
       name: col.key,
       label: col.label,
       align: 'center' as const,
-      field: col.key,
-      sortable: true,
+      field: () => '', // 返回空字串避免錯誤
+      sortable: false,
       style: col.width ? `width: ${col.width}px` : 'width: 150px'
     }
   })
@@ -1050,21 +1220,50 @@ const groupedTasks = computed(() => {
   return grouped
 })
 
+// 專案統計資訊快取 - 使用物件而非 Map，減少響應式開銷
+const projectStatsCache = computed(() => {
+  if (props.projectId !== 'all' || props.view.config.groupBy !== 'projectId') {
+    return {}
+  }
+  
+  const cache: Record<string, ReturnType<typeof getProjectStats>> = {}
+  
+  // 直接從 props.tasks 計算，避免依賴 groupedTasks
+  const grouped: Record<string, Task[]> = {}
+  props.tasks.forEach(task => {
+    const projectId = task.projectId
+    if (!grouped[projectId]) {
+      grouped[projectId] = []
+    }
+    grouped[projectId].push(task)
+  })
+  
+  Object.entries(grouped).forEach(([projectId, tasks]) => {
+    cache[projectId] = getProjectStats(tasks)
+  })
+
+  return cache
+})
+
 // 排序後的專案分組
 const sortedGroupedTasks = computed(() => {
   const entries = Array.from(groupedTasks.value.entries())
 
-  entries.sort(([projectIdA, _tasksA], [projectIdB, _tasksB]) => {
-    const statsA = projectStatsCache.value.get(projectIdA)
-    const statsB = projectStatsCache.value.get(projectIdB)
-
-    if (!statsA || !statsB) return 0
-
+  entries.sort(([projectIdA, tasksA], [projectIdB, tasksB]) => {
     if (projectSortBy.value === 'name') {
-      const nameA = getProjectName(projectIdA)
-      const nameB = getProjectName(projectIdB)
+      // 直接從快取取得專案名稱，避免異步操作
+      const projectA = projectsCache.value.get(projectIdA)
+      const projectB = projectsCache.value.get(projectIdB)
+      const nameA = projectA?.name || projectIdA
+      const nameB = projectB?.name || projectIdB
       return nameA.localeCompare(nameB)
-    } else if (projectSortBy.value === 'taskCount') {
+    }
+    
+    // 計算統計資訊（不依賴 computed 屬性）
+    const statsA = getProjectStats(tasksA)
+    const statsB = getProjectStats(tasksB)
+
+    if (projectSortBy.value === 'taskCount') {
       return statsB.total - statsA.total
     } else if (projectSortBy.value === 'progress') {
       return statsB.progress - statsA.progress
@@ -1078,35 +1277,6 @@ const sortedGroupedTasks = computed(() => {
   return new Map(entries)
 })
 
-// 專案統計資訊快取
-const projectStatsCache = computed(() => {
-  const cache = new Map<string, ReturnType<typeof getProjectStats>>()
-
-  groupedTasks.value.forEach((tasks, projectId) => {
-    cache.set(projectId, getProjectStats(tasks))
-  })
-
-  return cache
-})
-
-// 取得專案統計資訊（從快取）
-function getCachedProjectStats(projectId: string): {
-  total: number
-  completed: number
-  inProgress: number
-  overdue: number
-  priority: { high: number; medium: number; low: number }
-  progress: number
-} {
-  return projectStatsCache.value.get(projectId) || {
-    total: 0,
-    completed: 0,
-    inProgress: 0,
-    overdue: 0,
-    priority: { high: 0, medium: 0, low: 0 },
-    progress: 0
-  }
-}
 
 // 篩選專案任務（用於表格顯示）
 function getFilteredProjectTasks(projectTasks: Task[]): Task[] {
@@ -1515,9 +1685,12 @@ async function preloadProjectData(): Promise<void> {
 }
 
 // 監聽任務變化，載入新專案資料
-watch(() => props.tasks, () => {
-  void preloadProjectData()
-}, { immediate: true })
+watch(() => props.tasks, (newTasks, oldTasks) => {
+  // 只有當任務真的改變時才載入
+  if (newTasks !== oldTasks) {
+    void preloadProjectData()
+  }
+})
 
 // 監聽自訂欄位變化
 watch(() => projectCustomFields.value, () => {

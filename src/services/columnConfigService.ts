@@ -21,8 +21,8 @@ export class ColumnConfigService {
     customFields: CustomFieldDefinition[] = []
   ): ColumnConfig[] {
     // 取得該視圖的所有可用欄位
-    const fields = getFieldsForView(viewType as any, customFields)
-    const defaultVisible = getDefaultVisibleFields(viewType as any, customFields)
+    const fields = getFieldsForView(viewType as 'table' | 'list' | 'gantt' | 'board', customFields)
+    const defaultVisible = getDefaultVisibleFields(viewType as 'table' | 'list' | 'gantt' | 'board', customFields)
     
     // 轉換為欄位配置
     return fields.map((field, index) => ({
@@ -31,8 +31,8 @@ export class ColumnConfigService {
       visible: defaultVisible.includes(field.key),
       width: field.defaultWidth,
       order: index,
-      required: field.required,
-      sortable: field.sortable,
+      required: field.required ?? false,
+      sortable: field.sortable ?? true,
       resizable: !['actions', 'checkbox'].includes(field.key)
     }))
   }
@@ -60,15 +60,29 @@ export class ColumnConfigService {
       const fieldDef = fieldDefinitions.find(f => f.key === config.key)
       if (fieldDef) {
         // 合併欄位定義和現有配置
-        mergedConfig.push({
+        const columnConfig: ColumnConfig = {
           ...config,
           label: fieldDef.label, // 使用最新的標籤
-          width: config.width || fieldDef.defaultWidth, // 保留現有寬度或使用預設值
-          required: fieldDef.required,
-          sortable: fieldDef.sortable,
-          minWidth: fieldDef.minWidth,
-          maxWidth: fieldDef.maxWidth
-        })
+          width: config.width || fieldDef.defaultWidth // 保留現有寬度或使用預設值
+        }
+        
+        if (fieldDef.required !== undefined) {
+          columnConfig.required = fieldDef.required
+        }
+        
+        if (fieldDef.sortable !== undefined) {
+          columnConfig.sortable = fieldDef.sortable
+        }
+        
+        if (fieldDef.minWidth !== undefined) {
+          columnConfig.minWidth = fieldDef.minWidth
+        }
+        
+        if (fieldDef.maxWidth !== undefined) {
+          columnConfig.maxWidth = fieldDef.maxWidth
+        }
+        
+        mergedConfig.push(columnConfig)
         processedKeys.add(config.key)
       }
     })
@@ -76,16 +90,24 @@ export class ColumnConfigService {
     // 添加新的欄位（未在現有配置中的）
     fieldDefinitions.forEach(fieldDef => {
       if (!processedKeys.has(fieldDef.key)) {
-        mergedConfig.push({
+        const columnConfig: ColumnConfig = {
           key: fieldDef.key,
           label: fieldDef.label,
           visible: fieldDef.defaultVisible,
           width: fieldDef.defaultWidth,
           order: mergedConfig.length,
-          required: fieldDef.required,
-          sortable: fieldDef.sortable,
           resizable: !['actions', 'checkbox'].includes(fieldDef.key)
-        })
+        }
+        
+        if (fieldDef.required !== undefined) {
+          columnConfig.required = fieldDef.required
+        }
+        
+        if (fieldDef.sortable !== undefined) {
+          columnConfig.sortable = fieldDef.sortable
+        }
+        
+        mergedConfig.push(columnConfig)
       }
     })
     
@@ -130,7 +152,7 @@ export class ColumnConfigService {
     viewType: ViewType
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = []
-    const requiredFields = getRequiredFields(viewType as any)
+    const requiredFields = getRequiredFields(viewType as 'table' | 'list' | 'gantt' | 'board')
     
     // 檢查必要欄位
     requiredFields.forEach(requiredKey => {
@@ -165,7 +187,7 @@ export class ColumnConfigService {
   /**
    * 遷移舊版配置格式
    */
-  migrateOldConfig(oldConfig: any): ColumnConfig[] | null {
+  migrateOldConfig(oldConfig: unknown): ColumnConfig[] | null {
     // 如果已經是新格式，直接返回
     if (Array.isArray(oldConfig) && oldConfig.length > 0) {
       const firstItem = oldConfig[0]
@@ -179,18 +201,25 @@ export class ColumnConfigService {
       // 舊格式範例: { visibleFields: ['title', 'status'], columnWidths: { title: 300 } }
       if ('visibleFields' in oldConfig && Array.isArray(oldConfig.visibleFields)) {
         const visibleFields = new Set(oldConfig.visibleFields)
-        const columnWidths = oldConfig.columnWidths || {}
+        const columnWidths = (oldConfig as Record<string, unknown>).columnWidths as Record<string, number> | undefined || {}
         
         // 建立新格式配置
         const newConfig: ColumnConfig[] = []
         oldConfig.visibleFields.forEach((key: string, index: number) => {
-          newConfig.push({
+          const columnConfig: ColumnConfig = {
             key,
             label: key, // 標籤會在合併時更新
             visible: true,
-            width: columnWidths[key] || undefined,
-            order: index
-          })
+            order: index,
+            required: false
+          }
+          
+          const width = columnWidths[key]
+          if (width !== undefined) {
+            columnConfig.width = width
+          }
+          
+          newConfig.push(columnConfig)
         })
         
         return newConfig
@@ -219,7 +248,7 @@ export class ColumnConfigService {
       const fieldDef = fieldDefMap.get(column.key)
       if (!fieldDef) return false
       
-      return fieldDef.applicableViews.includes(viewType as any)
+      return fieldDef.applicableViews.includes(viewType as 'table' | 'list' | 'gantt' | 'board')
     })
   }
 
@@ -253,7 +282,15 @@ export class ColumnConfigService {
   toTableColumns(
     columns: ColumnConfig[],
     fieldDefinitions: FieldDefinition[]
-  ): any[] {
+  ): Array<{
+    name: string
+    label: string
+    field: string | ((row: Record<string, unknown>) => string)
+    align?: 'left' | 'center' | 'right'
+    sortable?: boolean
+    required?: boolean
+    format?: (val: unknown) => string
+  }> {
     // 建立欄位定義映射
     const fieldDefMap = new Map<string, FieldDefinition>()
     fieldDefinitions.forEach(def => {
@@ -264,17 +301,31 @@ export class ColumnConfigService {
       .map(column => {
         const fieldDef = fieldDefMap.get(column.key)
         
-        return {
+        const result: {
+          name: string
+          label: string
+          field: string | ((row: Record<string, unknown>) => string)
+          align?: 'left' | 'center' | 'right'
+          sortable?: boolean
+          required?: boolean
+          format?: (val: unknown) => string
+        } = {
           name: column.key,
           label: column.label,
           field: column.key,
           align: column.key === 'title' ? 'left' : 'center',
-          sortable: column.sortable !== false,
-          style: column.width ? `width: ${column.width}px` : undefined,
-          required: column.required,
-          format: fieldDef?.renderType === 'date' ? 
-            (val: any) => this.formatDate(val) : undefined
+          sortable: column.sortable !== false
         }
+        
+        if (column.required !== undefined) {
+          result.required = column.required
+        }
+        
+        if (fieldDef?.renderType === 'date') {
+          result.format = (val: unknown) => this.formatDate(val as string | Date | null)
+        }
+        
+        return result
       })
   }
 

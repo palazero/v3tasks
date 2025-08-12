@@ -443,8 +443,12 @@ const ganttSettings = ref({
 })
 
 // 視圖引用
+type ViewComponentInstance = InstanceType<typeof TaskListView> | 
+                           InstanceType<typeof TaskTableView> | 
+                           InstanceType<typeof TaskBoardView> | 
+                           InstanceType<typeof TaskDashboardView>
 const ganttViewRefs = ref<Map<string, InstanceType<typeof TaskGanttView> | null>>(new Map())
-const viewComponentRefs = ref<Map<string, any>>(new Map())
+const viewComponentRefs = ref<Map<string, ViewComponentInstance | null>>(new Map())
 
 // 專案排序狀態
 const isGroupedByProject = ref(false)
@@ -640,7 +644,7 @@ function setTabMenuRef(viewId: string, el: HTMLElement | null): void {
 }
 
 // 設定視圖元件 ref（統一處理所有視圖類型）
-function setViewComponentRef(el: any, viewId: string): void {
+function setViewComponentRef(el: ViewComponentInstance | InstanceType<typeof TaskGanttView> | null, viewId: string): void {
   const currentView = viewStore.views.find(v => v.viewId === viewId)
   
   if (el) {

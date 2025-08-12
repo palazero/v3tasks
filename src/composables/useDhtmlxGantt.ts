@@ -230,15 +230,26 @@ export function useDhtmlxGantt(): {
       statusId = 'todo'
     }
 
-    return {
+    const updates: Partial<Task> = {
       title: dhtmlxTask.text,
       startDateTime: startDate,
       endDateTime: endDate,
-      statusId: statusId,
-      assigneeId: dhtmlxTask.assignee || undefined,
-      priorityId: dhtmlxTask.priority || undefined,
-      parentTaskId: dhtmlxTask.parent === 0 ? undefined : String(dhtmlxTask.parent)
+      statusId: statusId
     }
+    
+    if (dhtmlxTask.assignee) {
+      updates.assigneeId = dhtmlxTask.assignee
+    }
+    
+    if (dhtmlxTask.priority) {
+      updates.priorityId = dhtmlxTask.priority
+    }
+    
+    if (dhtmlxTask.parent !== 0) {
+      updates.parentTaskId = String(dhtmlxTask.parent)
+    }
+    
+    return updates
   }
 
   /**

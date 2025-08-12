@@ -81,13 +81,6 @@
         @click="$emit('show-column-manager')"
         class="compact-btn"
       >
-        <q-badge
-          v-if="(visibleColumnsCount || 0) > 0"
-          color="primary"
-          :label="`${visibleColumnsCount}/${totalColumnsCount}`"
-          rounded
-          floating
-        />
         <q-tooltip>管理顯示的欄位</q-tooltip>
       </q-btn>
 
@@ -119,20 +112,16 @@ interface ViewToolbarProps {
   showSort?: boolean
   showAddTask?: boolean
   showColumnManager?: boolean
-  
+
   // 搜尋相關
   search?: string
-  
+
   // 篩選相關
   hasActiveFilters?: boolean
   activeFiltersCount?: number
-  
+
   // 排序相關
   hasActiveSorts?: boolean
-  
-  // 欄位管理相關
-  visibleColumnsCount?: number
-  totalColumnsCount?: number
 }
 
 const props = withDefaults(defineProps<ViewToolbarProps>(), {
@@ -145,8 +134,6 @@ const props = withDefaults(defineProps<ViewToolbarProps>(), {
   hasActiveFilters: false,
   activeFiltersCount: 0,
   hasActiveSorts: false,
-  visibleColumnsCount: 0,
-  totalColumnsCount: 0
 })
 
 // Emits

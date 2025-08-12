@@ -772,12 +772,12 @@ async function handleColumnConfigUpdate(columns: ColumnConfig[]): Promise<void> 
     // 比較欄位數量、名稱、寬度是否有變化
     const columnsChanged = currentColumnCount !== newColumnCount ||
                           !arraysEqual(
-                            currentColumns.map((c: any) => c.name || ''),
-                            newColumns.map((c: any) => c.name || '')
+                            currentColumns.map((c) => (c as { name?: string }).name || ''),
+                            newColumns.map((c) => (c as { name?: string }).name || '')
                           ) ||
                           !arraysEqual(
-                            currentColumns.map((c: any) => c.width || 0),
-                            newColumns.map((c: any) => c.width || 0)
+                            currentColumns.map((c) => (c as { width?: number }).width || 0),
+                            newColumns.map((c) => (c as { width?: number }).width || 0)
                           )
     
     const needFullReinit = columnsChanged

@@ -286,7 +286,10 @@ export function useCustomFields(projectId: string) {
     try {
       const result = await customFieldService.importProjectCustomFields(projectId, data);
       await loadCustomFields(); // 重新載入
-      return result;
+      return {
+        fieldsCount: result.fieldsCount,
+        groupsCount: 0 // Groups have been removed from the system
+      };
     } catch (err) {
       error.value = '匯入自訂欄位失敗';
       console.error('Failed to import custom fields:', err);

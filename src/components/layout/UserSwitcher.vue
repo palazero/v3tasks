@@ -9,20 +9,20 @@
     <template v-slot:label>
       <div class="row items-center no-wrap q-gutter-sm">
         <q-avatar size="32px">
-          <img 
-            v-if="userStore.currentUser?.avatar" 
+          <img
+            v-if="userStore.currentUser?.avatar"
             :src="userStore.currentUser.avatar"
             :alt="userStore.currentUser.name"
           >
           <q-icon v-else name="person" />
         </q-avatar>
-        
+
         <div class="column items-start" v-if="$q.screen.gt.xs">
           <div class="text-weight-medium">
             {{ userStore.currentUser?.name || '未登入' }}
           </div>
           <div class="text-caption text-grey">
-            <q-badge 
+            <q-badge
               v-if="userStore.currentUser"
               :color="userStore.isAdmin ? 'red' : 'blue'"
               :label="userStore.isAdmin ? '管理員' : '一般用戶'"
@@ -30,8 +30,7 @@
             />
           </div>
         </div>
-        
-        <q-icon name="arrow_drop_down" size="20px" />
+
       </div>
     </template>
 
@@ -39,9 +38,9 @@
       <q-item-label header class="text-weight-bold">
         切換用戶
       </q-item-label>
-      
+
       <q-separator />
-      
+
       <q-item
         v-for="user in userStore.availableUsers"
         :key="user.userId"
@@ -52,46 +51,46 @@
       >
         <q-item-section avatar>
           <q-avatar size="28px">
-            <img 
-              v-if="user.avatar" 
+            <img
+              v-if="user.avatar"
               :src="user.avatar"
               :alt="user.name"
             >
             <q-icon v-else name="person" />
           </q-avatar>
         </q-item-section>
-        
+
         <q-item-section>
           <q-item-label>{{ user.name }}</q-item-label>
           <q-item-label caption>{{ user.email }}</q-item-label>
         </q-item-section>
-        
+
         <q-item-section side>
-          <q-badge 
+          <q-badge
             :color="user.role === 'admin' ? 'red' : 'grey'"
             :label="user.role === 'admin' ? 'Admin' : 'User'"
             dense
           />
         </q-item-section>
-        
+
         <q-item-section side v-if="user.userId === userStore.currentUserId">
           <q-icon name="check" color="primary" />
         </q-item-section>
       </q-item>
-      
+
       <q-separator />
-      
+
       <q-item clickable v-close-popup @click="handleRefresh">
         <q-item-section avatar>
           <q-icon name="refresh" />
         </q-item-section>
         <q-item-section>重新載入用戶</q-item-section>
       </q-item>
-      
-      <q-item 
+
+      <q-item
         v-if="userStore.currentUser"
-        clickable 
-        v-close-popup 
+        clickable
+        v-close-popup
         @click="handleLogout"
       >
         <q-item-section avatar>
@@ -118,14 +117,14 @@ async function handleSwitchUser(userId: string): Promise<void> {
 
   try {
     await userStore.switchUser(userId)
-    
+
     $q.notify({
       type: 'positive',
       message: `已切換至: ${userStore.currentUserName}`,
       position: 'top',
       timeout: 2000
     })
-    
+
     // 可選：切換用戶後重新載入頁面或路由
     // router.push('/')
   } catch (error) {
@@ -142,7 +141,7 @@ async function handleSwitchUser(userId: string): Promise<void> {
 async function handleRefresh(): Promise<void> {
   try {
     await userStore.initializeUsers()
-    
+
     $q.notify({
       type: 'positive',
       message: '用戶列表已更新',
@@ -168,7 +167,7 @@ function handleLogout(): void {
     persistent: false
   }).onOk(() => {
     userStore.logout()
-    
+
     $q.notify({
       type: 'info',
       message: '已登出',
@@ -182,7 +181,7 @@ function handleLogout(): void {
 <style scoped lang="scss">
 .user-switcher {
   min-width: 120px;
-  
+
   .q-btn__content {
     justify-content: flex-start;
   }
