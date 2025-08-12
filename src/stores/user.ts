@@ -6,7 +6,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { User, PermissionAction, PermissionCheck } from '@/types';
 import { getUserRepository, getProjectRepository } from '@/services/repositories';
-import { initMockData } from '@/services/mockData';
+import { initMockData } from '@/services/infrastructure/mock/mock-data.service';
 
 export const useUserStore = defineStore('user', () => {
   // 狀態

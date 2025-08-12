@@ -3,7 +3,7 @@
  * 處理視圖配置的持久化儲存
  */
 
-import { getDatabase } from './db/database';
+import { getDatabase } from '../infrastructure/database/db/database';
 import type { ViewConfiguration, ViewPreset, UserViewConfiguration } from '@/types';
 import { nanoid } from 'nanoid';
 

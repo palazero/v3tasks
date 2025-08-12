@@ -2,7 +2,7 @@
  * 統計服務 - 提供各種統計資料計算
  */
 
-import { getTaskRepository, getProjectRepository, getUserRepository } from './repositories'
+import { getTaskRepository, getProjectRepository, getUserRepository } from '../repositories'
 import type { Task, TaskStatus, TaskPriority } from '@/types'
 
 export interface TaskStatistics {

@@ -372,7 +372,7 @@ import { useViewStore } from '@/stores/view'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { usePermission } from '@/composables/usePermission'
 import { getProjectRepository, getUserRepository } from '@/services/repositories'
-import { eventBus, EVENTS } from '@/services/eventBus'
+import { eventBus, EVENTS } from '@/services/infrastructure/events/event-bus.service'
 
 // 動態導入元件
 const TaskListView = defineAsyncComponent(() => import('@/components/business/view/TaskListView.vue'))
@@ -790,7 +790,6 @@ async function handleTaskDelete(taskId: string): Promise<void> {
   $q.dialog({
     title: '確認刪除',
     message: `確定要刪除任務「${taskTitle}」嗎？`,
-    cancel: true,
     persistent: true,
     ok: {
       label: '刪除',
@@ -857,14 +856,27 @@ function handleViewUpdated(view: View): void {
 // 處理視圖配置更新
 async function handleViewConfigurationUpdate(configuration: ViewConfiguration): Promise<void> {
   const currentView = viewStore.currentView
-  if (!currentView) return
+  if (!currentView) {
+    console.error('handleViewConfigurationUpdate: 沒有當前視圖')
+    return
+  }
+
+  if (!currentView.viewId) {
+    console.error('handleViewConfigurationUpdate: 當前視圖沒有 viewId', currentView)
+    return
+  }
 
   try {
-    console.log('ProjectView 更新視圖配置:', configuration)
-    // 更新視圖配置
+    console.log('ProjectView 更新視圖配置:', {
+      viewId: currentView.viewId,
+      configuration,
+      currentView
+    })
+    
+    // 更新視圖配置 - 使用 ISO 字串而不是 Date 對象
     await viewStore.updateView(currentView.viewId, {
       config: configuration,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     })
     console.log('視圖配置更新成功')
     

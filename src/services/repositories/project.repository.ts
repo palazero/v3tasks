@@ -4,11 +4,13 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { db } from '../db/database';
+import { db } from '../infrastructure/database/db/database';
 import type { Project } from '@/types';
-import { eventBus, EVENTS } from '../eventBus';
+import { eventBus, EVENTS } from '../infrastructure/events/event-bus.service';
 
 export class ProjectRepository extends BaseRepository<Project> {
+  protected entityName = 'Project';
+
   constructor() {
     super(db.projects);
   }

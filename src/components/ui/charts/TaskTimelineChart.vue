@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import BaseChart from './BaseChart.vue'
-import type { TimelineData } from '@/services/statisticsService'
+import type { TimelineData } from '@/services/domain/statistics.service'
 
 interface Props {
   timeline: TimelineData[]

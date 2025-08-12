@@ -4,9 +4,9 @@
  */
 
 import { nanoid } from 'nanoid';
-import { db } from './db/database';
+import { db } from '../database/db/database';
 import type { User, Project, Task, View, UserRole, ViewType } from '@/types';
-import { getViewRepository } from './repositories';
+import { getViewRepository } from '../../repositories';
 
 /**
  * 預設模擬用戶

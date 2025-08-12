@@ -4,10 +4,12 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { db } from '../db/database';
+import { db } from '../infrastructure/database/db/database';
 import type { View, ViewType } from '@/types';
 
 export class ViewRepository extends BaseRepository<View> {
+  protected entityName = 'View';
+
   constructor() {
     super(db.views);
   }

@@ -229,7 +229,7 @@ import UserSwitcher from '@/components/layout/UserSwitcher.vue'
 import { useUserStore } from '@/stores/user'
 import { usePermission } from '@/composables/usePermission'
 import { getProjectRepository, getTaskRepository } from '@/services/repositories'
-import { eventBus, EVENTS } from '@/services/eventBus'
+import { eventBus, EVENTS } from '@/services/infrastructure/events/event-bus.service'
 import type { Project } from '@/types'
 import { PermissionAction } from '@/types'
 

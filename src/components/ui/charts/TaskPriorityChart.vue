@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import BaseChart from './BaseChart.vue'
-import type { TaskStatistics } from '@/services/statisticsService'
+import type { TaskStatistics } from '@/services/domain/statistics.service'
 
 interface Props {
   statistics: TaskStatistics

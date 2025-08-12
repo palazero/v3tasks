@@ -5,7 +5,7 @@
 
 import { ref, computed, watch } from 'vue';
 import type { CustomField, CustomFieldValue, FieldType } from '@/types';
-import { customFieldService } from '@/services/customFieldService';
+import { customFieldService } from '@/services/domain/custom-field.service';
 import { useCurrentUser } from './useCurrentUser';
 
 export function useCustomFields(projectId: string) {

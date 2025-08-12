@@ -26,7 +26,7 @@ import { getProjectRepository, getUserRepository } from '@/services/repositories
 import type { Project, User } from '@/types'
 import ViewColumnManager from '@/components/business/view/ViewColumnManager.vue'
 import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
-import { getColumnConfigService } from '@/services/columnConfigService'
+import { getColumnConfigService } from '@/services/application/column-config.service'
 
 // Props
 interface Props {
@@ -719,29 +719,38 @@ function initializeFieldDefinitions(): void {
   if (props.configuration?.visibleColumns) {
     console.log('使用現有配置:', props.configuration.visibleColumns.map(c => ({ key: c.key, width: c.width })))
     // 使用現有配置
-    currentColumnConfig.value = columnConfigService.mergeWithFieldDefinitions(
+    const mergedConfig = columnConfigService.mergeWithFieldDefinitions(
       props.configuration.visibleColumns,
       allFieldDefinitions.value
     )
+    currentColumnConfig.value = Array.isArray(mergedConfig) ? mergedConfig : []
   } else {
     console.log('使用預設配置')
     // 使用預設配置
-    currentColumnConfig.value = columnConfigService.getDefaultColumns(
+    const defaultConfig = columnConfigService.getDefaultColumns(
       'gantt',
       projectCustomFields.value || []
     )
+    currentColumnConfig.value = Array.isArray(defaultConfig) ? defaultConfig : []
   }
+  
+  // 確保 currentColumnConfig.value 是陣列
+  if (!Array.isArray(currentColumnConfig.value)) {
+    console.warn('currentColumnConfig.value 不是陣列，重置為空陣列:', currentColumnConfig.value)
+    currentColumnConfig.value = []
+  }
+  
   console.log('最終欄位配置:', currentColumnConfig.value.map(c => ({ key: c.key, width: c.width })))
 }
 
 // 處理欄位配置更新
 async function handleColumnConfigUpdate(columns: ColumnConfig[]): Promise<void> {
-  console.log('Gantt 視圖更新欄位配置:', columns.map(c => ({ key: c.key, visible: c.visible, width: c.width })))
-  
-  if (!columns) {
-    console.error('handleColumnConfigUpdate: columns is undefined')
+  if (!Array.isArray(columns)) {
+    console.error('handleColumnConfigUpdate: columns is not an array:', columns)
     return
   }
+  
+  console.log('Gantt 視圖更新欄位配置:', columns.map(c => ({ key: c.key, visible: c.visible, width: c.width })))
   
   currentColumnConfig.value = columns
   

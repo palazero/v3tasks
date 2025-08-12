@@ -4,10 +4,12 @@
  */
 
 import { BaseRepository } from './base.repository';
-import { db } from '../db/database';
+import { db } from '../infrastructure/database/db/database';
 import type { Task } from '@/types';
 
 export class TaskRepository extends BaseRepository<Task> {
+  protected entityName = 'Task';
+
   constructor() {
     super(db.tasks);
   }

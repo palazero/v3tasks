@@ -227,7 +227,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import type { CustomField } from '@/types'
 // import { useCustomFields } from '@/composables/useCustomFields'
 import { useCurrentUser } from '@/composables/useCurrentUser'
-import { customFieldService } from '@/services/customFieldService'
+import { customFieldService } from '@/services/domain/custom-field.service'
 
 // Props
 const props = withDefaults(defineProps<{

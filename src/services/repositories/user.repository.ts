@@ -4,10 +4,12 @@
  */
 
 import { BaseRepository } from './base.repository'
-import { db } from '../db/database'
+import { db } from '../infrastructure/database/db/database'
 import type { User, UserRole } from '@/types'
 
 export class UserRepository extends BaseRepository<User> {
+  protected entityName = 'User'
+
   constructor() {
     super(db.users)
   }

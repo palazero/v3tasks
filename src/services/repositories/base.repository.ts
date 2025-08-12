@@ -1,211 +1,388 @@
 /**
- * 基礎 Repository 類別
- * 提供通用的 CRUD 操作
+ * 基礎 Repository 類別實作
+ * 提供通用的 CRUD 操作並實作 IRepository 介面
  */
 
-import type { Table, UpdateSpec } from 'dexie';
-import type { PaginatedResult, PaginationParams } from '@/types';
-import { eventBus, EVENTS } from '../eventBus';
+import type { Table } from 'dexie'
+import type { IRepository } from '../infrastructure/interfaces/IRepository'
+import { 
+  RepositoryErrorHandler, 
+  RecordNotFoundError, 
+  DatabaseOperationError,
+  SerializationError 
+} from '../infrastructure/errors/repository.errors'
 
-export abstract class BaseRepository<T> {
-  protected table: Table<T>;
+export abstract class BaseRepository<T extends { id?: string; createdAt?: string; updatedAt?: string }> 
+  implements IRepository<T> {
+  protected table: Table<T>
+  protected abstract entityName: string
 
   constructor(table: Table<T>) {
-    this.table = table;
+    this.table = table
   }
 
   /**
-   * 取得所有資料
+   * 根據 ID 查找單一記錄
+   */
+  async findById(id: string): Promise<T | null> {
+    // 驗證 ID 是否有效
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      console.warn(`[${this.entityName}Repository] Invalid ID provided to findById:`, id)
+      return null
+    }
+
+    try {
+      const result = await this.table.get(id)
+      return result || null
+    } catch (error) {
+      const repoError = RepositoryErrorHandler.wrapError(error, {
+        operation: 'findById',
+        entityName: this.entityName,
+        id
+      })
+      RepositoryErrorHandler.logError(repoError, { id })
+      throw repoError
+    }
+  }
+
+  /**
+   * 查找所有記錄
    */
   async findAll(): Promise<T[]> {
-    return await this.table.toArray();
+    return await this.table.toArray()
   }
 
   /**
-   * 根據 ID 取得單筆資料
+   * 根據條件查找記錄
    */
-  async findById(id: string | number): Promise<T | undefined> {
-    return await this.table.get(id);
-  }
-
-  /**
-   * 根據條件查詢
-   */
-  async findBy(query: Partial<T>): Promise<T[]> {
-    return await this.table.where(query).toArray();
-  }
-
-  /**
-   * 根據條件查詢第一筆
-   */
-  async findOneBy(query: Partial<T>): Promise<T | undefined> {
-    return await this.table.where(query).first();
-  }
-
-  /**
-   * 新增資料
-   */
-  async create(data: T): Promise<string | number> {
-    const sanitizedData = this.sanitizeData(data);
-    return await this.table.add(sanitizedData as T);
-  }
-
-  /**
-   * 批次新增資料
-   */
-  async createMany(data: T[]): Promise<string | number> {
-    return await this.table.bulkAdd(data);
-  }
-
-  /**
-   * 清理資料，移除不應該持久化的屬性
-   */
-  protected sanitizeData(data: Partial<T>): Partial<T> {
-    const sanitized = { ...data };
+  async findBy(criteria: Partial<T>): Promise<T[]> {
+    let query = this.table.toCollection()
     
-    // 移除 children 屬性（用於 UI 樹狀結構，不應持久化）
-    if ('children' in sanitized) {
-      delete (sanitized as Record<string, unknown>).children;
+    // 建立查詢條件
+    for (const [key, value] of Object.entries(criteria)) {
+      if (value !== undefined) {
+        query = query.filter(item => (item as any)[key] === value)
+      }
     }
     
-    // 遞迴清理物件，移除不可序列化的內容
-    const cleanObject = (obj: unknown): unknown => {
-      if (obj === null || obj === undefined) return obj;
+    return await query.toArray()
+  }
+
+  /**
+   * 根據條件查找單一記錄
+   */
+  async findOneBy(criteria: Partial<T>): Promise<T | null> {
+    const results = await this.findBy(criteria)
+    return results.length > 0 ? results[0] : null
+  }
+
+  /**
+   * 建立新記錄
+   */
+  async create(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+    try {
+      const sanitizedData = this.sanitizeData(data)
+      const timestamp = new Date().toISOString()
       
-      if (obj instanceof Date) return obj; // Date 物件可以序列化
+      const newRecord = {
+        ...sanitizedData,
+        id: this.generateId(),
+        createdAt: timestamp,
+        updatedAt: timestamp
+      } as T
+
+      const id = await this.table.add(newRecord)
+      const createdRecord = await this.findById(id as string)
       
-      if (Array.isArray(obj)) {
-        return obj.map(item => cleanObject(item));
+      if (!createdRecord) {
+        throw new DatabaseOperationError('create', this.entityName)
+      }
+
+      return createdRecord
+    } catch (error) {
+      if (error instanceof DatabaseOperationError) {
+        throw error
       }
       
-      if (typeof obj === 'object') {
-        const cleaned: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(obj)) {
-          // 跳過函數屬性
-          if (typeof value === 'function') continue;
-          // 跳過 Symbol 屬性
-          if (typeof value === 'symbol') continue;
-          // 跳過 undefined 值
-          if (value === undefined) continue;
-          // 跳過循環引用的 children
-          if (key === 'children') continue;
-          
-          cleaned[key] = cleanObject(value);
+      // 檢查是否為序列化錯誤
+      if (error instanceof Error && error.message.includes('DataCloneError')) {
+        const serializationError = new SerializationError(this.entityName, error)
+        RepositoryErrorHandler.logError(serializationError)
+        throw serializationError
+      }
+      
+      const repoError = RepositoryErrorHandler.wrapError(error, {
+        operation: 'create',
+        entityName: this.entityName
+      })
+      RepositoryErrorHandler.logError(repoError)
+      throw repoError
+    }
+  }
+
+  /**
+   * 更新記錄
+   */
+  async update(id: string, updates: Partial<T>): Promise<T> {
+    // 驗證 ID 是否有效
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      throw new RecordNotFoundError(this.entityName, id || 'undefined')
+    }
+
+    try {
+      const existingRecord = await this.findById(id)
+      if (!existingRecord) {
+        throw new RecordNotFoundError(this.entityName, id)
+      }
+
+      const sanitizedUpdates = this.sanitizeData(updates)
+      const updateData = {
+        ...sanitizedUpdates,
+        updatedAt: new Date().toISOString()
+      }
+
+      await this.table.update(id, updateData)
+      
+      const updatedRecord = await this.findById(id)
+      if (!updatedRecord) {
+        throw new DatabaseOperationError('update', this.entityName)
+      }
+
+      return updatedRecord
+    } catch (error) {
+      if (error instanceof RecordNotFoundError || error instanceof DatabaseOperationError) {
+        throw error
+      }
+      
+      const repoError = RepositoryErrorHandler.wrapError(error, {
+        operation: 'update',
+        entityName: this.entityName,
+        id
+      })
+      RepositoryErrorHandler.logError(repoError, { id })
+      throw repoError
+    }
+  }
+
+  /**
+   * 刪除記錄
+   */
+  async delete(id: string): Promise<void> {
+    // 驗證 ID 是否有效
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      throw new RecordNotFoundError(this.entityName, id || 'undefined')
+    }
+
+    try {
+      const existingRecord = await this.findById(id)
+      if (!existingRecord) {
+        throw new RecordNotFoundError(this.entityName, id)
+      }
+
+      await this.table.delete(id)
+    } catch (error) {
+      if (error instanceof RecordNotFoundError) {
+        throw error
+      }
+      
+      const repoError = RepositoryErrorHandler.wrapError(error, {
+        operation: 'delete',
+        entityName: this.entityName,
+        id
+      })
+      RepositoryErrorHandler.logError(repoError, { id })
+      throw repoError
+    }
+  }
+
+  /**
+   * 批量建立記錄
+   */
+  async createMany(data: Array<Omit<T, 'id' | 'createdAt' | 'updatedAt'>>): Promise<T[]> {
+    const timestamp = new Date().toISOString()
+    const newRecords = data.map(item => {
+      const sanitizedData = this.sanitizeData(item)
+      return {
+        ...sanitizedData,
+        id: this.generateId(),
+        createdAt: timestamp,
+        updatedAt: timestamp
+      } as T
+    })
+
+    await this.table.bulkAdd(newRecords)
+    
+    // 返回建立的記錄
+    const ids = newRecords.map(record => record.id!)
+    const createdRecords: T[] = []
+    
+    for (const id of ids) {
+      const record = await this.findById(id)
+      if (record) {
+        createdRecords.push(record)
+      }
+    }
+
+    return createdRecords
+  }
+
+  /**
+   * 批量更新記錄
+   */
+  async updateMany(updates: Array<{ id: string; data: Partial<T> }>): Promise<T[]> {
+    const updatedRecords: T[] = []
+    const timestamp = new Date().toISOString()
+
+    for (const { id, data } of updates) {
+      try {
+        const sanitizedData = this.sanitizeData(data)
+        const updateData = {
+          ...sanitizedData,
+          updatedAt: timestamp
         }
-        return cleaned;
+
+        await this.table.update(id, updateData)
+        const updatedRecord = await this.findById(id)
+        
+        if (updatedRecord) {
+          updatedRecords.push(updatedRecord)
+        }
+      } catch (error) {
+        console.warn(`批量更新記錄失敗 ${id}:`, error)
       }
-      
-      return obj;
-    };
-    
-    const cleaned = cleanObject(sanitized);
-    return cleaned as Partial<T>;
-  }
-
-  /**
-   * 更新資料
-   */
-  async update(id: string | number, data: Partial<T>): Promise<number> {
-    const sanitizedData = this.sanitizeData(data);
-    const result = await this.table.update(id, sanitizedData as UpdateSpec<T>);
-    
-    // 觸發更新事件（如果這是專案更新）
-    if (this.table.name === 'projects') {
-      eventBus.emit(EVENTS.PROJECT_UPDATED, { id, data: sanitizedData });
     }
-    
-    return result;
+
+    return updatedRecords
   }
 
   /**
-   * 批次更新資料
+   * 批量刪除記錄
    */
-  async updateMany(updates: Array<{ id: string | number; data: UpdateSpec<T> }>): Promise<void> {
-    const sanitizedUpdates = updates.map(({ id, data }) => ({
-      key: id,
-      changes: this.sanitizeData(data as Partial<T>) as UpdateSpec<T>
-    }));
-    await this.table.bulkUpdate(sanitizedUpdates);
+  async deleteMany(ids: string[]): Promise<void> {
+    await this.table.bulkDelete(ids)
   }
 
   /**
-   * 刪除資料
+   * 計算符合條件的記錄數量
    */
-  async delete(id: string | number): Promise<void> {
-    await this.table.delete(id);
+  async count(criteria?: Partial<T>): Promise<number> {
+    if (!criteria) {
+      return await this.table.count()
+    }
+
+    const results = await this.findBy(criteria)
+    return results.length
   }
 
   /**
-   * 批次刪除資料
+   * 檢查記錄是否存在
    */
-  async deleteMany(ids: Array<string | number>): Promise<void> {
-    await this.table.bulkDelete(ids);
-  }
+  async exists(id: string): Promise<boolean> {
+    // 驗證 ID 是否有效
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      return false
+    }
 
-  /**
-   * 根據條件刪除資料
-   */
-  async deleteBy(query: Partial<T>): Promise<number> {
-    return await this.table.where(query).delete();
-  }
-
-  /**
-   * 計算資料總數
-   */
-  async count(): Promise<number> {
-    return await this.table.count();
-  }
-
-  /**
-   * 根據條件計算資料總數
-   */
-  async countBy(query: Partial<T>): Promise<number> {
-    return await this.table.where(query).count();
-  }
-
-  /**
-   * 檢查資料是否存在
-   */
-  async exists(id: string | number): Promise<boolean> {
-    const item = await this.table.get(id);
-    return item !== undefined;
-  }
-
-  /**
-   * 根據條件檢查資料是否存在
-   */
-  async existsBy(query: Partial<T>): Promise<boolean> {
-    const count = await this.table.where(query).count();
-    return count > 0;
+    const record = await this.findById(id)
+    return record !== null
   }
 
   /**
    * 分頁查詢
    */
-  async findPaginated(params: PaginationParams): Promise<PaginatedResult<T>> {
-    const { page, pageSize } = params;
-    const offset = (page - 1) * pageSize;
+  async paginate(
+    page: number,
+    pageSize: number,
+    criteria?: Partial<T>
+  ): Promise<{
+    data: T[]
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+  }> {
+    let query = this.table.toCollection()
+    
+    // 應用篩選條件
+    if (criteria) {
+      for (const [key, value] of Object.entries(criteria)) {
+        if (value !== undefined) {
+          query = query.filter(item => (item as any)[key] === value)
+        }
+      }
+    }
 
-    const [items, total] = await Promise.all([
-      this.table.offset(offset).limit(pageSize).toArray(),
-      this.table.count(),
-    ]);
+    const total = await query.count()
+    const offset = (page - 1) * pageSize
+    const data = await query.offset(offset).limit(pageSize).toArray()
 
     return {
-      items,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
-    };
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize)
+    }
   }
 
   /**
-   * 清空資料表
+   * 清理資料，移除不可序列化的屬性
    */
-  async clear(): Promise<void> {
-    await this.table.clear();
+  protected sanitizeData<TData>(data: TData): TData {
+    if (data === null || data === undefined) return data
+
+    // 處理原始類型
+    if (typeof data !== 'object') return data
+
+    // 處理 Date 對象 - 轉換為 ISO 字串
+    if (data instanceof Date) {
+      return data.toISOString() as unknown as TData
+    }
+
+    // 處理陣列
+    if (Array.isArray(data)) {
+      return data.map(item => this.sanitizeData(item)) as unknown as TData
+    }
+
+    // 處理物件
+    const sanitized = {} as any
+
+    // 移除 Vue 的響應式屬性和其他不可序列化的屬性
+    const propsToRemove = [
+      '__v_isRef', '__v_isReactive', '__v_isReadonly', '__v_isShallow',
+      '__v_skip', '__v_raw', '__ob__', '_isVue', '$parent', '$root', '$children',
+      '__proto__', 'constructor'
+    ]
+
+    for (const [key, value] of Object.entries(data)) {
+      // 跳過不可序列化的屬性
+      if (propsToRemove.includes(key)) continue
+      
+      // 跳過函數
+      if (typeof value === 'function') continue
+      
+      // 跳過 undefined 值
+      if (value === undefined) continue
+
+      // 遞歸處理巢狀物件
+      sanitized[key] = this.sanitizeData(value)
+    }
+
+    return sanitized as TData
+  }
+
+  /**
+   * 生成唯一 ID
+   */
+  protected generateId(): string {
+    // 簡單的 ID 生成器，實際專案中建議使用 nanoid 或 uuid
+    return Date.now().toString(36) + Math.random().toString(36).substr(2)
+  }
+
+  /**
+   * 取得表格名稱（供子類覆寫）
+   */
+  protected getTableName(): string {
+    return this.table.name
   }
 }

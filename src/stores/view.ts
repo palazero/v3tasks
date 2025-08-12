@@ -268,19 +268,36 @@ export const useViewStore = defineStore('view', () => {
 
   // 更新視圖
   async function updateView(viewId: string, updates: Partial<View>): Promise<boolean> {
+    if (!viewId || typeof viewId !== 'string') {
+      console.error('updateView: Invalid viewId', viewId)
+      error.value = '無效的視圖 ID'
+      return false
+    }
+
     isLoading.value = true
     error.value = null
 
     try {
-      await viewRepo.update(viewId, updates)
+      console.log('ViewStore 更新視圖:', { viewId, updates })
+      
+      // 確保 updatedAt 是字串格式
+      const sanitizedUpdates = {
+        ...updates,
+        updatedAt: typeof updates.updatedAt === 'object' && updates.updatedAt instanceof Date 
+          ? updates.updatedAt.toISOString() 
+          : updates.updatedAt
+      }
+      
+      await viewRepo.update(viewId, sanitizedUpdates)
       
       // 更新本地狀態
       const view = views.value.find(v => v.viewId === viewId)
       if (view) {
-        Object.assign(view, updates)
-        view.updatedAt = new Date()
+        Object.assign(view, sanitizedUpdates)
+        view.updatedAt = new Date().toISOString()
       }
       
+      console.log('ViewStore 視圖更新成功')
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : '更新視圖失敗'

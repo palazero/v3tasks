@@ -766,7 +766,7 @@ import { getProjectRepository } from '@/services/repositories'
 import CustomFieldRenderer from '@/components/business/shared/CustomFieldRenderer.vue'
 import ViewColumnManager from '@/components/business/view/ViewColumnManager.vue'
 import { getFieldsForView, type FieldDefinition } from '@/config/columnDefinitions'
-import { getColumnConfigService } from '@/services/columnConfigService'
+import { getColumnConfigService } from '@/services/application/column-config.service'
 
 // Props
 const props = defineProps<{

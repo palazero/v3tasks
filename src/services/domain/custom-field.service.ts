@@ -3,7 +3,7 @@
  * 處理自訂欄位的 CRUD 操作和驗證
  */
 
-import { getDatabase } from './db/database';
+import { getDatabase } from '../infrastructure/database/db/database';
 import type { CustomField, FieldType } from '@/types';
 import { nanoid } from 'nanoid';
 

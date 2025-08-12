@@ -220,8 +220,8 @@ import TaskStatusChart from '@/components/ui/charts/TaskStatusChart.vue'
 import TaskPriorityChart from '@/components/ui/charts/TaskPriorityChart.vue'
 import TaskTimelineChart from '@/components/ui/charts/TaskTimelineChart.vue'
 import ProjectCompletionChart from '@/components/ui/charts/ProjectCompletionChart.vue'
-import { statisticsService } from '@/services/statisticsService'
-import type { TaskStatistics, ProjectStatistics, TimelineData } from '@/services/statisticsService'
+import { statisticsService } from '@/services/domain/statistics.service'
+import type { TaskStatistics, ProjectStatistics, TimelineData } from '@/services/domain/statistics.service'
 
 interface Props {
   projectId?: string
