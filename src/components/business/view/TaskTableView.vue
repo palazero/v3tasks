@@ -139,8 +139,13 @@
               separator="cell"
               :pagination="{ rowsPerPage: 0 }"
               hide-pagination
-              :table-style="{ minHeight: '300px' }"
-              class="project-task-table"
+              :table-style="{
+                minHeight: '300px',
+                '--q-table-row-height': '30px',
+                '--q-table-cell-height': '30px'
+              }"
+              table-class="project-task-table compact-table compact-rows"
+              dense
             >
         <!-- 任務標題欄（支援樹狀結構） -->
         <template v-slot:body-cell-title="props">
@@ -453,7 +458,12 @@
         separator="cell"
         :pagination="{ rowsPerPage: 0 }"
         hide-pagination
-        class="task-table full-height"
+        :table-style="{
+          '--q-table-row-height': '30px',
+          '--q-table-cell-height': '30px'
+        }"
+        table-class="task-table full-height compact-table compact-rows"
+        dense
       >
         <!-- 任務標題欄（支援樹狀結構） -->
         <template v-slot:body-cell-title="props">
@@ -903,7 +913,7 @@ async function loadProjectData(projectId: string): Promise<void> {
   if (projectsCache.value.has(projectId) || loadingProjects.has(projectId)) {
     return
   }
-  
+
   loadingProjects.add(projectId)
   try {
     const project = await projectRepo.findById(projectId)
@@ -948,7 +958,7 @@ function getProjectIconColor(projectId: string): string {
 function initializeFieldDefinitions(): void {
   // 取得所有可用的欄位定義（系統 + 自訂）
   allFieldDefinitions.value = getFieldsForView('table', projectCustomFields.value || [])
-  
+
   // 初始化欄位配置
   if (props.configuration?.visibleColumns) {
     // 使用現有配置
@@ -963,7 +973,7 @@ function initializeFieldDefinitions(): void {
       projectCustomFields.value || []
     )
   }
-  
+
   // 加入操作欄位
   if (!currentColumnConfig.value.find(col => col.key === 'actions')) {
     currentColumnConfig.value.push({
@@ -982,7 +992,7 @@ const tableColumns = computed(() => {
   const visibleColumns = currentColumnConfig.value
     .filter(col => col.visible)
     .sort((a, b) => (a.order || 0) - (b.order || 0))
-  
+
   return visibleColumns.map(col => {
     // 系統欄位的特殊處理
     if (col.key === 'title') {
@@ -1152,7 +1162,7 @@ const tableColumns = computed(() => {
         style: col.width ? `width: ${col.width}px` : 'width: 150px'
       }
     }
-    
+
     // 預設返回 - 應該不會到這裡，但保留作為安全網
     return {
       name: col.key,
@@ -1225,9 +1235,9 @@ const projectStatsCache = computed(() => {
   if (props.projectId !== 'all' || props.view.config.groupBy !== 'projectId') {
     return {}
   }
-  
+
   const cache: Record<string, ReturnType<typeof getProjectStats>> = {}
-  
+
   // 直接從 props.tasks 計算，避免依賴 groupedTasks
   const grouped: Record<string, Task[]> = {}
   props.tasks.forEach(task => {
@@ -1237,7 +1247,7 @@ const projectStatsCache = computed(() => {
     }
     grouped[projectId].push(task)
   })
-  
+
   Object.entries(grouped).forEach(([projectId, tasks]) => {
     cache[projectId] = getProjectStats(tasks)
   })
@@ -1258,7 +1268,7 @@ const sortedGroupedTasks = computed(() => {
       const nameB = projectB?.name || projectIdB
       return nameA.localeCompare(nameB)
     }
-    
+
     // 計算統計資訊（不依賴 computed 屬性）
     const statsA = getProjectStats(tasksA)
     const statsB = getProjectStats(tasksB)
@@ -1652,7 +1662,7 @@ function deleteTask(task: Task): void {
 // 處理欄位配置更新
 function handleColumnConfigUpdate(columns: ColumnConfig[]): void {
   currentColumnConfig.value = columns
-  
+
   // 發出配置更新事件
   emit('configuration-update', {
     ...props.configuration,
@@ -1710,6 +1720,130 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+// 緊湊型表格全局樣式 - 強制 30px 行高
+.compact-table {
+  // 最高優先級覆蓋：針對 Quasar dense 模式的 40px 預設高度
+  :deep(.q-field--auto-height.q-field--dense .q-field__control),
+  :deep(.q-field--auto-height.q-field--dense .q-field__native),
+  :deep(.q-field--dense .q-field__control),
+  :deep(.q-field--dense .q-field__native),
+  :deep(.q-field--dense .q-field__marginal) {
+    min-height: 30px !important;
+    height: 30px !important;
+    max-height: 30px !important;
+    box-sizing: border-box !important;
+  }
+  
+  // 全局覆蓋所有 Quasar 組件高度
+  :deep(.q-field),
+  :deep(.q-select),
+  :deep(.q-input),
+  :deep(.q-btn:not(.status-btn)) {
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+  }
+
+  :deep(.q-field__control),
+  :deep(.q-select__control),
+  :deep(.q-input__control) {
+    min-height: 30px !important;
+    height: 30px !important;
+    max-height: 30px !important;
+    padding: 0 8px !important;
+  }
+
+  :deep(.q-field__native),
+  :deep(.q-select__native),
+  :deep(.q-input__native) {
+    height: 30px !important;
+    line-height: 30px !important;
+    padding: 0 !important;
+  }
+
+  :deep(.q-field__control-container) {
+    height: 30px !important;
+    min-height: 30px !important;
+  }
+
+  :deep(.q-slider) {
+    height: 30px !important;
+
+    .q-slider__track-container {
+      height: 30px !important;
+    }
+
+    .q-slider__track {
+      height: 4px !important;
+      top: 13px !important;
+    }
+
+    .q-slider__thumb {
+      top: 9px !important;
+    }
+  }
+
+  // 狀態按鈕特殊處理
+  :deep(.status-btn) {
+    height: 24px !important;
+    width: 24px !important;
+    min-height: 24px !important;
+    min-width: 24px !important;
+  }
+
+  // 操作按鈕
+  :deep(.actions-container .q-btn) {
+    height: 20px !important;
+    min-height: 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    padding: 0 !important;
+  }
+}
+
+// 專門針對緊湊行高的樣式 - 使用最高優先級覆蓋 Quasar 預設
+.compact-rows {
+  // 使用 CSS 變數設定行高
+  --q-table-row-height: 30px;
+  --q-table-cell-height: 30px;
+
+  // 直接針對 Quasar 表格元素設定高度
+  :deep(.q-table) {
+    thead tr {
+      height: 30px !important;
+    }
+
+    tbody tr {
+      height: 30px !important;
+      max-height: 30px !important;
+    }
+
+    thead th,
+    tbody td {
+      height: 30px !important;
+      max-height: 30px !important;
+      padding: 0px 8px !important;
+      line-height: 30px !important;
+      vertical-align: middle !important;
+    }
+  }
+
+  // 針對 Quasar dense 模式的額外優化
+  &.q-table--dense {
+    :deep(.q-table) {
+      tbody tr {
+        height: 30px !important;
+      }
+
+      tbody td {
+        height: 30px !important;
+        padding: 0px 6px !important;
+        line-height: 30px !important;
+      }
+    }
+  }
+}
+
 .task-table-view {
   background-color: $grey-1;
 
@@ -1778,7 +1912,7 @@ onMounted(() => {
 
         tbody {
           tr {
-            height: 30px;
+            height: 30px !important;
             border-bottom: 1px solid $grey-3;
 
             &:hover {
@@ -1791,14 +1925,62 @@ onMounted(() => {
           }
 
           td {
-            padding: 0 6px;
-            height: 30px;
-            line-height: 30px;
+            padding: 0 6px !important;
+            height: 30px !important;
+            line-height: 30px !important;
             vertical-align: middle;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 0;
+
+            // 強制所有 Quasar 組件符合 30px 行高
+            .q-field,
+            .q-select,
+            .q-input,
+            .q-btn,
+            .q-slider {
+              height: 30px !important;
+              min-height: 30px !important;
+              max-height: 30px !important;
+            }
+
+            .q-field__control,
+            .q-select__control,
+            .q-input__control {
+              min-height: 30px !important;
+              height: 30px !important;
+              max-height: 30px !important;
+              padding: 0 8px !important;
+            }
+
+            .q-field__native,
+            .q-select__native,
+            .q-input__native {
+              height: 30px !important;
+              line-height: 30px !important;
+              padding: 0 !important;
+            }
+
+            .q-field__control-container {
+              height: 30px !important;
+              min-height: 30px !important;
+            }
+
+            .q-btn {
+              height: 20px !important;
+              min-height: 20px !important;
+              width: 20px !important;
+              min-width: 20px !important;
+              padding: 0 !important;
+
+              &.status-btn {
+                height: 24px !important;
+                width: 24px !important;
+                min-height: 24px !important;
+                min-width: 24px !important;
+              }
+            }
           }
         }
 
@@ -1835,7 +2017,7 @@ onMounted(() => {
 
       tbody {
         tr {
-          height: 30px;
+          height: 30px !important;
           border-bottom: 1px solid $grey-3;
 
           &:hover {
@@ -1849,13 +2031,67 @@ onMounted(() => {
 
         td {
           padding: 0 6px;
-          height: 30px;
-          line-height: 30px;
+          height: 30px !important;
+          line-height: 30px !important;
           vertical-align: middle;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           max-width: 0;
+
+          // 強制所有 Quasar 組件符合 30px 行高
+          .q-field,
+          .q-select,
+          .q-input,
+          .q-btn,
+          .q-slider {
+            height: 30px !important;
+            min-height: 30px !important;
+            max-height: 30px !important;
+          }
+
+          .q-field__control,
+          .q-select__control,
+          .q-input__control {
+            min-height: 30px !important;
+            height: 30px !important;
+            max-height: 30px !important;
+            padding: 0 8px !important;
+          }
+
+          .q-field__native,
+          .q-select__native,
+          .q-input__native {
+            height: 30px !important;
+            line-height: 30px !important;
+            padding: 0 !important;
+          }
+
+          .q-field__marginal {
+            height: 30px !important;
+            line-height: 30px !important;
+            padding: 0 !important;
+          }
+
+          .q-field__control-container {
+            height: 30px !important;
+            min-height: 30px !important;
+          }
+
+          .q-btn {
+            height: 20px !important;
+            min-height: 20px !important;
+            width: 20px !important;
+            min-width: 20px !important;
+            padding: 0 !important;
+
+            &.status-btn {
+              height: 24px !important;
+              width: 24px !important;
+              min-height: 24px !important;
+              min-width: 24px !important;
+            }
+          }
         }
       }
 
@@ -1904,9 +2140,23 @@ onMounted(() => {
           .task-title-input {
             flex: 1;
             min-width: 0;
+            height: 30px !important;
+
             .q-field__control {
-              min-height: 24px;
-              height: 24px;
+              min-height: 30px !important;
+              height: 30px !important;
+              padding: 0 8px !important;
+            }
+
+            .q-field__native {
+              height: 30px !important;
+              line-height: 30px !important;
+              padding: 0 !important;
+            }
+
+            .q-field__control-container {
+              height: 30px !important;
+              min-height: 30px !important;
             }
           }
         }
@@ -1917,43 +2167,78 @@ onMounted(() => {
       .priority-select {
         min-width: 100px;
         white-space: nowrap;
+        height: 30px !important;
 
         .q-field__control {
-          min-height: 24px;
-          height: 24px;
+          min-height: 30px !important;
+          height: 30px !important;
+          padding: 0 8px !important;
         }
 
         .q-field__native {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          height: 30px !important;
+          line-height: 30px !important;
+          padding: 0 !important;
         }
 
         .priority-text {
           white-space: nowrap;
           flex-shrink: 0;
         }
+
+        .q-field__control-container {
+          height: 30px !important;
+          min-height: 30px !important;
+        }
       }
 
       .deadline-input {
         min-width: 160px;
         white-space: nowrap;
+        height: 30px !important;
 
         .q-field__control {
-          min-height: 24px;
-          height: 24px;
+          min-height: 30px !important;
+          height: 30px !important;
+          padding: 0 8px !important;
         }
 
         .q-field__native {
           white-space: nowrap;
+          height: 30px !important;
+          line-height: 30px !important;
+          padding: 0 !important;
+        }
+
+        .q-field__control-container {
+          height: 30px !important;
+          min-height: 30px !important;
         }
       }
 
       .progress-cell {
         padding: 0 16px;
+        height: 30px !important;
 
         .progress-slider {
           width: 120px;
+          height: 30px !important;
+
+          .q-slider__track-container {
+            height: 30px !important;
+          }
+
+          .q-slider__track {
+            height: 4px !important;
+            top: 13px !important;
+          }
+
+          .q-slider__thumb {
+            top: 9px !important;
+          }
         }
       }
 
@@ -1970,6 +2255,64 @@ onMounted(() => {
             flex-shrink: 0;
           }
         }
+      }
+    }
+  }
+}
+</style>
+
+<!-- Global CSS fallback for maximum table row height override -->
+<style lang="scss">
+// 全局 CSS 覆蓋 - 確保所有 TaskTableView 表格行高為 30px
+.task-table-view {
+  // 最高優先級：覆蓋 Quasar dense 模式的 40px 預設高度
+  .q-field--auto-height.q-field--dense .q-field__control,
+  .q-field--auto-height.q-field--dense .q-field__native,
+  .q-field--dense .q-field__control,
+  .q-field--dense .q-field__native,
+  .q-field--dense .q-field__marginal {
+    min-height: 30px !important;
+    height: 30px !important;
+    max-height: 30px !important;
+    box-sizing: border-box !important;
+  }
+  
+  // 覆蓋所有 Quasar 表單組件
+  .q-field .q-field__control,
+  .q-field .q-field__native,
+  .q-select .q-field__control,
+  .q-select .q-field__native,
+  .q-input .q-field__control,
+  .q-input .q-field__native {
+    min-height: 30px !important;
+    height: 30px !important;
+    max-height: 30px !important;
+  }
+  
+  .q-table {
+    thead tr, tbody tr {
+      height: 30px !important;
+      max-height: 30px !important;
+    }
+
+    thead th, tbody td {
+      height: 30px !important;
+      max-height: 30px !important;
+      padding: 0px 8px !important;
+      line-height: 30px !important;
+      vertical-align: middle !important;
+    }
+
+    // Quasar dense 模式覆蓋
+    &.q-table--dense {
+      thead tr, tbody tr {
+        height: 30px !important;
+      }
+
+      thead th, tbody td {
+        height: 30px !important;
+        padding: 0px 6px !important;
+        line-height: 30px !important;
       }
     }
   }

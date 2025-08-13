@@ -2,15 +2,15 @@
   <q-dialog v-model="dialogVisible" persistent @show="initializeColumns">
     <q-card style="min-width: 700px; max-width: 900px">
       <!-- 標題列 -->
-      <q-card-section class="row items-center q-pb-none bg-primary text-white">
-        <q-icon name="view_column" size="sm" class="q-mr-sm" />
-        <div class="text-h6">欄位管理</div>
+      <q-card-section class="row items-center q-pb-none bg-primary text-white compact-header">
+        <q-icon name="view_column" size="xs" class="q-mr-xs" />
+        <div class="text-subtitle1">欄位管理</div>
         <q-space />
-        <q-btn icon="close" flat round dense v-close-popup />
+        <q-btn icon="close" flat round dense size="sm" v-close-popup />
       </q-card-section>
 
       <!-- 說明文字 -->
-      <q-card-section class="q-pt-sm q-pb-sm bg-grey-1">
+      <q-card-section class="compact-info-section bg-grey-1">
         <div class="row items-center justify-between">
           <div class="text-caption text-grey-7">
             <q-icon name="info" size="xs" class="q-mr-xs" />
@@ -24,8 +24,8 @@
       </q-card-section>
 
       <!-- 快速操作 -->
-      <q-card-section class="q-pt-sm q-pb-sm">
-        <div class="row q-gutter-sm">
+      <q-card-section class="compact-action-section">
+        <div class="row q-gutter-xs">
           <q-btn
             flat
             dense
@@ -34,6 +34,7 @@
             size="sm"
             color="primary"
             @click="showAllColumns"
+            class="compact-btn"
           />
           <q-btn
             flat
@@ -42,6 +43,7 @@
             label="僅顯示必要"
             size="sm"
             @click="showRequiredOnly"
+            class="compact-btn"
           />
           <q-separator vertical />
           <q-btn
@@ -51,6 +53,7 @@
             label="重置順序"
             size="sm"
             @click="resetColumnOrder"
+            class="compact-btn"
           />
           <q-btn
             flat
@@ -59,6 +62,7 @@
             label="恢復預設"
             size="sm"
             @click="restoreDefaults"
+            class="compact-btn"
           />
         </div>
       </q-card-section>
@@ -66,161 +70,92 @@
       <q-separator />
 
       <!-- 欄位列表 -->
-      <q-card-section class="column-list-container q-pa-sm">
-        <!-- 系統欄位組 -->
-        <q-expansion-item
-          v-model="expandAll"
-          icon="settings"
-          label="系統欄位"
-          header-class="text-subtitle1 text-weight-medium"
-          class="q-mb-sm"
+      <q-card-section class="column-list-container">
+        <VueDraggable
+          v-model="allColumns"
+          :animation="150"
+          handle=".drag-handle"
+          ghost-class="column-ghost"
+          chosen-class="column-chosen"
+          drag-class="column-drag"
+          @start="onDragStart"
+          @end="onDragEnd"
         >
-          <transition-group name="drag-list" tag="div" class="column-list q-pa-sm">
-            <div
-              v-for="(column, index) in systemColumns"
-              :key="column.key"
-              class="column-item"
-              :class="{
-                'dragging': draggedIndex === index && draggedGroup === 'system',
-                'drag-over': dragOverIndex === index && dragOverGroup === 'system',
-                'disabled': column.required
-              }"
-              :draggable="!column.required"
-              @dragstart="handleDragStart(index, 'system', $event)"
-              @dragend="handleDragEnd"
-              @dragover="handleDragOver(index, 'system', $event)"
-              @drop="handleDrop(index, 'system', $event)"
-            >
-              <!-- 拖拽手柄 -->
-              <div class="drag-handle" :class="{ 'invisible': column.required }">
-                <q-icon name="drag_indicator" size="sm" />
+          <div
+            v-for="(column, index) in allColumns"
+            :key="column.key"
+            class="column-item-compact"
+            :class="{
+              'column-required': column.required,
+              'column-system': column.fieldType === 'system',
+              'column-custom': column.fieldType === 'custom'
+            }"
+          >
+            <!-- 拖拽手柄 -->
+            <div class="drag-handle" :class="{ 'invisible': column.required }">
+              <q-icon name="drag_indicator" size="xs" />
+            </div>
+
+            <!-- 欄位資訊 -->
+            <div class="column-info">
+              <div class="column-label">
+                {{ column.label }}
+                <q-badge v-if="column.required" color="orange" class="compact-badge">
+                  必要
+                </q-badge>
+                <q-badge 
+                  v-if="column.fieldType === 'system'" 
+                  color="blue-5" 
+                  class="compact-badge"
+                >
+                  系統
+                </q-badge>
+                <q-badge 
+                  v-else
+                  color="purple" 
+                  class="compact-badge"
+                >
+                  自訂
+                </q-badge>
               </div>
-
-              <!-- 欄位資訊 -->
-              <div class="column-info">
-                <div class="column-label">
-                  {{ column.label }}
-                  <q-badge v-if="column.required" color="orange" class="q-ml-xs">
-                    必要
-                  </q-badge>
-                </div>
-                <div class="column-key text-caption text-grey-6">
-                  {{ column.description || column.key }}
-                </div>
-              </div>
-
-              <!-- 欄位設定 -->
-              <div class="column-settings">
-                <!-- 寬度調整 -->
-                <q-input
-                  v-if="supportsWidth && !['actions', 'checkbox'].includes(column.key)"
-                  :model-value="column.width"
-                  @update:model-value="updateColumnWidth('system', index, $event)"
-                  type="number"
-                  dense
-                  outlined
-                  suffix="px"
-                  class="width-input"
-                  :min="column.minWidth || 10"
-                  :max="column.maxWidth || 500"
-                  step="10"
-                />
-                <div v-else-if="supportsWidth" class="width-placeholder"></div>
-
-                <!-- 顯示切換 -->
-                <q-toggle
-                  :model-value="column.visible"
-                  @update:model-value="toggleColumnVisibility('system', index, $event)"
-                  :disable="column.required"
-                  color="primary"
-                  size="sm"
-                />
+              <div class="column-description">
+                {{ column.description || column.key }}
               </div>
             </div>
-          </transition-group>
-        </q-expansion-item>
 
-        <!-- 自訂欄位組 -->
-        <q-expansion-item
-          v-if="customColumns.length > 0"
-          v-model="expandAll"
-          icon="dashboard_customize"
-          :label="`自訂欄位 (${customColumns.length})`"
-          header-class="text-subtitle1 text-weight-medium"
-        >
-          <transition-group name="drag-list" tag="div" class="column-list q-pa-sm">
-            <div
-              v-for="(column, index) in customColumns"
-              :key="column.key"
-              class="column-item"
-              :class="{
-                'dragging': draggedIndex === index && draggedGroup === 'custom',
-                'drag-over': dragOverIndex === index && dragOverGroup === 'custom',
-                'disabled': column.required
-              }"
-              :draggable="!column.required"
-              @dragstart="handleDragStart(index, 'custom', $event)"
-              @dragend="handleDragEnd"
-              @dragover="handleDragOver(index, 'custom', $event)"
-              @drop="handleDrop(index, 'custom', $event)"
-            >
-              <!-- 拖拽手柄 -->
-              <div class="drag-handle" :class="{ 'invisible': column.required }">
-                <q-icon name="drag_indicator" size="sm" />
-              </div>
+            <!-- 欄位設定 -->
+            <div class="column-settings">
+              <!-- 寬度調整 -->
+              <q-input
+                v-if="supportsWidth && !['actions', 'checkbox'].includes(column.key)"
+                v-model.number="column.width"
+                type="number"
+                dense
+                outlined
+                suffix="px"
+                class="width-input-compact"
+                :min="column.minWidth || 10"
+                :max="column.maxWidth || 500"
+                step="10"
+              />
+              <div v-else-if="supportsWidth" class="width-placeholder"></div>
 
-              <!-- 欄位資訊 -->
-              <div class="column-info">
-                <div class="column-label">
-                  {{ column.label }}
-                  <q-badge v-if="column.required" color="orange" class="q-ml-xs">
-                    必要
-                  </q-badge>
-                  <q-badge color="purple" class="q-ml-xs">
-                    自訂
-                  </q-badge>
-                </div>
-                <div class="column-key text-caption text-grey-6">
-                  {{ column.description || `類型: ${column.renderType}` }}
-                </div>
-              </div>
-
-              <!-- 欄位設定 -->
-              <div class="column-settings">
-                <!-- 寬度調整 -->
-                <q-input
-                  v-if="supportsWidth"
-                  :model-value="column.width"
-                  @update:model-value="updateColumnWidth('custom', index, $event)"
-                  type="number"
-                  dense
-                  outlined
-                  suffix="px"
-                  class="width-input"
-                  :min="column.minWidth || 10"
-                  :max="column.maxWidth || 500"
-                  step="10"
-                />
-                <div v-else-if="supportsWidth" class="width-placeholder"></div>
-
-                <!-- 顯示切換 -->
-                <q-toggle
-                  :model-value="column.visible"
-                  @update:model-value="toggleColumnVisibility('custom', index, $event)"
-                  :disable="column.required"
-                  color="primary"
-                  size="sm"
-                />
-              </div>
+              <!-- 顯示切換 -->
+              <q-toggle
+                v-model="column.visible"
+                :disable="column.required"
+                color="primary"
+                size="xs"
+              />
             </div>
-          </transition-group>
-        </q-expansion-item>
+          </div>
+        </VueDraggable>
 
         <!-- 空狀態 -->
-        <div v-if="!systemColumns.length && !customColumns.length"
-              class="empty-state text-center q-pa-lg">
-          <q-icon name="view_column" size="48px" color="grey-5" />
-          <div class="text-subtitle2 text-grey-6 q-mt-md">沒有可用的欄位</div>
+        <div v-if="!allColumns.length"
+              class="empty-state text-center">
+          <q-icon name="view_column" size="32px" color="grey-5" />
+          <div class="text-caption text-grey-6 q-mt-sm">沒有可用的欄位</div>
         </div>
       </q-card-section>
 
@@ -240,6 +175,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { VueDraggable } from 'vue-draggable-plus'
 import type { ColumnConfig } from '@/types'
 import type { FieldDefinition } from '@/config/columnDefinitions'
 
@@ -271,35 +207,27 @@ const supportsWidth = computed(() =>
   props.viewType === 'table' || props.viewType === 'gantt'
 )
 
+// 合併的欄位類型
+interface MergedColumn extends ColumnConfig, FieldDefinition {
+  fieldType: 'system' | 'custom'
+}
+
 // 本地欄位配置
-const systemColumns = ref<(ColumnConfig & FieldDefinition)[]>([])
-const customColumns = ref<(ColumnConfig & FieldDefinition)[]>([])
+const allColumns = ref<MergedColumn[]>([])
 const originalColumns = ref<ColumnConfig[]>([])
-
-// 拖拽狀態
-const draggedIndex = ref<number | null>(null)
-const draggedGroup = ref<'system' | 'custom' | null>(null)
-const dragOverIndex = ref<number | null>(null)
-const dragOverGroup = ref<'system' | 'custom' | null>(null)
-
-// 展開/收合狀態
-const expandAll = ref(true)
 
 // 統計資訊
 const visibleCount = computed(() => {
-  return [...systemColumns.value, ...customColumns.value]
-    .filter(col => col.visible).length
+  return allColumns.value.filter(col => col.visible).length
 })
 
 const totalCount = computed(() => {
-  return systemColumns.value.length + customColumns.value.length
+  return allColumns.value.length
 })
 
 // 初始化欄位
 function initializeColumns(): void {
-  // 分離系統欄位和自訂欄位
-  const systemFields: (ColumnConfig & FieldDefinition)[] = []
-  const customFields: (ColumnConfig & FieldDefinition)[] = []
+  const mergedFields: MergedColumn[] = []
 
   // 建立欄位定義映射
   const fieldDefMap = new Map<string, FieldDefinition>()
@@ -311,18 +239,13 @@ function initializeColumns(): void {
   props.columns.forEach(col => {
     const fieldDef = fieldDefMap.get(col.key)
     if (fieldDef) {
-      const mergedColumn = {
+      const mergedColumn: MergedColumn = {
         ...fieldDef,
         ...col,
-        width: col.width || fieldDef.defaultWidth
+        width: col.width || fieldDef.defaultWidth,
+        fieldType: fieldDef.type === 'system' ? 'system' : 'custom'
       }
-
-      if (fieldDef.type === 'system') {
-        systemFields.push(mergedColumn)
-      } else {
-        customFields.push(mergedColumn)
-      }
-
+      mergedFields.push(mergedColumn)
       // 從映射中移除已處理的欄位
       fieldDefMap.delete(col.key)
     }
@@ -330,25 +253,20 @@ function initializeColumns(): void {
 
   // 添加未配置的欄位（新欄位）
   fieldDefMap.forEach(fieldDef => {
-    const newColumn = {
+    const newColumn: MergedColumn = {
       ...fieldDef,
       key: fieldDef.key,
       label: fieldDef.label,
       visible: fieldDef.defaultVisible,
       width: fieldDef.defaultWidth,
-      order: fieldDef.type === 'system' ? systemFields.length : customFields.length
+      order: mergedFields.length,
+      fieldType: fieldDef.type === 'system' ? 'system' : 'custom'
     }
-
-    if (fieldDef.type === 'system') {
-      systemFields.push(newColumn)
-    } else {
-      customFields.push(newColumn)
-    }
+    mergedFields.push(newColumn)
   })
 
-  // 排序
-  systemColumns.value = systemFields.sort((a, b) => (a.order || 0) - (b.order || 0))
-  customColumns.value = customFields.sort((a, b) => (a.order || 0) - (b.order || 0))
+  // 按 order 排序
+  allColumns.value = mergedFields.sort((a, b) => (a.order || 0) - (b.order || 0))
 
   // 保存原始配置用於比較
   originalColumns.value = JSON.parse(JSON.stringify(props.columns))
@@ -362,126 +280,39 @@ const hasChanges = computed(() => {
 
 // 取得所有欄位配置
 function getAllColumns(): ColumnConfig[] {
-  const allColumns: ColumnConfig[] = []
-
-  // 處理系統欄位
-  systemColumns.value.forEach((col, index) => {
-    allColumns.push({
-      key: col.key,
-      label: col.label,
-      visible: col.visible,
-      width: col.width,
-      order: index,
-      required: col.required
-    })
-  })
-
-  // 處理自訂欄位（順序接續系統欄位）
-  customColumns.value.forEach((col, index) => {
-    allColumns.push({
-      key: col.key,
-      label: col.label,
-      visible: col.visible,
-      width: col.width,
-      order: systemColumns.value.length + index,
-      required: col.required
-    })
-  })
-
-  return allColumns
+  return allColumns.value.map((col, index) => ({
+    key: col.key,
+    label: col.label,
+    visible: col.visible,
+    width: col.width,
+    order: index,
+    required: col.required
+  }))
 }
 
-// 拖拽處理
-function handleDragStart(index: number, group: 'system' | 'custom', event: DragEvent): void {
-  const column = group === 'system' ? systemColumns.value[index] : customColumns.value[index]
-  if (column?.required) {
+// VueDraggable 事件處理
+function onDragStart(event: any): void {
+  // 檢查是否為必要欄位
+  const draggedElement = event.item
+  const isRequired = draggedElement?.classList.contains('column-required')
+  
+  if (isRequired) {
+    // 阻止必要欄位的拖拽
     event.preventDefault()
-    return
-  }
-
-  draggedIndex.value = index
-  draggedGroup.value = group
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', `${group}:${index}`)
+    return false
   }
 }
 
-function handleDragEnd(): void {
-  draggedIndex.value = null
-  draggedGroup.value = null
-  dragOverIndex.value = null
-  dragOverGroup.value = null
-}
-
-function handleDragOver(index: number, group: 'system' | 'custom', event: DragEvent): void {
-  event.preventDefault()
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move'
-  }
-  dragOverIndex.value = index
-  dragOverGroup.value = group
-}
-
-function handleDrop(targetIndex: number, targetGroup: 'system' | 'custom', event: DragEvent): void {
-  event.preventDefault()
-
-  if (draggedIndex.value === null || draggedGroup.value === null) {
-    return
-  }
-
-  // 不允許跨組拖拽
-  if (draggedGroup.value !== targetGroup) {
-    handleDragEnd()
-    return
-  }
-
-  // 同位置不處理
-  if (draggedIndex.value === targetIndex) {
-    handleDragEnd()
-    return
-  }
-
-  // 移動欄位
-  const columns = targetGroup === 'system' ? systemColumns.value : customColumns.value
-  const [movedColumn] = columns.splice(draggedIndex.value, 1)
-  columns.splice(targetIndex, 0, movedColumn)
-
-  // 更新順序
-  columns.forEach((col, index) => {
+function onDragEnd(): void {
+  // 拖拽結束後更新順序
+  allColumns.value.forEach((col, index) => {
     col.order = index
   })
-
-  // 重置拖拽狀態
-  handleDragEnd()
-}
-
-// 更新欄位寬度
-function updateColumnWidth(group: 'system' | 'custom', index: number, width: string | number | null): void {
-  const columns = group === 'system' ? systemColumns.value : customColumns.value
-  if (width && columns[index]) {
-    const numWidth = typeof width === 'string' ? parseInt(width) : width
-    const column = columns[index]
-    const minWidth = column.minWidth || 10
-    const maxWidth = column.maxWidth || 500
-
-    if (!isNaN(numWidth) && numWidth >= minWidth && numWidth <= maxWidth) {
-      columns[index].width = numWidth
-    }
-  }
-}
-
-// 切換欄位顯示
-function toggleColumnVisibility(group: 'system' | 'custom', index: number, visible: boolean): void {
-  const columns = group === 'system' ? systemColumns.value : customColumns.value
-  if (columns[index] && !columns[index].required) {
-    columns[index].visible = visible
-  }
 }
 
 // 快速操作
 function showAllColumns(): void {
-  [...systemColumns.value, ...customColumns.value].forEach(col => {
+  allColumns.value.forEach(col => {
     if (!col.required) {
       col.visible = true
     }
@@ -489,7 +320,7 @@ function showAllColumns(): void {
 }
 
 function showRequiredOnly(): void {
-  [...systemColumns.value, ...customColumns.value].forEach(col => {
+  allColumns.value.forEach(col => {
     col.visible = col.required || false
   })
 }
@@ -501,7 +332,7 @@ function resetColumnOrder(): void {
 
 function restoreDefaults(): void {
   // 恢復預設配置
-  [...systemColumns.value, ...customColumns.value].forEach(col => {
+  allColumns.value.forEach(col => {
     col.visible = col.defaultVisible || col.required || false
     col.width = col.defaultWidth
   })
@@ -529,63 +360,90 @@ watch(() => props.columns, () => {
 </script>
 
 <style scoped lang="scss">
+// 緊湊樣式設計
+.compact-header {
+  padding: 6px 12px;
+}
+
+.compact-info-section {
+  padding: 4px 12px;
+}
+
+.compact-action-section {
+  padding: 6px 12px;
+}
+
+.compact-btn {
+  height: 24px;
+  font-size: 11px;
+  padding: 0 8px;
+}
+
 .column-list-container {
-  max-height: 500px;
+  max-height: 400px;
   overflow-y: auto;
+  padding: 4px;
 }
 
-.column-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.column-item {
+// 緊湊的欄位項目
+.column-item-compact {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 2px 6px;
+  min-height: 24px;
   background: white;
   border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  cursor: move;
-  transition: all 0.2s ease;
+  border-radius: 2px;
+  margin-bottom: 2px;
+  transition: all 0.15s ease;
 
   &:hover {
-    background: #f5f5f5;
-    border-color: #c0c0c0;
+    background: #f8f8f8;
+    border-color: #bdbdbd;
   }
 
-  &.dragging {
-    opacity: 0.5;
-    transform: scale(0.95);
-  }
-
-  &.drag-over {
-    background: #e3f2fd;
-    border-color: #2196f3;
-    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-  }
-
-  &.disabled {
-    cursor: default;
-
+  &.column-required {
     .drag-handle {
       opacity: 0.3;
       cursor: not-allowed;
     }
   }
+
+  &.column-system {
+    border-left: 2px solid #2196f3;
+  }
+
+  &.column-custom {
+    border-left: 2px solid #9c27b0;
+  }
 }
 
+// VueDraggable 拖拽效果
+.column-ghost {
+  opacity: 0.4;
+  background: #f0f0f0;
+}
+
+.column-chosen {
+  background: #e3f2fd !important;
+  border-color: #2196f3 !important;
+}
+
+.column-drag {
+  opacity: 0;
+}
+
+// 拖拽手柄
 .drag-handle {
   display: flex;
   align-items: center;
-  color: #757575;
+  color: #9e9e9e;
   cursor: move;
-  min-width: 24px;
+  min-width: 16px;
 
   &:hover {
-    color: #424242;
+    color: #616161;
   }
 
   &.invisible {
@@ -593,76 +451,99 @@ watch(() => props.columns, () => {
   }
 }
 
+// 欄位資訊
 .column-info {
   flex: 1;
   min-width: 0;
 
   .column-label {
+    font-size: 12px;
     font-weight: 500;
-    line-height: 1.4;
+    line-height: 1.2;
     display: flex;
     align-items: center;
+    gap: 4px;
   }
 
-  .column-key {
-    line-height: 1.2;
-    margin-top: 2px;
+  .column-description {
+    font-size: 10px;
+    color: #757575;
+    line-height: 1.1;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
+// 緊湊徽章
+.compact-badge {
+  padding: 1px 4px;
+  font-size: 9px;
+  line-height: 1;
+  min-height: 12px;
+}
+
+// 欄位設定
 .column-settings {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 
-  .width-input {
-    width: 100px;
+  .width-input-compact {
+    width: 80px;
 
     :deep(.q-field__control) {
-      height: 32px;
+      height: 24px;
+      min-height: 24px;
     }
 
     :deep(input) {
+      font-size: 11px;
       text-align: right;
+      padding: 2px 4px;
+    }
+
+    :deep(.q-field__suffix) {
+      font-size: 10px;
+      padding: 0 2px;
     }
   }
 
   .width-placeholder {
-    width: 100px;
+    width: 80px;
   }
 }
 
+// 空狀態
 .empty-state {
-  padding: 48px 24px;
-}
-
-// 拖拽動畫
-.drag-list-move {
-  transition: transform 0.2s;
-}
-
-.drag-list-enter-active,
-.drag-list-leave-active {
-  transition: all 0.2s;
-}
-
-.drag-list-enter-from {
-  opacity: 0;
-  transform: translateX(-30px);
-}
-
-.drag-list-leave-to {
-  opacity: 0;
-  transform: translateX(30px);
+  padding: 24px;
 }
 
 // Quasar 覆寫
-:deep(.q-expansion-item__content) {
-  padding: 0;
+:deep(.q-dialog__inner) {
+  padding: 16px;
 }
 
-:deep(.q-badge) {
-  padding: 2px 6px;
-  font-size: 10px;
+:deep(.q-toggle) {
+  &.q-toggle--xs {
+    .q-toggle__inner {
+      width: 28px;
+      height: 16px;
+    }
+    
+    .q-toggle__thumb {
+      width: 12px;
+      height: 12px;
+    }
+  }
+}
+
+:deep(.q-btn) {
+  &.compact-btn {
+    .q-btn__content {
+      font-size: 11px;
+    }
+  }
 }
 </style>
