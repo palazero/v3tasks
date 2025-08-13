@@ -771,6 +771,16 @@ function handleTaskCreated(task: Task): void {
 
 // 處理任務編輯完成
 function handleTaskUpdated(task: Task): void {
+  
+  // 針對甘特圖視圖進行精準更新
+  const currentView = viewStore.currentView
+  if (currentView && currentView.type === 'gantt') {
+    const ganttView = ganttViewRefs.value.get(currentView.viewId)
+    if (ganttView && typeof ganttView.updateSingleTask === 'function') {
+      ganttView.updateSingleTask(task.taskId, task)
+    }
+  }
+  
   $q.notify({
     type: 'positive',
     message: `任務「${task.title}」已更新`,
@@ -957,18 +967,11 @@ async function handleViewConfigurationUpdate(configuration: ViewConfiguration): 
   }
 
   try {
-    console.log('ProjectView 更新視圖配置:', {
-      viewId: currentView.viewId,
-      configuration,
-      currentView
-    })
-    
     // 更新視圖配置 - 使用 ISO 字串而不是 Date 對象
     await viewStore.updateView(currentView.viewId, {
       config: configuration,
       updatedAt: new Date().toISOString()
     })
-    console.log('視圖配置更新成功')
     
     $q.notify({
       type: 'positive',

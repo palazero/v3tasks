@@ -104,7 +104,8 @@ export const SYSTEM_FIELDS: FieldDefinition[] = [
     renderType: 'date',
     defaultVisible: true,
     sortable: true,
-    description: '任務的截止日期'
+    description: '任務的截止日期',
+    fieldMapping: 'endDateTime' // 映射到 Task.endDateTime
   },
   {
     key: 'duration',

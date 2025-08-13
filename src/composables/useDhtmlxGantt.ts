@@ -44,6 +44,7 @@ export function useDhtmlxGantt(): {
   timelineScaleOptions: Array<{ label: string; value: 'day' | 'week' | 'month' }>
   convertTasksToDhtmlx: (tasks: Task[], isAllProjects?: boolean, projectsMap?: Map<string, string>, usersMap?: Map<string, string>) => DhtmlxData
   convertDhtmlxToTask: (dhtmlxTask: DhtmlxTask, originalTask: Task) => Partial<Task>
+  convertSingleTask: (task: Task, usersMap?: Map<string, string>) => DhtmlxTask
   formatDateForDhtmlx: (date: Date) => string
   parseDhtmlxDate: (dateString: string) => Date
   getGanttConfig: (columnConfig?: ColumnConfig[]) => Record<string, unknown>
@@ -182,20 +183,26 @@ export function useDhtmlxGantt(): {
     // 計算工期（天數）
     const duration = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)))
     
-    // 計算進度
+    // 計算進度：優先使用 task.progress，回退到狀態推導
     let progress = 0
-    switch (task.statusId) {
-      case 'done':
-        progress = 1
-        break
-      case 'inProgress':
-        progress = 0.5
-        break
-      case 'todo':
-        progress = 0
-        break
-      default:
-        progress = 0
+    if (typeof task.progress === 'number' && task.progress >= 0 && task.progress <= 100) {
+      // 使用實際進度值，轉換為 0-1 範圍
+      progress = task.progress / 100
+    } else {
+      // 回退到根據狀態推導進度
+      switch (task.statusId) {
+        case 'done':
+          progress = 1
+          break
+        case 'inProgress':
+          progress = 0.5
+          break
+        case 'todo':
+          progress = 0
+          break
+        default:
+          progress = 0
+      }
     }
 
     // 取得指派人名稱
@@ -230,11 +237,15 @@ export function useDhtmlxGantt(): {
       statusId = 'todo'
     }
 
+    // 將甘特圖進度 (0-1) 轉換為 Task 進度 (0-100)
+    const progressPercentage = Math.round((dhtmlxTask.progress || 0) * 100)
+
     const updates: Partial<Task> = {
       title: dhtmlxTask.text,
       startDateTime: startDate,
       endDateTime: endDate,
-      statusId: statusId
+      statusId: statusId,
+      progress: progressPercentage
     }
     
     if (dhtmlxTask.assignee) {
@@ -292,6 +303,10 @@ export function useDhtmlxGantt(): {
       // 基本設定
       autofit: false,
       fit_tasks: false,
+      
+      // 時間軸縮放設定
+      min_column_width: 40,  // 最小列寬度
+      scale_width: 40,       // 預設列寬度
       
       // 動態欄位配置
       columns,
@@ -369,6 +384,11 @@ export function useDhtmlxGantt(): {
       else if (col.key === 'startDate') {
         column.name = 'start_date'
         column.editor = { type: 'date', map_to: 'start_date' }
+      }
+      else if (col.key === 'deadline') {
+        // deadline 映射到 endDateTime，在甘特圖中計算顯示
+        column.name = 'deadline'
+        column.template = generateDeadlineTemplate
       }
       else if (col.key === 'duration') {
         column.editor = { type: 'number', map_to: 'duration' }
@@ -458,6 +478,38 @@ export function useDhtmlxGantt(): {
   }
 
   /**
+   * 生成截止日期模板函數
+   */
+  function generateDeadlineTemplate(task: DhtmlxTask): string {
+    if (!task.start_date || !task.duration) {
+      return '<span style="color: #bdc3c7;">未設定</span>'
+    }
+    
+    try {
+      // 計算截止日期（開始日期 + 工期）
+      const startDate = parseDhtmlxDate(task.start_date)
+      const endDate = new Date(startDate.getTime() + task.duration * 24 * 60 * 60 * 1000)
+      
+      // 格式化日期
+      const dateStr = endDate.toLocaleDateString('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+      
+      // 檢查是否逾期（已過截止日期且狀態不是已完成）
+      const isOverdue = endDate < new Date() && task.status !== 'done'
+      const color = isOverdue ? '#e74c3c' : '#2c3e50'
+      const fontWeight = isOverdue ? 'bold' : 'normal'
+      
+      return `<span style="color: ${color}; font-weight: ${fontWeight};">${dateStr}</span>`
+    } catch (error) {
+      console.warn('截止日期計算錯誤:', error)
+      return '<span style="color: #e74c3c;">日期錯誤</span>'
+    }
+  }
+
+  /**
    * 生成優先級模板函數
    */
   function generatePriorityTemplate(task: DhtmlxTask): string {
@@ -495,12 +547,14 @@ export function useDhtmlxGantt(): {
   /**
    * 取得時間軸配置
    */
-  function getTimelineScales(scale: 'day' | 'week' | 'month'): Array<Record<string, unknown>> {
+  function getTimelineScales(scale: 'day' | 'week' | 'month', columnWidth?: number): Array<Record<string, unknown>> {
     switch (scale) {
       case 'day':
+        // 根據欄位寬度決定日期格式
+        const dayFormat = (columnWidth && columnWidth < 45) ? '%d' : '%m/%d'
         return [
           { unit: 'month', step: 1, format: '%Y年%m月' },
-          { unit: 'day', step: 1, format: '%m/%d' }
+          { unit: 'day', step: 1, format: dayFormat }
         ]
       case 'week':
         return [
@@ -513,9 +567,10 @@ export function useDhtmlxGantt(): {
           { unit: 'month', step: 1, format: '%m月' }
         ]
       default:
+        const defaultDayFormat = (columnWidth && columnWidth < 45) ? '%d' : '%m/%d'
         return [
           { unit: 'month', step: 1, format: '%Y年%m月' },
-          { unit: 'day', step: 1, format: '%m/%d' }
+          { unit: 'day', step: 1, format: defaultDayFormat }
         ]
     }
   }
@@ -569,6 +624,7 @@ export function useDhtmlxGantt(): {
     timelineScaleOptions,
     convertTasksToDhtmlx,
     convertDhtmlxToTask,
+    convertSingleTask,
     formatDateForDhtmlx,
     parseDhtmlxDate,
     getGanttConfig,

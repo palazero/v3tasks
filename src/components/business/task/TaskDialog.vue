@@ -554,6 +554,22 @@ async function loadProjectOptions(): Promise<void> {
   }
 }
 
+// 安全的日期轉換函數
+function parseToDate(dateValue: unknown): Date | null {
+  if (!dateValue) return null
+  
+  if (dateValue instanceof Date) {
+    return isNaN(dateValue.getTime()) ? null : dateValue
+  }
+  
+  if (typeof dateValue === 'string') {
+    const parsedDate = new Date(dateValue)
+    return isNaN(parsedDate.getTime()) ? null : parsedDate
+  }
+  
+  return null
+}
+
 // 初始化表單資料
 function initFormData(): void {
   if (props.mode === 'edit' && props.task) {
@@ -561,7 +577,10 @@ function initFormData(): void {
     formData.value = {
       ...props.task,
       tags: props.task.tags || [],
-      customFields: props.task.customFields || []
+      customFields: props.task.customFields || [],
+      // 確保日期欄位是 Date 對象
+      startDateTime: parseToDate(props.task.startDateTime),
+      endDateTime: parseToDate(props.task.endDateTime)
     }
 
     // 處理描述
@@ -580,8 +599,17 @@ function initFormData(): void {
       progress: initialData.progress || 0,
       tags: initialData.tags || [],
       customFields: initialData.customFields || initializeTaskCustomFields(),
-      ...initialData // 允許其他欄位
+      // 確保日期欄位是 Date 對象
+      startDateTime: parseToDate(initialData.startDateTime),
+      endDateTime: parseToDate(initialData.endDateTime)
     }
+    
+    // 添加其他欄位（但跳過已處理的日期欄位）
+    Object.keys(initialData).forEach(key => {
+      if (key !== 'startDateTime' && key !== 'endDateTime' && !(key in formData.value)) {
+        formData.value[key as keyof typeof formData.value] = initialData[key as keyof typeof initialData]
+      }
+    })
     
     // 處理初始描述
     if (initialData.description) {
