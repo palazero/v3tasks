@@ -378,6 +378,11 @@ export const SERVICE_TOKENS = {
   USER_SERVICE: Symbol('UserService'),
   STATISTICS_SERVICE: Symbol('StatisticsService'),
 
+  // API Services
+  TASK_API_SERVICE: Symbol('TaskApiService'),
+  PROJECT_API_SERVICE: Symbol('ProjectApiService'),
+  USER_API_SERVICE: Symbol('UserApiService'),
+
   // Application Services
   COLUMN_CONFIG_SERVICE: Symbol('ColumnConfigService'),
   VIEW_CONFIG_SERVICE: Symbol('ViewConfigService'),
@@ -385,13 +390,20 @@ export const SERVICE_TOKENS = {
   // Infrastructure Services
   EVENT_BUS: Symbol('EventBus'),
   DATABASE_SERVICE: Symbol('DatabaseService'),
+  HTTP_SERVICE: Symbol('HttpService'),
+  CONFIG_MANAGER: Symbol('ConfigManager'),
 
   // Repositories
   TASK_REPOSITORY: Symbol('TaskRepository'),
   PROJECT_REPOSITORY: Symbol('ProjectRepository'),
   USER_REPOSITORY: Symbol('UserRepository'),
   VIEW_CONFIG_REPOSITORY: Symbol('ViewConfigRepository'),
-  CUSTOM_FIELD_REPOSITORY: Symbol('CustomFieldRepository')
+  CUSTOM_FIELD_REPOSITORY: Symbol('CustomFieldRepository'),
+
+  // API Repositories
+  TASK_API_REPOSITORY: Symbol('TaskApiRepository'),
+  PROJECT_API_REPOSITORY: Symbol('ProjectApiRepository'),
+  USER_API_REPOSITORY: Symbol('UserApiRepository')
 } as const
 
 export type ServiceToken = typeof SERVICE_TOKENS[keyof typeof SERVICE_TOKENS]

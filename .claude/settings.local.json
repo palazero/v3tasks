@@ -23,7 +23,8 @@
       "Bash(mv:*)",
       "Bash(cp:*)",
       "Bash(git mv:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
