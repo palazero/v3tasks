@@ -197,6 +197,115 @@
         </div>
       </div>
 
+      <!-- 自訂報表區域 -->
+      <div class="row q-col-gutter-sm q-mb-sm">
+        <div class="col-12">
+          <q-card class="custom-reports-section">
+            <q-card-section>
+              <div class="section-header">
+                <div class="section-title">
+                  <q-icon name="analytics" class="q-mr-sm" />
+                  自訂報表
+                </div>
+                <div class="section-actions">
+                  <q-btn
+                    flat
+                    dense
+                    icon="add"
+                    @click="openReportBuilder"
+                  >
+                    <q-tooltip>建立報表</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    :icon="showCustomReports ? 'expand_less' : 'expand_more'"
+                    @click="toggleCustomReports"
+                  >
+                    <q-tooltip>{{ showCustomReports ? '收合' : '展開' }}</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+              
+              <q-slide-transition>
+                <div v-show="showCustomReports" class="custom-reports-content">
+                  <!-- 無自訂報表時的狀態 -->
+                  <div v-if="customReports.length === 0" class="no-reports-state">
+                    <div class="no-reports-content">
+                      <q-icon name="assessment" size="3rem" color="grey-5" />
+                      <div class="no-reports-text">尚未建立任何自訂報表</div>
+                      <q-btn
+                        color="primary"
+                        @click="openReportBuilder"
+                      >
+                        建立第一個報表
+                      </q-btn>
+                    </div>
+                  </div>
+                  
+                  <!-- 自訂報表網格 -->
+                  <div v-else class="reports-grid">
+                    <div 
+                      v-for="report in customReports" 
+                      :key="report.id"
+                      class="report-item"
+                    >
+                      <q-card flat bordered>
+                        <q-card-section class="report-header">
+                          <div class="report-title">{{ report.name }}</div>
+                          <q-btn
+                            flat
+                            dense
+                            round
+                            icon="more_vert"
+                            @click.stop
+                          >
+                            <q-menu>
+                              <q-list>
+                                <q-item clickable @click="editReport(report)">
+                                  <q-item-section avatar>
+                                    <q-icon name="edit" />
+                                  </q-item-section>
+                                  <q-item-section>編輯</q-item-section>
+                                </q-item>
+                                <q-item clickable @click="duplicateReport(report)">
+                                  <q-item-section avatar>
+                                    <q-icon name="content_copy" />
+                                  </q-item-section>
+                                  <q-item-section>複製</q-item-section>
+                                </q-item>
+                                <q-separator />
+                                <q-item clickable @click="deleteReport(report)" class="text-negative">
+                                  <q-item-section avatar>
+                                    <q-icon name="delete" color="negative" />
+                                  </q-item-section>
+                                  <q-item-section>刪除</q-item-section>
+                                </q-item>
+                              </q-list>
+                            </q-menu>
+                          </q-btn>
+                        </q-card-section>
+                        
+                        <q-card-section class="report-content">
+                          <ReportRenderer
+                            :config="report"
+                            :auto-load="true"
+                            :show-header="false"
+                            :show-filters="false"
+                            :show-summary="false"
+                            chart-height="180px"
+                          />
+                        </q-card-section>
+                      </q-card>
+                    </div>
+                  </div>
+                </div>
+              </q-slide-transition>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
       <!-- 刷新按鈕 -->
       <div class="text-center q-mt-xl">
         <q-btn
@@ -210,6 +319,19 @@
         </q-btn>
       </div>
     </template>
+    
+    <!-- 報表建構器對話框 -->
+    <q-dialog 
+      v-model="showReportBuilder" 
+      maximized
+      transition-show="slide-up"
+      transition-hide="slide-down"
+    >
+      <ReportBuilder
+        :project-id="projectId"
+        @close="showReportBuilder = false"
+      />
+    </q-dialog>
   </div>
 </template>
 
@@ -220,8 +342,11 @@ import TaskStatusChart from '@/components/ui/charts/TaskStatusChart.vue'
 import TaskPriorityChart from '@/components/ui/charts/TaskPriorityChart.vue'
 import TaskTimelineChart from '@/components/ui/charts/TaskTimelineChart.vue'
 import ProjectCompletionChart from '@/components/ui/charts/ProjectCompletionChart.vue'
+import ReportBuilder from '@/components/reports/ReportBuilder.vue'
+import ReportRenderer from '@/components/reports/ReportRenderer.vue'
 import { statisticsService } from '@/services/domain/statistics.service'
 import type { TaskStatistics, ProjectStatistics, TimelineData } from '@/services/domain/statistics.service'
+import type { ReportConfig } from '@/types/report'
 
 interface Props {
   projectId?: string
@@ -256,6 +381,11 @@ const projectStats = ref<ProjectStatistics>({
 })
 
 const timelineData = ref<TimelineData[]>([])
+
+// 自訂報表相關狀態
+const showCustomReports = ref(false)
+const customReports = ref<ReportConfig[]>([])
+const showReportBuilder = ref(false)
 
 // 方法
 async function loadStatistics(): Promise<void> {
@@ -293,9 +423,100 @@ async function refreshData(): Promise<void> {
   }
 }
 
+function loadCustomReports(): void {
+  // 載入用戶自訂的報表配置
+  // 實際實作中應該從本地儲存或服務端載入
+  const savedReports = JSON.parse(localStorage.getItem('customReports') || '[]') as ReportConfig[]
+  customReports.value = savedReports.filter(report => 
+    !report.projectId || report.projectId === 'all' || report.projectId === props.projectId
+  )
+}
+
+function toggleCustomReports(): void {
+  showCustomReports.value = !showCustomReports.value
+  if (showCustomReports.value && customReports.value.length === 0) {
+    void loadCustomReports()
+  }
+}
+
+function openReportBuilder(): void {
+  showReportBuilder.value = true
+}
+
+function handleReportSaved(report: ReportConfig): void {
+  const existingIndex = customReports.value.findIndex(r => r.id === report.id)
+  
+  if (existingIndex > -1) {
+    customReports.value[existingIndex] = report
+  } else {
+    customReports.value.push(report)
+  }
+  
+  // 保存到本地儲存
+  const allReports = JSON.parse(localStorage.getItem('customReports') || '[]') as ReportConfig[]
+  const globalIndex = allReports.findIndex(r => r.id === report.id)
+  
+  if (globalIndex > -1) {
+    allReports[globalIndex] = report
+  } else {
+    allReports.push(report)
+  }
+  
+  localStorage.setItem('customReports', JSON.stringify(allReports))
+  
+  $q.notify({
+    type: 'positive',
+    message: '自訂報表已儲存'
+  })
+}
+
+function handleReportDeleted(reportId: string): void {
+  customReports.value = customReports.value.filter(r => r.id !== reportId)
+  
+  // 從本地儲存刪除
+  const allReports = JSON.parse(localStorage.getItem('customReports') || '[]') as ReportConfig[]
+  const filteredReports = allReports.filter(r => r.id !== reportId)
+  localStorage.setItem('customReports', JSON.stringify(filteredReports))
+  
+  $q.notify({
+    type: 'positive',
+    message: '自訂報表已刪除'
+  })
+}
+
+function editReport(_report: ReportConfig): void {
+  // 這裡應該打開編輯對話框
+  // 由於 ReportBuilder 本身就有編輯功能，我們可以直接使用
+  showReportBuilder.value = true
+}
+
+function duplicateReport(report: ReportConfig): void {
+  const duplicated: ReportConfig = {
+    ...report,
+    id: `${report.id}-copy-${Date.now()}`,
+    name: `${report.name} (副本)`,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+  
+  handleReportSaved(duplicated)
+}
+
+function deleteReport(report: ReportConfig): void {
+  $q.dialog({
+    title: '確認刪除',
+    message: `確定要刪除報表「${report.name}」嗎？此操作無法撤銷。`,
+    cancel: true,
+    persistent: true
+  }).onOk(() => {
+    handleReportDeleted(report.id)
+  })
+}
+
 // 初始化
 onMounted(async () => {
   await loadStatistics()
+  loadCustomReports()
   isLoading.value = false
 })
 
@@ -304,6 +525,7 @@ import { watch } from 'vue'
 watch(() => props.projectId, async () => {
   isLoading.value = true
   await loadStatistics()
+  loadCustomReports()
   isLoading.value = false
 })
 </script>
@@ -405,6 +627,89 @@ watch(() => props.projectId, async () => {
         &:hover {
           background: #e9ecef;
           transform: translateY(-1px);
+        }
+      }
+    }
+  }
+  
+  // 自訂報表區域樣式 - 緊湊版本
+  .custom-reports-section {
+    border: 1px solid #e1e5e9;
+    background: white;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: #1976d2;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      padding: 0.75rem 1rem 0 1rem;
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .section-actions {
+        display: flex;
+        gap: 0.125rem;
+      }
+    }
+
+    .custom-reports-content {
+      .no-reports-state {
+        text-align: center;
+        padding: 1.5rem 1rem;
+
+        .no-reports-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.75rem;
+
+          .no-reports-text {
+            color: #666;
+            font-size: 0.8rem;
+          }
+        }
+      }
+
+      .reports-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 0.75rem;
+        padding: 0 1rem 1rem 1rem;
+
+        .report-item {
+          .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e1e5e9;
+            min-height: 32px;
+
+            .report-title {
+              font-weight: 500;
+              color: #333;
+              font-size: 0.875rem;
+              line-height: 1.2;
+            }
+          }
+
+          .report-content {
+            padding: 0.75rem;
+            background: white;
+          }
         }
       }
     }

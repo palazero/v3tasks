@@ -3,7 +3,17 @@
  */
 
 import { getTaskRepository, getProjectRepository, getUserRepository } from '../repositories'
-import type { Task, TaskStatus, TaskPriority } from '@/types'
+import type { Task, TaskStatus, TaskPriority, User, Project, CustomFieldDefinition } from '@/types'
+import type {
+  ReportConfig,
+  ReportData,
+  ReportDataSet,
+  ReportDataPoint,
+  ReportDimension,
+  ReportAggregation,
+  ReportFilter,
+  FilterOperator
+} from '@/types/report'
 
 export interface TaskStatistics {
   total: number
@@ -335,6 +345,457 @@ export class StatisticsService {
     const estimatedDate = new Date(now.getTime() + estimatedDays * 24 * 60 * 60 * 1000)
     
     return estimatedDate.toISOString().split('T')[0]!
+  }
+
+  /**
+   * 生成自訂報表資料
+   */
+  async generateReportData(config: ReportConfig): Promise<ReportData> {
+    // 獲取基礎資料
+    let tasks = await this.getFilteredTasks(config)
+    
+    // 應用篩選條件
+    if (config.filters && config.filters.length > 0) {
+      tasks = this.applyFilters(tasks, config.filters)
+    }
+    
+    // 根據維度分組資料
+    const groupedData = await this.groupByDimension(tasks, config.dimension, config.customFieldId)
+    
+    // 計算聚合值
+    const aggregatedData = this.calculateAggregation(groupedData, config.aggregation, config.customFieldId)
+    
+    // 轉換為圖表資料格式
+    const datasets = this.transformToDatasets(aggregatedData, config)
+    const labels = aggregatedData.map(item => item.label)
+    
+    return {
+      config,
+      datasets,
+      labels,
+      totalCount: tasks.length,
+      generatedAt: new Date(),
+      summary: this.calculateSummary(aggregatedData, config.aggregation)
+    }
+  }
+  
+  /**
+   * 獲取篩選後的任務資料
+   */
+  private async getFilteredTasks(config: ReportConfig): Promise<Task[]> {
+    if (config.projectId && config.projectId !== 'all') {
+      return await this.taskRepo.findByProject(config.projectId)
+    }
+    return await this.taskRepo.findAll()
+  }
+  
+  /**
+   * 應用篩選條件
+   */
+  private applyFilters(tasks: Task[], filters: ReportFilter[]): Task[] {
+    return tasks.filter(task => {
+      return filters.every(filter => this.evaluateFilter(task, filter))
+    })
+  }
+  
+  /**
+   * 評估單個篩選條件
+   */
+  private evaluateFilter(task: Task, filter: ReportFilter): boolean {
+    const fieldValue = this.getFieldValue(task, filter.field)
+    
+    switch (filter.operator) {
+      case 'equals':
+        return fieldValue === filter.value
+      case 'notEquals':
+        return fieldValue !== filter.value
+      case 'contains':
+        return String(fieldValue).toLowerCase().includes(String(filter.value).toLowerCase())
+      case 'notContains':
+        return !String(fieldValue).toLowerCase().includes(String(filter.value).toLowerCase())
+      case 'greaterThan':
+        return Number(fieldValue) > Number(filter.value)
+      case 'lessThan':
+        return Number(fieldValue) < Number(filter.value)
+      case 'between':
+        if (filter.values && filter.values.length === 2) {
+          const val = Number(fieldValue)
+          return val >= Number(filter.values[0]) && val <= Number(filter.values[1])
+        }
+        return false
+      case 'in':
+        return filter.values ? filter.values.includes(fieldValue) : false
+      case 'notIn':
+        return filter.values ? !filter.values.includes(fieldValue) : true
+      default:
+        return true
+    }
+  }
+  
+  /**
+   * 獲取任務欄位值
+   */
+  private getFieldValue(task: Task, field: string): unknown {
+    // 標準欄位
+    const standardFields: Record<string, (task: Task) => unknown> = {
+      'title': (task) => task.title,
+      'statusId': (task) => task.statusId,
+      'priorityId': (task) => task.priorityId,
+      'assigneeId': (task) => task.assigneeId,
+      'projectId': (task) => task.projectId,
+      'createdAt': (task) => task.createdAt,
+      'endDateTime': (task) => task.endDateTime,
+      'startDateTime': (task) => task.startDateTime,
+      'level': (task) => task.level,
+      'createdMonth': (task) => new Date(task.createdAt).toISOString().slice(0, 7),
+      'dueMonth': (task) => task.endDateTime ? new Date(task.endDateTime).toISOString().slice(0, 7) : null
+    }
+    
+    if (field in standardFields) {
+      return standardFields[field]!(task)
+    }
+    
+    // 自訂欄位
+    const customField = task.customFields.find(cf => cf.fieldId === field)
+    return customField?.value || null
+  }
+  
+  /**
+   * 根據維度分組資料
+   */
+  private async groupByDimension(
+    tasks: Task[], 
+    dimension: ReportDimension, 
+    customFieldId?: string
+  ): Promise<{ key: string; label: string; tasks: Task[] }[]> {
+    const groups = new Map<string, Task[]>()
+    
+    // 預先載入必要的參考資料
+    const users = dimension === 'assigneeId' ? await this.userRepo.findAll() : []
+    const projects = dimension === 'projectId' ? await this.projectRepo.findAll() : []
+    
+    // 分組邏輯
+    tasks.forEach(task => {
+      let key: string
+      let groupKey: string
+      
+      if (dimension === 'customField' && customFieldId) {
+        const customField = task.customFields.find(cf => cf.fieldId === customFieldId)
+        key = String(customField?.value || 'null')
+        groupKey = key
+      } else {
+        key = String(this.getFieldValue(task, dimension))
+        groupKey = key
+      }
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, [])
+      }
+      groups.get(groupKey)!.push(task)
+    })
+    
+    // 轉換為標籤格式
+    return Array.from(groups.entries()).map(([key, tasks]) => ({
+      key,
+      label: this.getDimensionLabel(dimension, key, { users, projects, customFieldId }),
+      tasks
+    }))
+  }
+  
+  /**
+   * 獲取維度標籤
+   */
+  private getDimensionLabel(
+    dimension: ReportDimension, 
+    key: string, 
+    context: { 
+      users: User[]
+      projects: Project[]
+      customFieldId?: string 
+    }
+  ): string {
+    if (key === 'null' || key === 'undefined' || !key) {
+      return '未設定'
+    }
+    
+    switch (dimension) {
+      case 'assigneeId':
+        const user = context.users.find(u => u.userId === key)
+        return user ? user.name : '未知用戶'
+      
+      case 'projectId':
+        const project = context.projects.find(p => p.projectId === key)
+        return project ? project.name : '未知專案'
+      
+      case 'statusId':
+        const statusLabels: Record<string, string> = {
+          'todo': '待辦',
+          'inProgress': '進行中',
+          'done': '已完成',
+          'cancelled': '已取消'
+        }
+        return statusLabels[key] || key
+      
+      case 'priorityId':
+        const priorityLabels: Record<string, string> = {
+          'low': '低',
+          'medium': '中',
+          'high': '高',
+          'urgent': '緊急'
+        }
+        return priorityLabels[key] || key
+      
+      case 'createdMonth':
+      case 'dueMonth':
+        // 格式化月份顯示
+        const date = new Date(key + '-01')
+        return date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long' })
+      
+      default:
+        return key
+    }
+  }
+  
+  /**
+   * 計算聚合值
+   */
+  private calculateAggregation(
+    groupedData: { key: string; label: string; tasks: Task[] }[],
+    aggregation: ReportAggregation,
+    customFieldId?: string
+  ): ReportDataPoint[] {
+    return groupedData.map(group => {
+      let value: number
+      
+      switch (aggregation) {
+        case 'count':
+          value = group.tasks.length
+          break
+          
+        case 'sum':
+          value = this.calculateSum(group.tasks, customFieldId)
+          break
+          
+        case 'average':
+          value = this.calculateAverage(group.tasks, customFieldId)
+          break
+          
+        case 'percentage':
+          // 百分比需要在外層計算
+          value = group.tasks.length
+          break
+          
+        case 'min':
+          value = this.calculateMin(group.tasks, customFieldId)
+          break
+          
+        case 'max':
+          value = this.calculateMax(group.tasks, customFieldId)
+          break
+          
+        default:
+          value = group.tasks.length
+      }
+      
+      return {
+        label: group.label,
+        value,
+        metadata: {
+          key: group.key,
+          taskCount: group.tasks.length,
+          taskIds: group.tasks.map(t => t.taskId)
+        }
+      }
+    })
+  }
+  
+  /**
+   * 計算加總
+   */
+  private calculateSum(tasks: Task[], customFieldId?: string): number {
+    if (!customFieldId) return tasks.length
+    
+    return tasks.reduce((sum, task) => {
+      const customField = task.customFields.find(cf => cf.fieldId === customFieldId)
+      const value = Number(customField?.value || 0)
+      return sum + (isNaN(value) ? 0 : value)
+    }, 0)
+  }
+  
+  /**
+   * 計算平均值
+   */
+  private calculateAverage(tasks: Task[], customFieldId?: string): number {
+    const sum = this.calculateSum(tasks, customFieldId)
+    return tasks.length > 0 ? sum / tasks.length : 0
+  }
+  
+  /**
+   * 計算最小值
+   */
+  private calculateMin(tasks: Task[], customFieldId?: string): number {
+    if (!customFieldId || tasks.length === 0) return 0
+    
+    const values = tasks
+      .map(task => {
+        const customField = task.customFields.find(cf => cf.fieldId === customFieldId)
+        return Number(customField?.value || 0)
+      })
+      .filter(value => !isNaN(value))
+    
+    return values.length > 0 ? Math.min(...values) : 0
+  }
+  
+  /**
+   * 計算最大值
+   */
+  private calculateMax(tasks: Task[], customFieldId?: string): number {
+    if (!customFieldId || tasks.length === 0) return 0
+    
+    const values = tasks
+      .map(task => {
+        const customField = task.customFields.find(cf => cf.fieldId === customFieldId)
+        return Number(customField?.value || 0)
+      })
+      .filter(value => !isNaN(value))
+    
+    return values.length > 0 ? Math.max(...values) : 0
+  }
+  
+  /**
+   * 轉換為圖表資料集格式
+   */
+  private transformToDatasets(data: ReportDataPoint[], config: ReportConfig): ReportDataSet[] {
+    // 如果是百分比聚合，重新計算百分比
+    if (config.aggregation === 'percentage') {
+      const total = data.reduce((sum, point) => sum + point.value, 0)
+      data = data.map(point => ({
+        ...point,
+        value: total > 0 ? (point.value / total) * 100 : 0
+      }))
+    }
+    
+    // 排序資料（按值排序）
+    data.sort((a, b) => b.value - a.value)
+    
+    return [{
+      label: this.getAggregationLabel(config.aggregation),
+      data,
+      backgroundColor: this.generateColors(data.length),
+      borderColor: this.generateBorderColors(data.length),
+      borderWidth: 1
+    }]
+  }
+  
+  /**
+   * 獲取聚合方式標籤
+   */
+  private getAggregationLabel(aggregation: ReportAggregation): string {
+    const labels: Record<ReportAggregation, string> = {
+      'count': '任務數量',
+      'sum': '總計',
+      'average': '平均值',
+      'percentage': '百分比',
+      'min': '最小值',
+      'max': '最大值'
+    }
+    return labels[aggregation]
+  }
+  
+  /**
+   * 生成顏色
+   */
+  private generateColors(count: number): string[] {
+    const baseColors = [
+      '#1976d2', '#388e3c', '#f57c00', '#d32f2f', '#7b1fa2', 
+      '#0097a7', '#689f38', '#f9a825', '#c2185b', '#303f9f'
+    ]
+    
+    const colors: string[] = []
+    for (let i = 0; i < count; i++) {
+      colors.push(baseColors[i % baseColors.length]!)
+    }
+    return colors
+  }
+  
+  /**
+   * 生成邊框顏色
+   */
+  private generateBorderColors(count: number): string[] {
+    return this.generateColors(count).map(color => {
+      // 將背景色調暗作為邊框色
+      return color.replace(/[\d.]+\)$/g, '0.8)')
+    })
+  }
+  
+  /**
+   * 計算摘要資訊
+   */
+  private calculateSummary(data: ReportDataPoint[], aggregation: ReportAggregation): {
+    total: number
+    average?: number
+    min?: number
+    max?: number
+  } {
+    const values = data.map(point => point.value)
+    const total = values.reduce((sum, value) => sum + value, 0)
+    
+    const summary: { total: number; average?: number; min?: number; max?: number } = {
+      total
+    }
+    
+    if (values.length > 0) {
+      summary.average = total / values.length
+      summary.min = Math.min(...values)
+      summary.max = Math.max(...values)
+    }
+    
+    return summary
+  }
+  
+  /**
+   * 驗證報表配置
+   */
+  validateReportConfig(config: Partial<ReportConfig>): { isValid: boolean; errors: string[] } {
+    const errors: string[] = []
+    
+    if (!config.name) {
+      errors.push('報表名稱不能為空')
+    }
+    
+    if (!config.chartType) {
+      errors.push('必須選擇圖表類型')
+    }
+    
+    if (!config.dimension) {
+      errors.push('必須選擇統計維度')
+    }
+    
+    if (!config.aggregation) {
+      errors.push('必須選擇聚合方式')
+    }
+    
+    if (config.dimension === 'customField' && !config.customFieldId) {
+      errors.push('選擇自訂欄位維度時必須指定欄位ID')
+    }
+    
+    if (['sum', 'average', 'min', 'max'].includes(config.aggregation as string) && !config.customFieldId) {
+      errors.push('數值聚合方式需要指定自訂欄位')
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    }
+  }
+
+  /**
+   * 獲取可用的自訂欄位（用於報表建構）
+   */
+  async getAvailableCustomFields(projectId?: string): Promise<CustomFieldDefinition[]> {
+    // 這裡需要實作獲取自訂欄位定義的邏輯
+    // 暫時返回空陣列，後續整合自訂欄位服務
+    return []
   }
 }
 
