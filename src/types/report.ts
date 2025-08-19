@@ -1,5 +1,6 @@
 /**
  * 自訂報表系統類型定義
+ * 包含企業級架構所需的請求/響應類型
  */
 
 // ============= 圖表類型 =============
@@ -326,3 +327,294 @@ export const CHART_TYPE_OPTIONS = [
   { value: 'stackedBar', label: '堆疊長條圖', icon: 'stacked_bar_chart', description: '多個系列堆疊顯示' },
   { value: 'scatter', label: '散點圖', icon: 'scatter_plot', description: '顯示兩個數值間的關係' }
 ] as const
+
+// ============= 服務層類型定義 =============
+
+/**
+ * 建立報表請求類型
+ */
+export interface CreateReportRequest {
+  name: string
+  description?: string
+  chartType: ChartType
+  dimension: ReportDimension
+  aggregation: ReportAggregation
+  
+  // 自訂欄位相關
+  customFieldId?: string
+  customFieldType?: string
+  
+  // 篩選條件
+  filters?: ReportFilter[]
+  
+  // 圖表樣式設定
+  chartOptions?: ReportChartOptions
+  
+  // 中繼資料
+  createdBy: string
+  isTemplate: boolean
+  isPublic: boolean
+  projectId?: string // 如果為空則為全域報表
+  
+  // 排序和顯示
+  order: number
+  isActive: boolean
+}
+
+/**
+ * 更新報表請求類型
+ */
+export interface UpdateReportRequest extends Partial<CreateReportRequest> {
+  updatedAt?: Date
+}
+
+/**
+ * 資料庫報表實體類型
+ * 用於資料庫層的實際儲存結構
+ */
+export interface ReportEntity extends ReportConfig {
+  // 資料庫特定欄位
+  _id?: string
+  _rev?: string
+  _created?: number
+  _updated?: number
+  
+  // 索引欄位
+  projectCreatedBy?: string // 複合索引用: `${projectId}_${createdBy}`
+  projectIsTemplate?: string // 複合索引用: `${projectId}_${isTemplate}`
+}
+
+/**
+ * 報表資料傳輸物件 (DTO)
+ */
+export interface ReportDTO {
+  id: string
+  name: string
+  description?: string
+  chartType: ChartType
+  dimension: ReportDimension
+  aggregation: ReportAggregation
+  
+  // 序列化的複雜欄位
+  filtersJson?: string
+  chartOptionsJson?: string
+  
+  // 中繼資料
+  createdBy: string
+  createdAt: string // ISO 字串格式
+  updatedAt: string // ISO 字串格式
+  isTemplate: boolean
+  isPublic: boolean
+  projectId?: string
+  order: number
+  isActive: boolean
+}
+
+/**
+ * 報表列表回應類型
+ */
+export interface ReportListResponse {
+  reports: ReportConfig[]
+  total: number
+  page: number
+  perPage: number
+  hasMore: boolean
+}
+
+/**
+ * 報表操作回應類型
+ */
+export interface ReportOperationResponse {
+  success: boolean
+  message: string
+  data?: ReportConfig
+  errors?: Array<{
+    field: string
+    message: string
+    code: string
+  }>
+}
+
+/**
+ * 報表統計資料類型
+ */
+export interface ReportStats {
+  totalReports: number
+  reportsByProject: Record<string, number>
+  reportsByType: Record<ChartType, number>
+  reportsByDimension: Record<ReportDimension, number>
+  activeReports: number
+  publicReports: number
+  templateReports: number
+  recentActivity: Array<{
+    reportId: string
+    action: 'created' | 'updated' | 'deleted' | 'viewed'
+    timestamp: Date
+    userId: string
+  }>
+}
+
+/**
+ * 報表權限類型
+ */
+export interface ReportPermissions {
+  canView: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canDuplicate: boolean
+  canShare: boolean
+  canExport: boolean
+}
+
+/**
+ * 報表篩選建構器類型
+ */
+export interface ReportFilterBuilder {
+  field: string
+  label: string
+  type: 'text' | 'number' | 'date' | 'select' | 'multiSelect' | 'boolean'
+  operators: FilterOperator[]
+  options?: Array<{ label: string; value: unknown }>
+  placeholder?: string
+  validation?: {
+    required?: boolean
+    min?: number
+    max?: number
+    pattern?: string
+  }
+}
+
+/**
+ * 報表預覽資料類型
+ */
+export interface ReportPreviewData {
+  isLoading: boolean
+  hasError: boolean
+  errorMessage?: string
+  chartData?: ReportData
+  sampleSize: number
+  generatedAt: Date
+}
+
+/**
+ * 報表匯出配置類型
+ */
+export interface ReportExportConfig extends ReportExportOptions {
+  reportId: string
+  userId: string
+  includeMetadata: boolean
+  customFilename?: string
+  watermark?: string
+}
+
+/**
+ * 報表共享設定類型
+ */
+export interface ReportSharingSettings {
+  reportId: string
+  isPublic: boolean
+  allowedUsers: string[]
+  allowedRoles: string[]
+  shareLink?: string
+  expiresAt?: Date
+  permissions: {
+    canView: boolean
+    canEdit: boolean
+    canComment: boolean
+  }
+}
+
+/**
+ * 報表版本歷史類型
+ */
+export interface ReportVersion {
+  versionId: string
+  reportId: string
+  version: number
+  config: ReportConfig
+  changedBy: string
+  changedAt: Date
+  changeDescription?: string
+  changeType: 'created' | 'updated' | 'restored'
+}
+
+// ============= 常數定義 =============
+
+/**
+ * 報表操作常數
+ */
+export const REPORT_OPERATIONS = {
+  CREATE: 'create',
+  READ: 'read',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  DUPLICATE: 'duplicate',
+  EXPORT: 'export',
+  IMPORT: 'import',
+  SHARE: 'share'
+} as const
+
+/**
+ * 報表事件常數 (符合企業命名規範)
+ */
+export const REPORT_EVENTS = {
+  // 建立相關
+  REPORT_CREATE_REQUESTED: 'report-create-requested',
+  REPORT_CREATED: 'report-created',
+  
+  // 更新相關
+  REPORT_UPDATE_REQUESTED: 'report-update-requested', 
+  REPORT_UPDATED: 'report-updated',
+  
+  // 刪除相關
+  REPORT_DELETE_REQUESTED: 'report-delete-requested',
+  REPORT_DELETED: 'report-deleted',
+  
+  // 查看相關
+  REPORT_VIEWED: 'report-viewed',
+  REPORT_SELECTED: 'report-selected',
+  
+  // 其他操作
+  REPORT_DUPLICATED: 'report-duplicated',
+  REPORT_EXPORTED: 'report-exported',
+  REPORT_IMPORTED: 'report-imported',
+  
+  // 狀態變更
+  REPORTS_LOADED: 'reports-loaded',
+  REPORTS_LOADING: 'reports-loading',
+  REPORTS_ERROR: 'reports-error'
+} as const
+
+/**
+ * 預設報表配置
+ */
+export const DEFAULT_REPORT_CONFIG: Omit<ReportConfig, 'id' | 'name' | 'createdBy' | 'createdAt' | 'updatedAt'> = {
+  description: '',
+  chartType: 'bar',
+  dimension: 'statusId',
+  aggregation: 'count',
+  isTemplate: false,
+  isPublic: false,
+  order: 0,
+  isActive: true,
+  chartOptions: DEFAULT_CHART_OPTIONS
+}
+
+/**
+ * 報表驗證規則
+ */
+export const REPORT_VALIDATION_RULES = {
+  name: {
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+    pattern: /^[\w\s\-_()[\]{}.,!?@#$%^&*+=|\\:;"'<>~`]+$/
+  },
+  description: {
+    maxLength: 500
+  },
+  order: {
+    min: 0,
+    max: 9999
+  }
+} as const

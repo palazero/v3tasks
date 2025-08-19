@@ -41,6 +41,33 @@ const routes: RouteRecordRaw[] = [
           requiresProjectOwner: true
         }
       },
+      {
+        path: 'api-test',
+        name: 'ApiTest',
+        component: () => import('pages/ApiTestView.vue'),
+        meta: {
+          title: 'API 測試',
+          requiresAuth: false
+        }
+      },
+      {
+        path: 'env-test',
+        name: 'EnvTest',
+        component: () => import('pages/EnvTestView.vue'),
+        meta: {
+          title: '環境變數檢查',
+          requiresAuth: false
+        }
+      },
+      {
+        path: 'db-test',
+        name: 'DbTest',
+        component: () => import('pages/DatabaseTestView.vue'),
+        meta: {
+          title: '資料庫測試',
+          requiresAuth: false
+        }
+      },
       // 重定向舊的 URL 格式
       {
         path: 'project/:projectId',

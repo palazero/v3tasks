@@ -7,6 +7,7 @@ import { ref, computed } from 'vue';
 import type { User, PermissionAction, PermissionCheck } from '@/types';
 import { getUserRepository, getProjectRepository } from '@/services/repositories';
 import { initMockData } from '@/services/infrastructure/mock/mock-data.service';
+import { getServiceConfig, getUserService, getProjectService } from '@/services/infrastructure/service-adapter';
 
 export const useUserStore = defineStore('user', () => {
   // 狀態
@@ -15,7 +16,11 @@ export const useUserStore = defineStore('user', () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  // Repository
+  // Services (使用適配器)
+  const userService = getUserService();
+  const projectService = getProjectService();
+  
+  // Repository (向下相容)
   const userRepo = getUserRepository();
   const projectRepo = getProjectRepository();
 
@@ -32,11 +37,25 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
 
     try {
-      // 初始化模擬資料
-      await initMockData();
+      const serviceConfig = getServiceConfig();
+      
+      // 只有在本地模式或啟用模擬資料時才初始化模擬資料
+      if (serviceConfig.mode === 'local' || serviceConfig.enableMockData) {
+        console.log('Initializing mock data in', serviceConfig.mode, 'mode');
+        await initMockData();
+      } else {
+        console.log('Skipping mock data initialization in API mode');
+      }
 
-      // 載入所有可用用戶
-      const users = await userRepo.findAll();
+      // 載入所有可用用戶 (使用服務適配器)
+      let users: User[] = [];
+      
+      if (serviceConfig.mode === 'api') {
+        users = await userService.getAllUsers();
+      } else {
+        users = await userRepo.findAll();
+      }
+      
       availableUsers.value = users;
 
       // 預設選擇第一個用戶（管理員）
@@ -57,7 +76,15 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
 
     try {
-      const user = await userRepo.findById(userId);
+      const serviceConfig = getServiceConfig();
+      let user: User | null = null;
+      
+      if (serviceConfig.mode === 'api') {
+        user = await userService.getUserById(userId);
+      } else {
+        user = await userRepo.findById(userId);
+      }
+      
       if (!user) {
         throw new Error('用戶不存在');
       }
@@ -67,7 +94,7 @@ export const useUserStore = defineStore('user', () => {
       // 儲存到 localStorage 以便下次自動登入
       localStorage.setItem('currentUserId', userId);
 
-      console.log(`Switched to user: ${user.name} (${user.role})`);
+      console.log(`Switched to user: ${user.name} (${user.role}) using ${serviceConfig.mode} mode`);
     } catch (err) {
       error.value = err instanceof Error ? err.message : '切換用戶失敗';
       console.error('Failed to switch user:', err);

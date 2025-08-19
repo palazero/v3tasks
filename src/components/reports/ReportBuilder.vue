@@ -78,7 +78,7 @@
       
       <!-- 報表列表 -->
       <div v-else class="reports-grid">
-        <TransitionGroup name="report-card" tag="div" class="grid-container">
+        <div class="grid-container">
           <div
             v-for="report in sortedReports"
             :key="report.id"
@@ -114,7 +114,7 @@
                             </q-item-section>
                             <q-item-section>編輯</q-item-section>
                           </q-item>
-                          <q-item clickable @click="duplicateReport(report)">
+                          <q-item clickable @click="handleDuplicateReport(report)">
                             <q-item-section avatar>
                               <q-icon name="content_copy" />
                             </q-item-section>
@@ -127,7 +127,7 @@
                             <q-item-section>匯出設定</q-item-section>
                           </q-item>
                           <q-separator />
-                          <q-item clickable @click="deleteReport(report)" class="text-negative">
+                          <q-item clickable @click="handleDeleteReport(report)" class="text-negative">
                             <q-item-section avatar>
                               <q-icon name="delete" color="negative" />
                             </q-item-section>
@@ -193,7 +193,7 @@
               </q-card-actions>
             </q-card>
           </div>
-        </TransitionGroup>
+        </div>
       </div>
     </div>
     
@@ -281,24 +281,52 @@ import ReportRenderer from './ReportRenderer.vue'
 import { 
   DIMENSION_OPTIONS, 
   CHART_TYPE_OPTIONS,
-  type ReportConfig 
+  type ReportConfig,
+  type CreateReportRequest
 } from '@/types/report'
-import { nanoid } from 'nanoid'
+import { useReportManager } from '@/composables/useReportManager'
 
 interface Props {
   projectId?: string
+}
+
+interface Emits {
+  (e: 'close'): void
+  (e: 'report-created', report: ReportConfig): void
+  (e: 'report-updated', report: ReportConfig): void
+  (e: 'report-deleted', reportId: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
   projectId: 'all'
 })
 
+const emit = defineEmits<Emits>()
+
 const $q = useQuasar()
 
-// 響應式狀態
-const isLoading = ref(false)
+// 計算屬性
+const currentProjectId = computed(() => props.projectId)
+
+// 使用報表管理器
+const {
+  reports: savedReports,
+  loading: isLoading,
+  hasReports,
+  reportCount,
+  createReport,
+  updateReport,
+  deleteReport: deleteReportService,
+  duplicateReport,
+  loadReports,
+  getReportById
+} = useReportManager({
+  projectId: currentProjectId.value,
+  autoLoad: true
+})
+
+// 其他響應式狀態
 const isCreating = ref(false)
-const savedReports = ref<ReportConfig[]>([])
 const selectedReports = ref<string[]>([])
 const editingReport = ref<ReportConfig>()
 const viewingReport = ref<ReportConfig>()
@@ -308,9 +336,6 @@ const showReportDialog = ref(false)
 const showTemplateDialog = ref(false)
 const showDetailDialog = ref(false)
 
-// 計算屬性
-const currentProjectId = computed(() => props.projectId)
-
 const sortedReports = computed(() => {
   return [...savedReports.value].sort((a, b) => 
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -319,57 +344,14 @@ const sortedReports = computed(() => {
 
 // 方法
 async function loadSavedReports(): Promise<void> {
-  isLoading.value = true
-  
   try {
-    // 模擬從後端載入報表
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 實際實作中應該從服務層載入
-    const mockReports: ReportConfig[] = [
-      {
-        id: '1',
-        name: '任務負責人分配統計',
-        description: '顯示各負責人的任務分配情況',
-        chartType: 'bar',
-        dimension: 'assigneeId',
-        aggregation: 'count',
-        projectId: 'all',
-        createdBy: 'user1',
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-15'),
-        isTemplate: false,
-        isPublic: false,
-        order: 0,
-        isActive: true
-      },
-      {
-        id: '2',
-        name: '任務狀態比例分析',
-        description: '以圓餅圖顯示不同狀態任務的比例',
-        chartType: 'pie',
-        dimension: 'statusId',
-        aggregation: 'percentage',
-        projectId: 'all',
-        createdBy: 'user1',
-        createdAt: new Date('2024-01-05'),
-        updatedAt: new Date('2024-01-20'),
-        isTemplate: false,
-        isPublic: false,
-        order: 1,
-        isActive: true
-      }
-    ]
-    
-    savedReports.value = mockReports
+    await loadReports()
   } catch (error) {
     console.error('載入報表失敗:', error)
     $q.notify({
       type: 'negative',
       message: '載入報表失敗'
     })
-  } finally {
-    isLoading.value = false
   }
 }
 
@@ -383,21 +365,17 @@ function editReport(report: ReportConfig): void {
   showReportDialog.value = true
 }
 
-function duplicateReport(report: ReportConfig): void {
-  const duplicated: ReportConfig = {
-    ...report,
-    id: nanoid(),
-    name: `${report.name} (副本)`,
-    createdAt: new Date(),
-    updatedAt: new Date()
+async function handleDuplicateReport(report: ReportConfig): Promise<void> {
+  try {
+    const duplicated = await duplicateReport(report.id, `${report.name} (副本)`)
+    emit('report-created', duplicated)
+  } catch (error) {
+    console.error('複製報表失敗:', error)
+    $q.notify({
+      type: 'negative', 
+      message: '複製報表失敗'
+    })
   }
-  
-  savedReports.value.push(duplicated)
-  
-  $q.notify({
-    type: 'positive',
-    message: `已複製報表: ${report.name}`
-  })
 }
 
 function viewReport(report: ReportConfig): void {
@@ -405,19 +383,21 @@ function viewReport(report: ReportConfig): void {
   showDetailDialog.value = true
 }
 
-function deleteReport(report: ReportConfig): void {
+function handleDeleteReport(report: ReportConfig): void {
   $q.dialog({
     title: '確認刪除',
     message: `確定要刪除報表「${report.name}」嗎？此操作無法撤銷。`,
     cancel: true,
     persistent: true
-  }).onOk(() => {
-    const index = savedReports.value.findIndex(r => r.id === report.id)
-    if (index > -1) {
-      savedReports.value.splice(index, 1)
+  }).onOk(async () => {
+    try {
+      await deleteReportService(report.id)
+      emit('report-deleted', report.id)
+    } catch (error) {
+      console.error('刪除報表失敗:', error)
       $q.notify({
-        type: 'positive',
-        message: '報表已刪除'
+        type: 'negative',
+        message: '刪除報表失敗'
       })
     }
   })
@@ -447,31 +427,57 @@ function showTemplates(): void {
   showTemplateDialog.value = true
 }
 
-function handleSaveReport(config: ReportConfig): void {
-  const existingIndex = savedReports.value.findIndex(r => r.id === config.id)
-  
-  if (existingIndex > -1) {
-    // 更新現有報表
-    savedReports.value[existingIndex] = {
-      ...config,
-      updatedAt: new Date()
+async function handleSaveReport(config: ReportConfig): Promise<void> {
+  try {
+    let finalReport: ReportConfig
+    
+    if (config.id && await getReportById(config.id)) {
+      // 更新現有報表
+      const updates = {
+        name: config.name,
+        description: config.description,
+        chartType: config.chartType,
+        dimension: config.dimension,
+        aggregation: config.aggregation,
+        customFieldId: config.customFieldId,
+        customFieldType: config.customFieldType,
+        filters: config.filters,
+        chartOptions: config.chartOptions,
+        isTemplate: config.isTemplate,
+        isPublic: config.isPublic,
+        order: config.order,
+        isActive: config.isActive
+      }
+      
+      finalReport = await updateReport(config.id, updates)
+      emit('report-updated', finalReport)
+    } else {
+      // 新增報表
+      const createRequest: CreateReportRequest = {
+        name: config.name,
+        description: config.description,
+        chartType: config.chartType,
+        dimension: config.dimension,
+        aggregation: config.aggregation,
+        customFieldId: config.customFieldId,
+        customFieldType: config.customFieldType,
+        filters: config.filters,
+        chartOptions: config.chartOptions,
+        createdBy: 'current-user', // 實際應用中應該使用當前用戶 ID
+        isTemplate: config.isTemplate || false,
+        isPublic: config.isPublic || false,
+        projectId: config.projectId || currentProjectId.value,
+        order: config.order || 0,
+        isActive: config.isActive !== false
+      }
+      
+      finalReport = await createReport(createRequest)
+      emit('report-created', finalReport)
     }
-    $q.notify({
-      type: 'positive',
-      message: '報表已更新'
-    })
-  } else {
-    // 新增報表
-    savedReports.value.push({
-      ...config,
-      id: nanoid(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    })
-    $q.notify({
-      type: 'positive',
-      message: '報表已建立'
-    })
+    
+  } catch (error) {
+    console.error('儲存報表失敗:', error)
+    throw error
   }
 }
 
@@ -479,55 +485,69 @@ function handleCancelEdit(): void {
   editingReport.value = undefined
 }
 
-function handleSelectTemplate(template: { name: string; config: Partial<ReportConfig>; description: string }): void {
-  // 從範本建立報表
-  const newReport: ReportConfig = {
-    ...template.config,
-    id: nanoid(),
-    name: template.name,
-    description: template.description,
-    projectId: currentProjectId.value,
-    createdBy: 'current-user',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isTemplate: false,
-    isPublic: false,
-    order: savedReports.value.length,
-    isActive: true
+async function handleSelectTemplate(template: { name: string; config: Partial<ReportConfig>; description: string }): Promise<void> {
+  try {
+    // 從範本建立報表
+    const createRequest: CreateReportRequest = {
+      name: template.name,
+      description: template.description,
+      chartType: template.config.chartType || 'bar',
+      dimension: template.config.dimension || 'statusId',
+      aggregation: template.config.aggregation || 'count',
+      customFieldId: template.config.customFieldId,
+      customFieldType: template.config.customFieldType,
+      filters: template.config.filters,
+      chartOptions: template.config.chartOptions,
+      createdBy: 'current-user', // 實際應用中應該使用當前用戶 ID
+      isTemplate: false,
+      isPublic: false,
+      projectId: currentProjectId.value,
+      order: savedReports.value.length,
+      isActive: true
+    }
+    
+    const newReport = await createReport(createRequest)
+    emit('report-created', newReport)
+    
+    $q.notify({
+      type: 'positive',
+      message: `已從範本建立報表: ${template.name}`
+    })
+  } catch (error) {
+    console.error('從範本建立報表失敗:', error)
+    $q.notify({
+      type: 'negative',
+      message: '從範本建立報表失敗'
+    })
   }
-  
-  savedReports.value.push(newReport)
-  
-  $q.notify({
-    type: 'positive',
-    message: `已從範本建立報表: ${template.name}`
-  })
 }
 
 function handlePreviewError(error: string): void {
   console.warn('報表預覽錯誤:', error)
 }
 
-function batchDuplicate(): void {
-  const selectedConfigs = savedReports.value.filter(r => selectedReports.value.includes(r.id))
-  
-  selectedConfigs.forEach(report => {
-    const duplicated: ReportConfig = {
-      ...report,
-      id: nanoid(),
-      name: `${report.name} (副本)`,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    savedReports.value.push(duplicated)
-  })
-  
-  clearSelection()
-  
-  $q.notify({
-    type: 'positive',
-    message: `已複製 ${selectedConfigs.length} 個報表`
-  })
+async function batchDuplicate(): Promise<void> {
+  try {
+    const selectedConfigs = savedReports.value.filter(r => selectedReports.value.includes(r.id))
+    
+    const promises = selectedConfigs.map(report => 
+      duplicateReport(report.id, `${report.name} (副本)`)
+    )
+    
+    await Promise.all(promises)
+    clearSelection()
+    
+    $q.notify({
+      type: 'positive',
+      message: `已複製 ${selectedConfigs.length} 個報表`
+    })
+  } catch (error) {
+    console.error('批量複製失敗:', error)
+    $q.notify({
+      type: 'negative',
+      message: '批量複製失敗'
+    })
+  }
 }
 
 function batchDelete(): void {
@@ -536,14 +556,24 @@ function batchDelete(): void {
     message: `確定要刪除選中的 ${selectedReports.value.length} 個報表嗎？此操作無法撤銷。`,
     cancel: true,
     persistent: true
-  }).onOk(() => {
-    savedReports.value = savedReports.value.filter(r => !selectedReports.value.includes(r.id))
-    clearSelection()
-    
-    $q.notify({
-      type: 'positive',
-      message: '選中的報表已刪除'
-    })
+  }).onOk(async () => {
+    try {
+      const promises = selectedReports.value.map(reportId => deleteReportService(reportId))
+      await Promise.all(promises)
+      
+      clearSelection()
+      
+      $q.notify({
+        type: 'positive',
+        message: '選中的報表已刪除'
+      })
+    } catch (error) {
+      console.error('批量刪除失敗:', error)
+      $q.notify({
+        type: 'negative',
+        message: '批量刪除失敗'
+      })
+    }
   })
 }
 
@@ -562,18 +592,22 @@ function getDimensionLabel(dimension: string): string {
   return option?.label || dimension
 }
 
-function formatDate(date: Date): string {
+function formatDate(date: string | number | Date): string {
+  const dateObj = new Date(date)
+  
+  // 檢查日期是否有效
+  if (isNaN(dateObj.getTime())) {
+    return '無效日期'
+  }
+  
   return new Intl.DateTimeFormat('zh-TW', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
-  }).format(date)
+  }).format(dateObj)
 }
 
-// 生命週期
-onMounted(() => {
-  void loadSavedReports()
-})
+// 生命週期 - 使用 ReportManager 自動載入，無需手動調用
 </script>
 
 <style scoped lang="scss">

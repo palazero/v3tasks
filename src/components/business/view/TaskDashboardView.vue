@@ -230,7 +230,7 @@
               <q-slide-transition>
                 <div v-show="showCustomReports" class="custom-reports-content">
                   <!-- 無自訂報表時的狀態 -->
-                  <div v-if="customReports.length === 0" class="no-reports-state">
+                  <div v-if="!hasReports" class="no-reports-state">
                     <div class="no-reports-content">
                       <q-icon name="assessment" size="3rem" color="grey-5" />
                       <div class="no-reports-text">尚未建立任何自訂報表</div>
@@ -268,14 +268,14 @@
                                   </q-item-section>
                                   <q-item-section>編輯</q-item-section>
                                 </q-item>
-                                <q-item clickable @click="duplicateReport(report)">
+                                <q-item clickable @click="handleDuplicateReport(report)">
                                   <q-item-section avatar>
                                     <q-icon name="content_copy" />
                                   </q-item-section>
                                   <q-item-section>複製</q-item-section>
                                 </q-item>
                                 <q-separator />
-                                <q-item clickable @click="deleteReport(report)" class="text-negative">
+                                <q-item clickable @click="handleDeleteReport(report)" class="text-negative">
                                   <q-item-section avatar>
                                     <q-icon name="delete" color="negative" />
                                   </q-item-section>
@@ -330,6 +330,7 @@
       <ReportBuilder
         :project-id="projectId"
         @close="showReportBuilder = false"
+        @report-created="handleReportSaved"
       />
     </q-dialog>
   </div>
@@ -347,6 +348,7 @@ import ReportRenderer from '@/components/reports/ReportRenderer.vue'
 import { statisticsService } from '@/services/domain/statistics.service'
 import type { TaskStatistics, ProjectStatistics, TimelineData } from '@/services/domain/statistics.service'
 import type { ReportConfig } from '@/types/report'
+import { useReportManager } from '@/composables/useReportManager'
 
 interface Props {
   projectId?: string
@@ -384,8 +386,24 @@ const timelineData = ref<TimelineData[]>([])
 
 // 自訂報表相關狀態
 const showCustomReports = ref(false)
-const customReports = ref<ReportConfig[]>([])
 const showReportBuilder = ref(false)
+
+// 使用新的報表管理器
+const {
+  reports: customReports,
+  loading: reportsLoading,
+  error: reportsError,
+  hasReports,
+  reportCount,
+  createReport,
+  updateReport,
+  deleteReport,
+  duplicateReport,
+  refreshReports
+} = useReportManager({
+  projectId: props.projectId,
+  autoLoad: false // 手動控制載入時機
+})
 
 // 方法
 async function loadStatistics(): Promise<void> {
@@ -423,18 +441,17 @@ async function refreshData(): Promise<void> {
   }
 }
 
-function loadCustomReports(): void {
-  // 載入用戶自訂的報表配置
-  // 實際實作中應該從本地儲存或服務端載入
-  const savedReports = JSON.parse(localStorage.getItem('customReports') || '[]') as ReportConfig[]
-  customReports.value = savedReports.filter(report => 
-    !report.projectId || report.projectId === 'all' || report.projectId === props.projectId
-  )
+async function loadCustomReports(): Promise<void> {
+  try {
+    await refreshReports()
+  } catch (error) {
+    console.error('載入自訂報表失敗:', error)
+  }
 }
 
 function toggleCustomReports(): void {
   showCustomReports.value = !showCustomReports.value
-  if (showCustomReports.value && customReports.value.length === 0) {
+  if (showCustomReports.value && !hasReports.value) {
     void loadCustomReports()
   }
 }
@@ -443,80 +460,59 @@ function openReportBuilder(): void {
   showReportBuilder.value = true
 }
 
-function handleReportSaved(report: ReportConfig): void {
-  const existingIndex = customReports.value.findIndex(r => r.id === report.id)
+async function handleReportSaved(report: ReportConfig): Promise<void> {
+  // 新架構中報表已通過 ReportManager 自動處理
+  // 這裡只需要確保 UI 狀態更新
   
-  if (existingIndex > -1) {
-    customReports.value[existingIndex] = report
-  } else {
-    customReports.value.push(report)
+  // 確保自訂報表區域展開以顯示新報表
+  if (!showCustomReports.value) {
+    showCustomReports.value = true
   }
   
-  // 保存到本地儲存
-  const allReports = JSON.parse(localStorage.getItem('customReports') || '[]') as ReportConfig[]
-  const globalIndex = allReports.findIndex(r => r.id === report.id)
-  
-  if (globalIndex > -1) {
-    allReports[globalIndex] = report
-  } else {
-    allReports.push(report)
+  // 重新載入報表列表以確保同步
+  await loadCustomReports()
+}
+
+async function handleReportDeleted(reportId: string): Promise<void> {
+  // 新架構中刪除通過 ReportManager 處理
+  // 這裡只需要調用服務層方法
+  try {
+    await deleteReport(reportId)
+  } catch (error) {
+    console.error('刪除報表失敗:', error)
   }
-  
-  localStorage.setItem('customReports', JSON.stringify(allReports))
-  
-  $q.notify({
-    type: 'positive',
-    message: '自訂報表已儲存'
-  })
 }
 
-function handleReportDeleted(reportId: string): void {
-  customReports.value = customReports.value.filter(r => r.id !== reportId)
-  
-  // 從本地儲存刪除
-  const allReports = JSON.parse(localStorage.getItem('customReports') || '[]') as ReportConfig[]
-  const filteredReports = allReports.filter(r => r.id !== reportId)
-  localStorage.setItem('customReports', JSON.stringify(filteredReports))
-  
-  $q.notify({
-    type: 'positive',
-    message: '自訂報表已刪除'
-  })
-}
-
-function editReport(_report: ReportConfig): void {
+function editReport(report: ReportConfig): void {
   // 這裡應該打開編輯對話框
   // 由於 ReportBuilder 本身就有編輯功能，我們可以直接使用
+  // TODO: 傳遞報表資料給 ReportBuilder 進行編輯
   showReportBuilder.value = true
 }
 
-function duplicateReport(report: ReportConfig): void {
-  const duplicated: ReportConfig = {
-    ...report,
-    id: `${report.id}-copy-${Date.now()}`,
-    name: `${report.name} (副本)`,
-    createdAt: new Date(),
-    updatedAt: new Date()
+async function handleDuplicateReport(report: ReportConfig): Promise<void> {
+  try {
+    await duplicateReport(report.id, `${report.name} (副本)`)
+  } catch (error) {
+    console.error('複製報表失敗:', error)
   }
-  
-  handleReportSaved(duplicated)
 }
 
-function deleteReport(report: ReportConfig): void {
+function handleDeleteReport(report: ReportConfig): void {
   $q.dialog({
     title: '確認刪除',
     message: `確定要刪除報表「${report.name}」嗎？此操作無法撤銷。`,
     cancel: true,
     persistent: true
-  }).onOk(() => {
-    handleReportDeleted(report.id)
+  }).onOk(async () => {
+    await handleReportDeleted(report.id)
   })
 }
 
 // 初始化
 onMounted(async () => {
   await loadStatistics()
-  loadCustomReports()
+  await loadCustomReports()
   isLoading.value = false
 })
 
@@ -525,7 +521,7 @@ import { watch } from 'vue'
 watch(() => props.projectId, async () => {
   isLoading.value = true
   await loadStatistics()
-  loadCustomReports()
+  await loadCustomReports()
   isLoading.value = false
 })
 </script>

@@ -13,6 +13,7 @@ import type {
   ViewConfiguration,
   ViewPreset,
 } from '@/types';
+import type { ReportEntity } from '@/types/report';
 
 /**
  * 資料庫類別
@@ -26,6 +27,7 @@ export class AppDatabase extends Dexie {
   customFields!: Table<CustomField>;
   viewConfigurations!: Table<ViewConfiguration>;
   viewPresets!: Table<ViewPreset>;
+  reports!: Table<ReportEntity>;
 
   constructor() {
     super('TaskManagementDB');
@@ -78,6 +80,46 @@ export class AppDatabase extends Dexie {
           });
       });
 
+    // 版本 3 - 新增報表表格
+    this.version(3)
+      .stores({
+        // 報表表格 - 新增自訂報表儲存
+        reports: 'id, projectId, createdBy, name, chartType, dimension, isTemplate, isActive, order, createdAt, updatedAt, [projectId+createdBy], [projectId+isTemplate]',
+      })
+      .upgrade(async (tx) => {
+        // 遷移現有 localStorage 報表資料到 IndexedDB
+        try {
+          const existingReports = localStorage.getItem('customReports');
+          if (existingReports) {
+            const reports = JSON.parse(existingReports) as ReportEntity[];
+            
+            if (Array.isArray(reports) && reports.length > 0) {
+              // 批量插入到新的 reports 表格
+              await tx.table('reports').bulkAdd(reports.map(report => ({
+                ...report,
+                // 確保必要欄位存在
+                id: report.id || `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                createdAt: report.createdAt || new Date(),
+                updatedAt: report.updatedAt || new Date(),
+                isActive: report.isActive ?? true,
+                order: report.order ?? 0,
+                isTemplate: report.isTemplate ?? false,
+                isPublic: report.isPublic ?? false
+              })));
+              
+              // 成功遷移後，備份 localStorage 資料然後清除
+              localStorage.setItem('customReports_backup', existingReports);
+              localStorage.removeItem('customReports');
+              
+              console.log(`已成功遷移 ${reports.length} 個報表從 localStorage 到 IndexedDB`);
+            }
+          }
+        } catch (error) {
+          console.warn('報表資料遷移過程中發生錯誤:', error);
+          // 遷移失敗不應該阻止資料庫升級
+        }
+      });
+
     // 映射到類別屬性
     this.users = this.table('users');
     this.projects = this.table('projects');
@@ -86,6 +128,7 @@ export class AppDatabase extends Dexie {
     this.customFields = this.table('customFields');
     this.viewConfigurations = this.table('viewConfigurations');
     this.viewPresets = this.table('viewPresets');
+    this.reports = this.table('reports');
   }
 
   /**
@@ -102,6 +145,7 @@ export class AppDatabase extends Dexie {
         this.customFields,
         this.viewConfigurations,
         this.viewPresets,
+        this.reports,
       ],
       async () => {
         await Promise.all([
@@ -112,6 +156,7 @@ export class AppDatabase extends Dexie {
           this.customFields.clear(),
           this.viewConfigurations.clear(),
           this.viewPresets.clear(),
+          this.reports.clear(),
         ]);
       },
     );
@@ -136,6 +181,7 @@ export class AppDatabase extends Dexie {
     customFields: number;
     viewConfigurations: number;
     viewPresets: number;
+    reports: number;
   }> {
     const [
       users,
@@ -145,6 +191,7 @@ export class AppDatabase extends Dexie {
       customFields,
       viewConfigurations,
       viewPresets,
+      reports,
     ] = await Promise.all([
       this.users.count(),
       this.projects.count(),
@@ -153,6 +200,7 @@ export class AppDatabase extends Dexie {
       this.customFields.count(),
       this.viewConfigurations.count(),
       this.viewPresets.count(),
+      this.reports.count(),
     ]);
 
     return {
@@ -163,6 +211,7 @@ export class AppDatabase extends Dexie {
       customFields,
       viewConfigurations,
       viewPresets,
+      reports,
     };
   }
 }
